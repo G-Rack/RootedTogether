@@ -124,11 +124,11 @@ export default function MyOfferingsPage() {
             );
             const actions = (
               <>
-                <Link href={`/dashboard/upload?id=${o.id}`} className="btn btn-outline btn-small">Edit</Link>
-                <button onClick={() => togglePublish(o)} className="btn btn-outline btn-small">
+                <Link href={`/dashboard/upload?id=${o.id}`} className="btn btn-outline btn-xs">Edit</Link>
+                <button onClick={() => togglePublish(o)} className="btn btn-outline btn-xs">
                   {o.status === 'published' ? 'Unpublish' : 'Publish'}
                 </button>
-                <button onClick={() => deleteOffering(o)} className="btn btn-outline btn-small">Delete</button>
+                <button onClick={() => deleteOffering(o)} className="btn btn-outline btn-xs">Delete</button>
               </>
             );
             return (
