@@ -370,13 +370,15 @@ export default function CreatorStorefrontClient() {
           )}
         </div>
 
-        {!isSelf && (
+        {(
           <div style={{ paddingBottom: 64 }}>
             <div className="serif" style={{ fontSize: 19, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
               Additional Services
             </div>
             <div className="muted" style={{ fontSize: 13.5, marginBottom: 20 }}>
-              Personal requests held between you and {profile.name.split(' ')[0]} — not part of the offerings above.
+              {isSelf
+                ? 'Preview: this is how visitors see your Additional Services.'
+                : `Personal requests held between you and ${profile.name.split(' ')[0]} — not part of the offerings above.`}
             </div>
             <div className="grid-cards">
               {SERVICES.map((service) => {
@@ -401,7 +403,7 @@ export default function CreatorStorefrontClient() {
                     <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-soft)', flex: 1 }}>{service.description}</div>
                     <button
                       onClick={() => requestService(service.key)}
-                      disabled={sent}
+                      disabled={sent || isSelf}
                       className={sent ? 'btn btn-outline btn-small' : 'btn btn-primary btn-small'}
                       style={{ alignSelf: 'flex-start' }}
                     >
