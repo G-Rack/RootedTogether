@@ -1,0 +1,301 @@
+:root {
+  --brown: #6B4226;
+  --brown-light: #8C6A4A;
+  --brown-pale: #C9AD8E;
+  --cream: #FBF6EF;
+  --cream-dark: #F3ECE3;
+  --text: #2B2118;
+  --text-soft: #6b5f50;
+  --white: #FFFFFF;
+  --success-bg: #EFF5EC;
+  --success-border: #B9D6AE;
+  --success-text: #3F6B39;
+  --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  padding: 0;
+  margin: 0;
+  background: var(--cream);
+  color: var(--text);
+  font-family: var(--sans);
+  /* Belt-and-braces against any element quietly forcing the page wider
+     than the screen (a stray fixed width, an un-wrapped grid track, a
+     table) — without this, mobile Safari lets you drag the whole page
+     sideways instead of it staying put. */
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+a { color: var(--brown); text-decoration: none; }
+a:hover { color: var(--brown-light); }
+
+button { font-family: var(--sans); cursor: pointer; }
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 64px;
+}
+
+@media (max-width: 900px) {
+  .container { padding: 0 24px; }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 0 16px; }
+}
+
+/* Full-bleed section that just needs the same responsive side gutters as
+   .container, without the max-width/centering (for colored full-width
+   bands like "How it works" or the final CTA). */
+.section-x {
+  padding-left: 64px;
+  padding-right: 64px;
+}
+@media (max-width: 900px) {
+  .section-x { padding-left: 24px; padding-right: 24px; }
+}
+@media (max-width: 480px) {
+  .section-x { padding-left: 16px; padding-right: 16px; }
+}
+
+/* Generic responsive 2-column split (form + preview, main + sidebar,
+   about + connect, etc). Set --col-a/--col-b/--col-gap inline per use to
+   control the ratio; below the breakpoint it always collapses to one
+   column so nothing needs a bespoke media query. */
+.responsive-2col {
+  display: grid;
+  /* minmax(0, …) instead of a bare fr unit: a grid track's automatic
+     minimum width is otherwise its content's min-content size, which for
+     a full-width form field can be wider than the whole card on a phone
+     — this is what forces the column (and the page) wider than the
+     screen instead of the field just shrinking to fit. */
+  grid-template-columns: minmax(0, var(--col-a, 1fr)) minmax(0, var(--col-b, 1fr));
+  gap: var(--col-gap, 24px);
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .responsive-2col { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Same idea for a 3-up stat row. */
+.responsive-3col {
+  display: grid;
+  grid-template-columns: minmax(0, var(--col-a, 1fr)) minmax(0, var(--col-b, 1fr)) minmax(0, var(--col-c, 1fr));
+  gap: var(--col-gap, 16px);
+}
+@media (max-width: 700px) {
+  .responsive-3col { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Pairs of desktop-table / mobile-card views for tabular data — show
+   exactly one of the two at a given width instead of trying to squeeze a
+   many-column grid onto a phone screen. */
+/* !important is required here: the desktop rows set their own inline
+   `display: grid` (for the column layout), which would otherwise beat a
+   plain stylesheet rule and leave both versions visible at once. */
+.desktop-only { display: block; }
+.mobile-only { display: none !important; }
+@media (max-width: 700px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+}
+
+.serif { font-family: var(--serif); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: none;
+  transition: opacity 0.15s ease;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:hover:not(:disabled) { opacity: 0.9; }
+
+.btn-primary { background: var(--brown); color: var(--white); }
+.btn-outline { background: transparent; color: var(--brown); border: 1px solid var(--brown-pale); }
+.btn-small { padding: 9px 16px; font-size: 13px; }
+
+.card {
+  background: var(--white);
+  border: 1px solid rgba(107, 66, 38, 0.12);
+  border-radius: 16px;
+}
+
+.badge {
+  display: inline-block;
+  background: var(--cream-dark);
+  color: var(--brown);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+}
+
+.avatar {
+  border-radius: 999px;
+  background: var(--brown);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Native file-picker inputs (Choose File / no file selected) render at a
+   fixed intrinsic width in mobile Safari and don't shrink to fit a narrow
+   flex row on their own — this stops them quietly forcing the page wider
+   than the screen. */
+input[type='file'] {
+  max-width: 100%;
+}
+
+.input-field {
+  width: 100%;
+  /* Text inputs/textareas carry a browser-default minimum width (based on
+     the implicit `size` a plain <input> gets) that `width: 100%` doesn't
+     override — on a narrow screen that floor can be wider than the field's
+     container, quietly forcing the whole card wider than the phone.
+     min-width: 0 removes that floor so the field actually shrinks to fit. */
+  min-width: 0;
+  background: var(--white);
+  border: 1px solid rgba(107, 66, 38, 0.14);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: var(--text);
+  font-family: var(--sans);
+}
+.input-field::placeholder { color: var(--text-soft); }
+
+.field-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 7px;
+  display: block;
+}
+
+.muted { color: var(--text-soft); }
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--cream-dark) 25%, #eee2d3 37%, var(--cream-dark) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: 10px;
+}
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.error-banner {
+  background: #FBEAEA;
+  border: 1px solid #E3B4B4;
+  color: #8A2C2C;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+}
+
+.success-banner {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13.5px;
+}
+
+/* Creator dashboard shell: a fixed sidebar next to content on desktop; a
+   hamburger-triggered slide-over drawer on mobile. */
+.dashboard-mobile-bar { display: none; }
+.dashboard-scrim { display: none; }
+
+@media (max-width: 860px) {
+  .dashboard-shell { flex-direction: column; }
+
+  .dashboard-mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--white);
+    border-bottom: 1px solid rgba(107, 66, 38, 0.1);
+  }
+
+  .dashboard-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18);
+  }
+  .dashboard-sidebar.open { transform: translateX(0); }
+
+  .dashboard-scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 33, 24, 0.35);
+    z-index: 30;
+  }
+  .dashboard-scrim.open { display: block; }
+
+  .dashboard-content { padding: 20px !important; }
+
+  .dashboard-sidebar-close { display: inline-flex !important; }
+}
+
+/* Site header: full nav row on desktop; a hamburger + dropdown panel on
+   mobile (the toggle button and dropdown are rendered in the DOM always,
+   CSS just decides which set is visible at a given width). */
+@media (max-width: 760px) {
+  .desktop-nav-links { display: none !important; }
+  .desktop-auth-actions { display: none !important; }
+  .mobile-menu-toggle { display: block !important; }
+  .mobile-menu-panel { display: flex !important; }
+}
+
+/* Sticky side panel (offering detail sidebar, branding preview, etc):
+   sticky alongside the main content on desktop, static once the layout
+   collapses to one column on mobile. */
+.sticky-panel { position: sticky; top: 20px; }
+@media (max-width: 860px) {
+  .sticky-panel { position: static; }
+}
+
+/* Login page: brand panel + form panel side by side on desktop, stacked
+   on mobile. */
+.login-shell { display: flex; }
+.login-brand { flex: 1; }
+.login-form-panel { width: 480px; flex-shrink: 0; }
+
+@media (max-width: 860px) {
+  .login-shell { flex-direction: column; min-height: auto !important; }
+  .login-brand { flex: none; padding: 40px 24px !important; text-align: center; align-items: center; }
+  .login-brand > div { max-width: none !important; }
+  .login-form-panel { width: 100%; padding: 32px 24px !important; }
+}

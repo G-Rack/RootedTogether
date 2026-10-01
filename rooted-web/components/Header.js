@@ -1,0 +1,177 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from './SessionProvider';
+import { initialsFor } from '@/lib/roles';
+
+const NAV_LINKS = [
+  { href: '/', label: 'Marketplace' },
+  { href: '/?type=course', label: 'Courses' },
+  { href: '/?type=ebook', label: 'Ebooks' },
+  { href: '/?type=call', label: '1:1 Calls' },
+  { href: '#how-it-works', label: 'For Creators' },
+];
+
+export default function Header() {
+  const { session, profile, isCreator, signOut } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isHome = pathname === '/';
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Close the mobile menu whenever the route changes (back/forward nav,
+  // programmatic redirects, etc) — adjusted during render per React's
+  // guidance, rather than in an effect, to avoid an extra render pass.
+  const [menuPathname, setMenuPathname] = useState(pathname);
+  if (pathname !== menuPathname) {
+    setMenuPathname(pathname);
+    setMenuOpen(false);
+  }
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    await signOut();
+    router.push('/');
+  };
+
+  return (
+    <div style={{ position: 'relative', background: 'var(--white)', borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+      <div
+        className="section-x"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: '76px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
+          <Link href="/" className="serif" style={{ fontSize: isHome ? 21 : 19, fontWeight: 700, color: 'var(--brown)' }}>
+            Rooted Together
+          </Link>
+          {isHome && (
+            <div className="desktop-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+              {NAV_LINKS.map((l) => (
+                <Link key={l.label} href={l.href} style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="desktop-auth-actions" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {!session && (
+            <>
+              <Link href="/login" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                Log In
+              </Link>
+              {isHome ? (
+                <Link href="/login?tab=signup" className="btn btn-outline btn-small">Sign Up</Link>
+              ) : null}
+              <Link href="/login?tab=signup" className="btn btn-primary btn-small">
+                {isHome ? 'Become a Creator' : 'Sign Up'}
+              </Link>
+            </>
+          )}
+
+          {session && (
+            <>
+              <button
+                onClick={handleSignOut}
+                style={{ background: 'none', border: 'none', fontSize: 14, fontWeight: 600, color: 'var(--text-soft)' }}
+              >
+                Log out
+              </button>
+              {isCreator ? (
+                <Link
+                  href="/dashboard"
+                  className="avatar"
+                  style={{ width: 34, height: 34, fontSize: 13 }}
+                  title="Go to your creator dashboard"
+                >
+                  {initialsFor(profile?.full_name || session.user.email)}
+                </Link>
+              ) : (
+                <div
+                  className="avatar"
+                  style={{ width: 34, height: 34, fontSize: 13 }}
+                  title={profile?.full_name || session.user.email}
+                >
+                  {initialsFor(profile?.full_name || session.user.email)}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Mobile: a single hamburger toggles a dropdown with everything
+            the desktop row shows split across nav links + auth actions. */}
+        <button
+          className="mobile-menu-toggle"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          style={{ display: 'none', background: 'none', border: 'none', padding: 8, marginRight: -8 }}
+        >
+          {menuOpen ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brown)" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brown)" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          )}
+        </button>
+      </div>
+
+      {menuOpen && (
+        <div
+          className="mobile-menu-panel"
+          style={{
+            display: 'none',
+            flexDirection: 'column',
+            gap: 4,
+            padding: '8px 16px 20px',
+            borderTop: '1px solid rgba(107,66,38,0.1)',
+            background: 'var(--white)',
+          }}
+        >
+          {isHome && NAV_LINKS.map((l) => (
+            <Link
+              key={l.label}
+              href={l.href}
+              onClick={() => setMenuOpen(false)}
+              style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, padding: '12px 4px', borderBottom: '1px solid rgba(107,66,38,0.06)' }}
+            >
+              {l.label}
+            </Link>
+          ))}
+
+          {!session ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+              <Link href="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline">Log In</Link>
+              <Link href="/login?tab=signup" onClick={() => setMenuOpen(false)} className="btn btn-primary">
+                {isHome ? 'Become a Creator' : 'Sign Up'}
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px' }}>
+                <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>
+                  {initialsFor(profile?.full_name || session.user.email)}
+                </div>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>
+                  {profile?.full_name || session.user.email}
+                </span>
+              </div>
+              {isCreator && (
+                <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="btn btn-outline">
+                  Creator Dashboard
+                </Link>
+              )}
+              <button onClick={handleSignOut} className="btn btn-outline">Log out</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
