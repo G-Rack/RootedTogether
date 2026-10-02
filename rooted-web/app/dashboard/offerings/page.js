@@ -181,7 +181,7 @@ export default function MyOfferingsPage() {
                     <span className="muted">·</span>
                     <span className="muted">{sales[o.id] || 0} sales</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
                     {actions}
                   </div>
                 </div>
