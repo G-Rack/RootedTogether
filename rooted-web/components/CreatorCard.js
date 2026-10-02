@@ -12,7 +12,7 @@ export default function CreatorCard({ creator, handle, avatarPath, bannerPath })
     <Link href={`/creator/${handle}`} className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div
         style={{
-          height: 64,
+          height: 120,
           background: banner ? `center 70% / cover no-repeat url(${banner})` : 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
         }}
       />
