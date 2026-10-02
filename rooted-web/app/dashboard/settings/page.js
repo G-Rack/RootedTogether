@@ -39,7 +39,9 @@ function LinkRow({ href, label, external }) {
 export default function SettingsPage() {
   const { session, profile, signOut } = useSession();
   const router = useRouter();
-  const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -48,18 +50,47 @@ export default function SettingsPage() {
     e.preventDefault();
     setError('');
     setSaved(false);
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+
+    if (!currentPassword) {
+      setError('Enter your current password.');
       return;
     }
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New passwords don’t match.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setError('New password must be different from your current password.');
+      return;
+    }
+
     setBusy(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+
+    // Supabase has no direct "verify current password" call, so we confirm it
+    // the same way sign-in does: re-authenticate with it before changing anything.
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: currentPassword,
+    });
+    if (verifyError) {
+      setBusy(false);
+      setError('Current password is incorrect.');
+      return;
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
     setBusy(false);
     if (updateError) {
       setError("Couldn't update your password — please try again.");
       return;
     }
-    setPassword('');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
     setSaved(true);
   };
 
@@ -88,10 +119,23 @@ export default function SettingsPage() {
               {error && <div className="error-banner">{error}</div>}
               {saved && <div className="success-banner">Password updated.</div>}
               <PasswordField
+                placeholder="Current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              <PasswordField
                 minLength={8}
                 placeholder="New password (at least 8 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+              <PasswordField
+                minLength={8}
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
               />
               <button type="submit" disabled={busy} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
