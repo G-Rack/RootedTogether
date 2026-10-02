@@ -20,17 +20,17 @@ export default function CreatorCard({ creator, handle, avatarPath, bannerPath })
         {avatar ? (
           <div
             style={{
-              width: 52,
-              height: 52,
+              width: 78,
+              height: 78,
               borderRadius: 999,
               flexShrink: 0,
               border: '3px solid var(--white)',
-              marginTop: -26,
+              marginTop: -39,
               background: `center / cover no-repeat url(${avatar})`,
             }}
           />
         ) : (
-          <div className="avatar" style={{ width: 52, height: 52, fontSize: 18, border: '3px solid var(--white)', marginTop: -26 }}>
+          <div className="avatar" style={{ width: 78, height: 78, fontSize: 22, border: '3px solid var(--white)', marginTop: -39 }}>
             {initialsFor(creator.name)}
           </div>
         )}
