@@ -13,7 +13,7 @@ export default function CreatorCard({ creator, handle, avatarPath, bannerPath })
       <div
         style={{
           height: 64,
-          background: banner ? `center / cover no-repeat url(${banner})` : 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
+          background: banner ? `center 70% / cover no-repeat url(${banner})` : 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
         }}
       />
       <div style={{ padding: '0 22px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
