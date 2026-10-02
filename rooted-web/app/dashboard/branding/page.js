@@ -82,17 +82,17 @@ function StorefrontPreview({ storefront, profile, stats, avatarPath }) {
         {avatar ? (
           <div
             style={{
-              width: 56,
-              height: 56,
+              width: 84,
+              height: 84,
               borderRadius: 999,
               border: '3px solid var(--white)',
-              marginTop: -28,
+              marginTop: -42,
               marginBottom: 10,
               background: `center / cover no-repeat url(${avatar})`,
             }}
           />
         ) : (
-          <div className="avatar" style={{ width: 56, height: 56, fontSize: 18, border: '3px solid var(--white)', marginTop: -28, marginBottom: 10 }}>
+          <div className="avatar" style={{ width: 84, height: 84, fontSize: 24, border: '3px solid var(--white)', marginTop: -42, marginBottom: 10 }}>
             {initialsFor(name)}
           </div>
         )}
