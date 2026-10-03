@@ -210,11 +210,16 @@ function LoginForm({ router }) {
 }
 
 function SignupForm({ router }) {
+  const searchParams = useSearchParams();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState('');
   const [religion, setReligion] = useState('');
   const [password, setPassword] = useState('');
+  // Prefilled from a referral link (?ref=RT-00042) when present, but always
+  // left editable — this is also how someone invited in person or by a
+  // printed/QR code types a code in by hand instead of following a link.
+  const [referralCode, setReferralCode] = useState(searchParams.get('ref') || '');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -240,6 +245,7 @@ function SignupForm({ router }) {
             Religion: religion,
           },
           password,
+          referredByCode: referralCode.trim() || undefined,
         }),
       });
       const body = await res.json();
@@ -296,6 +302,18 @@ function SignupForm({ router }) {
           minLength={8}
           autoComplete="new-password"
         />
+      </div>
+      <div>
+        <label className="field-label">Referral code (optional)</label>
+        <input
+          className="input-field"
+          value={referralCode}
+          onChange={(e) => setReferralCode(e.target.value)}
+          placeholder="RT-00042"
+        />
+        <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+          Were you invited by someone on Rooted Together? Enter their code and they&rsquo;ll be credited.
+        </div>
       </div>
       <button type="submit" disabled={busy} className="btn btn-primary" style={{ marginTop: 4 }}>
         {busy ? 'Creating account…' : 'Create account'}
