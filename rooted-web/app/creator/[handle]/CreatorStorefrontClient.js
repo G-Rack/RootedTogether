@@ -13,15 +13,16 @@ import { fetchCreatorReviewStats, fetchCreatorReviews } from '@/lib/reviews';
 
 const TYPE_TABS = ['all', 'course', 'ebook', 'routine', 'call'];
 
-// Personal, held-in-private requests — distinct from the published
-// Offerings grid above. There's no request backend on the website (the
-// storefront is a read-only shopfront; all messaging happens in the
-// Rooted Together app), so tapping "Request" here just confirms the ask
-// and points the visitor to the app to actually send it, the same way
-// "Message in the app" already works for Follow above.
+// Each service links to its own dedicated request page
+// (/creator/[handle]/prayer, /meditation, /request) where a visitor picks
+// what they need and, for Prayer/Meditation, a package. Submitting there
+// doesn't hit a backend yet — it confirms locally, the same way "Message
+// in the app" does above — so the visitor finishes the conversation in
+// the Rooted Together app.
 const SERVICES = [
   {
     key: 'prayer',
+    routeSuffix: 'prayer',
     title: 'Daily Prayers',
     description: 'Ask them to hold something specific in prayer each day this week — for you, or for someone you love.',
     icon: (
@@ -35,6 +36,7 @@ const SERVICES = [
   },
   {
     key: 'meditation',
+    routeSuffix: 'meditation',
     title: 'Meditation',
     description: 'A guided meditation for peace, love, or provision — whichever you need right now.',
     icon: (
@@ -46,6 +48,7 @@ const SERVICES = [
   },
   {
     key: 'special',
+    routeSuffix: 'request',
     title: 'Special Requests',
     description: "Something specific on your heart that doesn't fit the above? Send a private request.",
     icon: (
@@ -73,7 +76,6 @@ export default function CreatorStorefrontClient() {
   const [tab, setTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [sentServices, setSentServices] = useState(() => new Set());
 
   useEffect(() => {
     let active = true;
@@ -152,11 +154,6 @@ export default function CreatorStorefrontClient() {
       setIsFollowing(true);
     }
     setFollowBusy(false);
-  };
-
-  const requestService = (key) => {
-    if (sentServices.has(key)) return;
-    setSentServices((prev) => new Set(prev).add(key));
   };
 
   if (loading) {
@@ -381,40 +378,39 @@ export default function CreatorStorefrontClient() {
                 : `Personal requests held between you and ${profile.name.split(' ')[0]} — not part of the offerings above.`}
             </div>
             <div className="grid-cards">
-              {SERVICES.map((service) => {
-                const sent = sentServices.has(service.key);
-                return (
-                  <div key={service.key} className="card" style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 999,
-                        background: 'var(--cream-dark)',
-                        color: 'var(--brown)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {service.icon}
-                    </div>
-                    <div className="serif" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{service.title}</div>
-                    <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-soft)', flex: 1 }}>{service.description}</div>
-                    <button
-                      onClick={() => requestService(service.key)}
-                      disabled={sent || isSelf}
-                      className={sent ? 'btn btn-outline btn-small' : 'btn btn-primary btn-small'}
-                      style={{ alignSelf: 'flex-start' }}
-                    >
-                      {sent ? 'Sent' : 'Request'}
-                    </button>
-                    <div className="muted" style={{ fontSize: 12, minHeight: 16 }}>
-                      {sent ? `Open the Rooted Together app to finish this request with ${profile.name.split(' ')[0]}.` : ''}
-                    </div>
+              {SERVICES.map((service) => (
+                <div key={service.key} className="card" style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 999,
+                      background: 'var(--cream-dark)',
+                      color: 'var(--brown)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {service.icon}
                   </div>
-                );
-              })}
+                  <div className="serif" style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{service.title}</div>
+                  <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-soft)', flex: 1 }}>{service.description}</div>
+                  {isSelf ? (
+                    <span
+                      className="btn btn-outline btn-small"
+                      title="Visitors see this button linked to a request page — you can't request from yourself"
+                      style={{ alignSelf: 'flex-start', opacity: 0.55, cursor: 'default', pointerEvents: 'none' }}
+                    >
+                      Request
+                    </span>
+                  ) : (
+                    <a href={`/creator/${handle}/${service.routeSuffix}`} className="btn btn-primary btn-small" style={{ alignSelf: 'flex-start' }}>
+                      Request
+                    </a>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
