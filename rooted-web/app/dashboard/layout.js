@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
 import { initialsFor, ROLE_LABELS } from '@/lib/roles';
+import { avatarUrl } from '@/lib/storage';
 
 async function handleLogout(signOut, router) {
   await signOut();
@@ -80,9 +81,10 @@ const NAV = [
 ];
 
 export default function DashboardLayout({ children }) {
-  const { session, profile, isCreator, loading, signOut } = useSession();
+  const { session, profile, isCreator, avatarPath, loading, signOut } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const avatar = avatarUrl(avatarPath);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Close the mobile drawer whenever the route changes — adjusted during
   // render per React's guidance, rather than in an effect, to avoid an
@@ -155,8 +157,15 @@ export default function DashboardLayout({ children }) {
             marginBottom: 16,
           }}
         >
-          <div className="avatar" style={{ width: 38, height: 38, fontSize: 14 }}>
-            {initialsFor(profile?.full_name)}
+          <div
+            className={avatar ? undefined : 'avatar'}
+            style={
+              avatar
+                ? { width: 38, height: 38, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
+                : { width: 38, height: 38, fontSize: 14 }
+            }
+          >
+            {!avatar && initialsFor(profile?.full_name)}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

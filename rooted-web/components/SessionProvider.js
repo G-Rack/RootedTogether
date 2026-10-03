@@ -7,6 +7,7 @@ const SessionContext = createContext({
   session: null,
   profile: null,
   isCreator: false,
+  avatarPath: null,
   loading: true,
   refreshProfile: () => {},
   signOut: () => {},
@@ -26,20 +27,28 @@ export default function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
+  // The creator's website profile picture (creator_storefronts.avatar_path) —
+  // loaded here, alongside the profile row, so the header and dashboard
+  // sidebar can both show the real photo instead of just initials, without
+  // each needing its own Supabase query.
+  const [avatarPath, setAvatarPath] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (userId) => {
     if (!userId) {
       setProfile(null);
       setIsCreator(false);
+      setAvatarPath(null);
       return;
     }
-    const [{ data: profileRow }, { data: creatorFlag }] = await Promise.all([
+    const [{ data: profileRow }, { data: creatorFlag }, { data: storefront }] = await Promise.all([
       supabase.from('profiles').select('id, role, full_name, is_premium').eq('id', userId).maybeSingle(),
       supabase.rpc('is_valid_creator', { check_auth_id: userId }),
+      supabase.from('creator_storefronts').select('avatar_path').eq('auth_user_id', userId).maybeSingle(),
     ]);
     setProfile(profileRow || null);
     setIsCreator(!!creatorFlag);
+    setAvatarPath(storefront?.avatar_path || null);
   }, []);
 
   useEffect(() => {
@@ -72,7 +81,7 @@ export default function SessionProvider({ children }) {
   }, [session, loadProfile]);
 
   return (
-    <SessionContext.Provider value={{ session, profile, isCreator, loading, refreshProfile, signOut }}>
+    <SessionContext.Provider value={{ session, profile, isCreator, avatarPath, loading, refreshProfile, signOut }}>
       {children}
     </SessionContext.Provider>
   );

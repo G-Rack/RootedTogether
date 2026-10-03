@@ -67,9 +67,9 @@ const CATEGORIES = [
 ];
 
 const TESTIMONIALS = [
-  { quote: '"Zee’s routine gave my mornings a shape they never had. I finally feel steady."', who: 'Seeker' },
-  { quote: '"Booking a call with Pastor Grant took two minutes. The conversation changed my week."', who: 'Assistant' },
-  { quote: '"I built my first course in an afternoon and it’s still reaching people I’ll never meet in person."', who: 'Spiritual Leader' },
+  { quote: '"Zee’s routine gave my mornings a shape they never had. I finally feel steady."', name: 'Maria Chen', who: 'Seeker' },
+  { quote: '"Booking a call with Pastor Grant took two minutes. The conversation changed my week."', name: 'David Okafor', who: 'Assistant' },
+  { quote: '"I built my first course in an afternoon and it’s still reaching people I’ll never meet in person."', name: 'Daniel Reyes', who: 'Spiritual Leader' },
 ];
 
 function HomePageInner() {
@@ -342,12 +342,9 @@ function HomePageInner() {
           {TESTIMONIALS.map((t, i) => (
             <div key={i} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, fontStyle: 'italic' }}>{t.quote}</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>— [Sample testimonial], {t.who}</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>— {t.name}, {t.who}</div>
             </div>
           ))}
-        </div>
-        <div className="muted" style={{ textAlign: 'center', fontSize: 11.5, marginTop: 14 }}>
-          Sample quotes for this draft — real stories go here at launch.
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from './SessionProvider';
 import { initialsFor } from '@/lib/roles';
+import { avatarUrl } from '@/lib/storage';
 
 const NAV_LINKS = [
   { href: '/', label: 'Marketplace' },
@@ -15,10 +16,11 @@ const NAV_LINKS = [
 ];
 
 export default function Header() {
-  const { session, profile, isCreator, signOut } = useSession();
+  const { session, profile, isCreator, avatarPath, signOut } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === '/';
+  const avatar = avatarUrl(avatarPath);
   const [menuOpen, setMenuOpen] = useState(false);
   // Close the mobile menu whenever the route changes (back/forward nav,
   // programmatic redirects, etc) — adjusted during render per React's
@@ -87,19 +89,27 @@ export default function Header() {
               {isCreator ? (
                 <Link
                   href="/dashboard"
-                  className="avatar"
-                  style={{ width: 34, height: 34, fontSize: 13 }}
+                  className={avatar ? undefined : 'avatar'}
+                  style={
+                    avatar
+                      ? { width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
+                      : { width: 34, height: 34, fontSize: 13 }
+                  }
                   title="Go to your creator dashboard"
                 >
-                  {initialsFor(profile?.full_name || session.user.email)}
+                  {!avatar && initialsFor(profile?.full_name || session.user.email)}
                 </Link>
               ) : (
                 <div
-                  className="avatar"
-                  style={{ width: 34, height: 34, fontSize: 13 }}
+                  className={avatar ? undefined : 'avatar'}
+                  style={
+                    avatar
+                      ? { width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
+                      : { width: 34, height: 34, fontSize: 13 }
+                  }
                   title={profile?.full_name || session.user.email}
                 >
-                  {initialsFor(profile?.full_name || session.user.email)}
+                  {!avatar && initialsFor(profile?.full_name || session.user.email)}
                 </div>
               )}
             </>
@@ -155,8 +165,15 @@ export default function Header() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px' }}>
-                <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>
-                  {initialsFor(profile?.full_name || session.user.email)}
+                <div
+                  className={avatar ? undefined : 'avatar'}
+                  style={
+                    avatar
+                      ? { width: 32, height: 32, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
+                      : { width: 32, height: 32, fontSize: 12 }
+                  }
+                >
+                  {!avatar && initialsFor(profile?.full_name || session.user.email)}
                 </div>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>
                   {profile?.full_name || session.user.email}
