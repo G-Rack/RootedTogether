@@ -18,10 +18,10 @@ const TYPE_DOT = {
 // anywhere by anyone that creator has referred, for as long as the
 // referred person stays active.
 const REFERRAL_TIERS = [
-  { name: 'Seed', rate: 0.5, min: 1, max: 4 },
-  { name: 'Sapling', rate: 1, min: 5, max: 14 },
-  { name: 'Rooted', rate: 1.5, min: 15, max: 29 },
-  { name: 'Flourishing', rate: 2, min: 30, max: Infinity },
+  { name: 'Seed', rate: 0.5, min: 100, max: 249 },
+  { name: 'Sapling', rate: 1, min: 250, max: 499 },
+  { name: 'Rooted', rate: 1.5, min: 500, max: 999 },
+  { name: 'Flourishing', rate: 2, min: 1000, max: Infinity },
 ];
 
 function tierForCount(count) {
@@ -33,8 +33,8 @@ function tierForCount(count) {
 // referrals table, no signup attribution, and no commission ledger. This
 // section is a design concept to react to before any of that gets built.
 const SAMPLE_REFERRAL_DATA = {
-  referredCount: 6,
-  earningsCents: 38,
+  referredCount: 320,
+  earningsCents: 1842,
   recent: [
     { referredName: 'Aisha K.', offeringTitle: 'Rooted Mornings', purchaseCents: 800, cutCents: 8, date: '2026-10-03' },
     { referredName: 'Marcus T.', offeringTitle: 'A Sacred Conversation', purchaseCents: 900, cutCents: 9, date: '2026-10-01' },
