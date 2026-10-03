@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 
-const COLUMNS = '2.2fr 1fr 0.8fr 0.9fr 0.6fr 1.6fr';
+const COLUMNS = '1.7fr 0.8fr 0.65fr 0.8fr 0.5fr 2.6fr';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -152,7 +152,7 @@ export default function MyOfferingsPage() {
                   <span>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
                   {statusBadge}
                   <span>{sales[o.id] || '—'}</span>
-                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
                     {actions}
                   </div>
                 </div>
