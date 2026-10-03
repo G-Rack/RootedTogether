@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { useSession } from '@/components/SessionProvider';
 import { avatarUrl } from '@/lib/storage';
 import { initialsFor, ROLE_LABELS } from '@/lib/roles';
 
@@ -89,15 +90,22 @@ const SERVICE_CONFIG = {
 
 export default function ServiceRequestForm({ serviceKey }) {
   const { handle } = useParams();
+  const { session } = useSession();
   const [storefront, setStorefront] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [forWhom, setForWhom] = useState('myself');
+  const [forWhomName, setForWhomName] = useState('');
+  const [message, setMessage] = useState('');
   const [selectedTypes, setSelectedTypes] = useState({});
   const [selectedPackage, setSelectedPackage] = useState('week');
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -123,10 +131,51 @@ export default function ServiceRequestForm({ serviceKey }) {
     };
   }, [handle]);
 
+  // Prefill from the signed-in buyer's own account when we have one, but
+  // never overwrite something they've already started typing — and
+  // anonymous visitors (no session) just fill these in by hand.
+  useEffect(() => {
+    if (!session?.user) return;
+    setEmail((prev) => prev || session.user.email || '');
+  }, [session]);
+
   const config = SERVICE_CONFIG[serviceKey];
 
   const toggleType = (id) => {
     setSelectedTypes((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const submit = async () => {
+    if (!name.trim() || !email.trim()) {
+      setError('Please fill in your name and email so they know how to reach you.');
+      return;
+    }
+    setError('');
+    setBusy(true);
+
+    const focusAreas = config.types.length
+      ? config.types.filter((t) => selectedTypes[t.id]).map((t) => t.label)
+      : null;
+
+    const { error: insertError } = await supabase.from('service_requests').insert({
+      creator_auth_id: storefront.auth_user_id,
+      requester_auth_id: session?.user?.id || null,
+      requester_name: name.trim(),
+      requester_email: email.trim(),
+      service_type: serviceKey,
+      for_whom: config.hasForWhom ? forWhom : null,
+      for_whom_name: config.hasForWhom && forWhom === 'someone-else' ? forWhomName.trim() || null : null,
+      focus_areas: focusAreas && focusAreas.length > 0 ? focusAreas : null,
+      package_id: config.packages.length > 0 ? selectedPackage : null,
+      message: message.trim() || null,
+    });
+
+    setBusy(false);
+    if (insertError) {
+      setError("Something went wrong sending that — please try again.");
+      return;
+    }
+    setSubmitted(true);
   };
 
   if (loading) {
@@ -200,9 +249,18 @@ export default function ServiceRequestForm({ serviceKey }) {
             </div>
           )}
 
-          <div style={{ marginBottom: 16 }}>
-            <label className="field-label">Your name</label>
-            <input className="input-field" type="text" placeholder="e.g. Maria Chen" />
+          <div className="responsive-2col" style={{ '--col-gap': '12px', marginBottom: 16 }}>
+            <div>
+              <label className="field-label">Your name</label>
+              <input className="input-field" type="text" placeholder="e.g. Maria Chen" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div>
+              <label className="field-label">Your email</label>
+              <input className="input-field" type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+          </div>
+          <div className="muted" style={{ fontSize: 11.5, marginTop: -8, marginBottom: 16 }}>
+            {session?.user ? `${firstName} will see this come from your Rooted Together account.` : `No account needed — your email just lets ${firstName} reach you back.`}
           </div>
 
           {config.hasForWhom && (
@@ -230,7 +288,13 @@ export default function ServiceRequestForm({ serviceKey }) {
           {config.hasForWhom && forWhom === 'someone-else' && (
             <div style={{ marginBottom: 16 }}>
               <label className="field-label">Their name</label>
-              <input className="input-field" type="text" placeholder={`Who should ${firstName} be praying for?`} />
+              <input
+                className="input-field"
+                type="text"
+                placeholder={`Who should ${firstName} be praying for?`}
+                value={forWhomName}
+                onChange={(e) => setForWhomName(e.target.value)}
+              />
             </div>
           )}
 
@@ -240,6 +304,8 @@ export default function ServiceRequestForm({ serviceKey }) {
               className="input-field"
               rows={config.types.length ? 4 : 6}
               placeholder={config.detailsPlaceholder(firstName)}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
               style={{ resize: 'vertical', fontFamily: 'inherit' }}
             />
           </div>
@@ -312,8 +378,10 @@ export default function ServiceRequestForm({ serviceKey }) {
           </div>
         )}
 
-        <button type="button" onClick={() => setSubmitted(true)} disabled={submitted} className="btn btn-primary">
-          {submitted ? 'Sent' : config.submitLabel}
+        {error && <div className="error-banner" style={{ marginBottom: 14, maxWidth: 460 }}>{error}</div>}
+
+        <button type="button" onClick={submit} disabled={submitted || busy} className="btn btn-primary">
+          {submitted ? 'Sent' : busy ? 'Sending…' : config.submitLabel}
         </button>
         <div className="muted" style={{ fontSize: 12, marginTop: 10, maxWidth: 460, lineHeight: 1.5 }}>
           This sends your request straight to {firstName} &mdash; nothing is charged until they accept it.

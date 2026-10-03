@@ -13,11 +13,30 @@ const TYPE_DOT = {
   call: 'var(--text-soft)',
 };
 
+const REQUEST_TYPE_LABELS = {
+  prayer: 'Prayer',
+  meditation: 'Meditation',
+  special: 'Special Request',
+};
+
+const REQUEST_PACKAGE_LABELS = {
+  single: 'Single',
+  week: '7-Day',
+  month: '30-Day',
+};
+
+function summarizeRequest(r) {
+  if (r.focus_areas && r.focus_areas.length > 0) return r.focus_areas.join(', ');
+  if (r.message) return r.message.length > 90 ? `${r.message.slice(0, 90)}…` : r.message;
+  return 'No details added.';
+}
+
 export default function DashboardOverviewPage() {
   const { session, profile } = useSession();
   const [offerings, setOfferings] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [storefront, setStorefront] = useState(null);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,9 +44,15 @@ export default function DashboardOverviewPage() {
     let active = true;
 
     async function load() {
-      const [{ data: offeringRows }, { data: sf }] = await Promise.all([
+      const [{ data: offeringRows }, { data: sf }, { data: requestRows }] = await Promise.all([
         supabase.from('offerings').select('*').eq('creator_auth_id', session.user.id).order('created_at', { ascending: false }),
         supabase.from('creator_storefronts').select('*').eq('auth_user_id', session.user.id).maybeSingle(),
+        supabase
+          .from('service_requests')
+          .select('*')
+          .eq('creator_auth_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(8),
       ]);
       if (!active) return;
 
@@ -42,6 +67,7 @@ export default function DashboardOverviewPage() {
       setOfferings(offeringRows || []);
       setPurchases(purchaseRows);
       setStorefront(sf || null);
+      setRequests(requestRows || []);
       setLoading(false);
     }
 
@@ -50,6 +76,11 @@ export default function DashboardOverviewPage() {
       active = false;
     };
   }, [session]);
+
+  const markRequestDone = async (id) => {
+    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'done' } : r)));
+    await supabase.from('service_requests').update({ status: 'done' }).eq('id', id);
+  };
 
   const offeringById = useMemo(() => Object.fromEntries(offerings.map((o) => [o.id, o])), [offerings]);
 
@@ -63,6 +94,7 @@ export default function DashboardOverviewPage() {
     .reduce((sum, p) => sum + (p.price_paid_cents || 0), 0);
   const activeStudents = new Set(purchases.map((p) => p.buyer_auth_id)).size;
   const callBookings = purchases.filter((p) => offeringById[p.offering_id]?.type === 'call');
+  const newRequestsCount = requests.filter((r) => r.status === 'new').length;
 
   if (loading) {
     return <div className="skeleton" style={{ height: 300 }} />;
@@ -193,6 +225,80 @@ export default function DashboardOverviewPage() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="card" style={{ overflow: 'hidden', marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+          <span style={{ fontSize: 14.5, fontWeight: 700 }}>Personal Requests</span>
+          {newRequestsCount > 0 && (
+            <span
+              style={{
+                background: 'var(--success-bg)',
+                border: '1px solid var(--success-border)',
+                color: 'var(--success-text)',
+                borderRadius: 999,
+                padding: '3px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+            >
+              {newRequestsCount} new
+            </span>
+          )}
+          <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
+            Daily Prayers, Meditation &amp; Special Requests from your storefront
+          </span>
+        </div>
+
+        {requests.length === 0 && (
+          <div className="muted" style={{ padding: 20, fontSize: 13.5 }}>
+            Nothing yet — these show up here when a visitor requests prayer, meditation, or sends you a special request from your storefront.
+          </div>
+        )}
+
+        {requests.map((r, i) => (
+          <div
+            key={r.id}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 14,
+              padding: '14px 20px',
+              borderTop: i === 0 ? 'none' : '1px solid rgba(107,66,38,0.08)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span className="badge">{REQUEST_TYPE_LABELS[r.service_type] || r.service_type}</span>
+                {r.package_id && (
+                  <span className="muted" style={{ fontSize: 11.5 }}>
+                    {REQUEST_PACKAGE_LABELS[r.package_id] || r.package_id}
+                  </span>
+                )}
+                {r.status === 'new' ? (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success-text)' }}>&bull; New</span>
+                ) : (
+                  <span className="muted" style={{ fontSize: 11 }}>&bull; Done</span>
+                )}
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                {r.requester_name}
+                {r.for_whom === 'someone-else' && r.for_whom_name ? ` — for ${r.for_whom_name}` : ''}
+              </div>
+              <div className="muted" style={{ fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }}>{summarizeRequest(r)}</div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                {r.requester_email} &middot; {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </div>
+            </div>
+            {r.status === 'new' && (
+              <button type="button" onClick={() => markRequestDone(r.id)} className="btn btn-outline btn-small" style={{ flexShrink: 0 }}>
+                Mark done
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
