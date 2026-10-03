@@ -7,12 +7,15 @@ import { useSession } from './SessionProvider';
 import { initialsFor } from '@/lib/roles';
 import { avatarUrl } from '@/lib/storage';
 
+// Purpose-based instead of listing offering types: the homepage already has
+// filter pills (All / Course / Ebook / Daily Routine / 1:1 Call) right above
+// the offerings grid, so repeating a few of those types up here just
+// duplicated that control — and had drifted out of sync with it (missing
+// Daily Routines entirely).
 const NAV_LINKS = [
   { href: '/', label: 'Marketplace' },
-  { href: '/?type=course', label: 'Courses' },
-  { href: '/?type=ebook', label: 'Ebooks' },
-  { href: '/?type=call', label: '1:1 Calls' },
-  { href: '#how-it-works', label: 'For Creators' },
+  { href: '#how-it-works', label: 'How It Works' },
+  { href: '/login?tab=signup', label: 'For Creators' },
 ];
 
 export default function Header() {
