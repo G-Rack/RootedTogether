@@ -3,7 +3,7 @@ import SessionProvider from '@/components/SessionProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
-const SITE_URL = 'https://rooted-together-website1.vercel.app';
+const SITE_URL = 'https://rootedtogether.club';
 const SITE_TITLE = 'Rooted Together — Marketplace';
 const SITE_DESCRIPTION =
   'Courses, ebooks, routines, and 1:1 calls from Rooted Together Mothers, Pastors, and Spiritual Leaders.';

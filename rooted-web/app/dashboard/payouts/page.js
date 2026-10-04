@@ -108,8 +108,10 @@ export default function PayoutsPage() {
       .sort((a, b) => b[1] - a[1]);
   }, [purchases, offeringById]);
 
+  // Built from the current origin rather than a hardcoded domain, so this
+  // never goes stale again if the domain changes.
   const referralLink = referralCode
-    ? `https://rooted-together-website1.vercel.app/login?tab=signup&ref=${referralCode}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : 'https://rootedtogether.club'}/login?tab=signup&ref=${referralCode}`
     : null;
   const currentTier = tierForCount(tiers, referredCount);
   const currentTierIndex = currentTier ? tiers.indexOf(currentTier) : -1;
