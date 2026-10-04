@@ -89,32 +89,22 @@ export default function Header() {
               >
                 Log out
               </button>
-              {isCreator ? (
-                <Link
-                  href="/dashboard"
-                  className={avatar ? undefined : 'avatar'}
-                  style={
-                    avatar
-                      ? { width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
-                      : { width: 34, height: 34, fontSize: 13 }
-                  }
-                  title="Go to your creator dashboard"
-                >
-                  {!avatar && initialsFor(profile?.full_name || session.user.email)}
-                </Link>
-              ) : (
-                <div
-                  className={avatar ? undefined : 'avatar'}
-                  style={
-                    avatar
-                      ? { width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
-                      : { width: 34, height: 34, fontSize: 13 }
-                  }
-                  title={profile?.full_name || session.user.email}
-                >
-                  {!avatar && initialsFor(profile?.full_name || session.user.email)}
-                </div>
-              )}
+              {/* Was a plain non-clickable <div> for non-creators (seekers,
+                  assistants) — meaning there was no way back to
+                  /complete-profile after "Skip for now" except typing the URL.
+                  Now it always links somewhere useful. */}
+              <Link
+                href={isCreator ? '/dashboard' : '/complete-profile'}
+                className={avatar ? undefined : 'avatar'}
+                style={
+                  avatar
+                    ? { width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }
+                    : { width: 34, height: 34, fontSize: 13 }
+                }
+                title={isCreator ? 'Go to your creator dashboard' : 'Complete your profile'}
+              >
+                {!avatar && initialsFor(profile?.full_name || session.user.email)}
+              </Link>
             </>
           )}
         </div>
@@ -182,9 +172,13 @@ export default function Header() {
                   {profile?.full_name || session.user.email}
                 </span>
               </div>
-              {isCreator && (
+              {isCreator ? (
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)} className="btn btn-outline">
                   Creator Dashboard
+                </Link>
+              ) : (
+                <Link href="/complete-profile" onClick={() => setMenuOpen(false)} className="btn btn-outline">
+                  Complete your profile
                 </Link>
               )}
               <button onClick={handleSignOut} className="btn btn-outline">Log out</button>
