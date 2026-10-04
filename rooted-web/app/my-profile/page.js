@@ -185,38 +185,53 @@ export default function MyProfilePage() {
           </div>
 
           {role === 'seeker' ? (
-            <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Avatar url={pictureUrl} name={displayName} size={40} fontSize={13} />
-                <div>
-                  <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{displayName}</div>
-                  <div className="muted" style={{ fontSize: 11.5 }}>Sent a request</div>
+            // Previously had no banner slot at all, so a Seeker's uploaded
+            // banner (Settings) never showed up anywhere — this card is the
+            // only public-facing preview they have, so it gets the same
+            // banner + overlapping avatar treatment as the Assistant card
+            // below, just scaled down to this card's smaller width.
+            <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', maxWidth: 420 }}>
+              <div
+                style={{
+                  height: 64,
+                  background: banner
+                    ? `center 70% / cover no-repeat url(${banner})`
+                    : 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
+                }}
+              />
+              <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Avatar url={pictureUrl} name={displayName} size={40} fontSize={13} style={{ marginTop: -20 }} />
+                  <div>
+                    <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{displayName}</div>
+                    <div className="muted" style={{ fontSize: 11.5 }}>Sent a request</div>
+                  </div>
                 </div>
-              </div>
-              {tags.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                  {tags.slice(0, 3).map((t) => (
-                    <span key={t} className="badge" style={{ background: 'var(--cream)', border: '1px solid rgba(107,66,38,0.18)' }}>{t}</span>
-                  ))}
+                {tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {tags.slice(0, 3).map((t) => (
+                      <span key={t} className="badge" style={{ background: 'var(--cream)', border: '1px solid rgba(107,66,38,0.18)' }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+                {story && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.55,
+                      color: 'var(--text)',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {story}
+                  </div>
+                )}
+                <div className="muted" style={{ fontSize: 11, paddingTop: 8, borderTop: '1px solid rgba(107,66,38,0.08)' }}>
+                  Your email and date of birth are never shown here — only your display name.
                 </div>
-              )}
-              {story && (
-                <div
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.55,
-                    color: 'var(--text)',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {story}
-                </div>
-              )}
-              <div className="muted" style={{ fontSize: 11, paddingTop: 8, borderTop: '1px solid rgba(107,66,38,0.08)' }}>
-                Your email and date of birth are never shown here — only your display name.
               </div>
             </div>
           ) : (
