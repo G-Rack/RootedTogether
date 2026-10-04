@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { ROLE_LABELS, initialsFor } from '@/lib/roles';
-import { ROLE_TABLES, ROLE_PROFILE_FIELDS } from '@/lib/roleProfileFields';
+import { ROLE_TABLES, ROLE_PROFILE_FIELDS, resolveSeekerDisplayName } from '@/lib/roleProfileFields';
 import { bannerUrl } from '@/lib/storage';
 
 // The read-only counterpart to /complete-profile: a summary of everything
@@ -89,7 +89,7 @@ export default function MyProfilePage() {
   });
   const hasAnyData = filledFields.length > 0;
 
-  const displayName = row?.preferred_display || row?.nickname || row?.name?.split(' ')[0] || row?.name || 'You';
+  const displayName = resolveSeekerDisplayName(row);
   const storyField = role === 'seeker' ? 'your_story' : 'story_testimony';
   const story = row?.[storyField];
   const tagField = role === 'seeker' ? 'support_needs' : 'spiritual_gifts';
@@ -153,7 +153,7 @@ export default function MyProfilePage() {
             {tags.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 14, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
                 <span className="field-label" style={{ marginBottom: 0 }}>
-                  {role === 'seeker' ? 'What kind of support you&rsquo;re looking for' : 'Spiritual gifts & areas of focus'}
+                  {role === 'seeker' ? 'What kind of support you’re looking for' : 'Spiritual gifts & areas of focus'}
                 </span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {tags.map((t) => (

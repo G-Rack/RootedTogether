@@ -41,7 +41,19 @@ export const ROLE_PROFILE_FIELDS = {
     },
     { column: 'faith_background', label: 'Faith background', type: 'text' },
     { column: 'nickname', label: 'Nickname (optional)', type: 'text' },
-    { column: 'preferred_display', label: 'Preferred display name (optional)', type: 'text', helper: 'How should we show your name publicly — a nickname, first name only, or your full name?' },
+    {
+      column: 'preferred_display',
+      label: 'Preferred display name (optional)',
+      type: 'select',
+      // Used to be a free-text field with a helper that described these same
+      // three choices in prose — people kept typing the word "Nickname"
+      // itself instead of their actual nickname, so their public card ended
+      // up literally reading "Nickname" rather than their name. A dropdown
+      // of the exact choices, resolved by resolveSeekerDisplayName() below,
+      // removes that ambiguity.
+      options: ['Nickname', 'First name only', 'Full name'],
+      helper: 'Choose what people see when you send a request — your email and birthday are never shown.',
+    },
     { column: 'your_story', label: 'Your story (optional)', type: 'textarea' },
     { column: 'country', label: 'Country', type: 'text' },
     { column: 'instagram', label: 'Instagram (optional)', type: 'text', placeholder: '@yourhandle' },
@@ -97,4 +109,24 @@ export function splitTags(value) {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+// Resolves a seeker's row + their `preferred_display` choice into the
+// actual string to show publicly (on their request card, etc). Falls back
+// gracefully for rows saved before preferred_display was a dropdown — if it
+// holds something other than one of the three known choices, it's old
+// free-typed text, so it's shown as-is rather than discarded.
+export function resolveSeekerDisplayName(row) {
+  if (!row) return 'You';
+  const firstName = row.name?.split(' ')[0];
+  switch (row.preferred_display) {
+    case 'Nickname':
+      return row.nickname || firstName || row.name || 'You';
+    case 'First name only':
+      return firstName || row.name || 'You';
+    case 'Full name':
+      return row.name || 'You';
+    default:
+      return row.preferred_display || row.nickname || firstName || row.name || 'You';
+  }
 }
