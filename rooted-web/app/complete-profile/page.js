@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { ROLE_LABELS } from '@/lib/roles';
@@ -103,7 +104,10 @@ export default function CompleteProfilePage() {
 
   const setFieldValue = (column, value) => setValues((prev) => ({ ...prev, [column]: value }));
 
-  const goToDashboard = () => router.push(role === 'seeker' ? '/' : '/dashboard');
+  // Mothers/Pastors/Leaders have a real creator dashboard; Seekers and
+  // Assistants don't (and /dashboard would just bounce them straight back
+  // out), so they go to their own read-only profile instead.
+  const goToProfile = () => router.push(['seeker', 'assistant'].includes(role) ? '/my-profile' : '/dashboard');
 
   const submit = async (e) => {
     e.preventDefault();
@@ -261,13 +265,27 @@ export default function CompleteProfilePage() {
           <input type="file" accept="image/*" onChange={(e) => setProfilePictureFile(e.target.files?.[0] || null)} />
         </div>
 
-        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+        {/* Repeated here (not just at the top of the form) because on a long
+            form the person is still scrolled down by the Save button when
+            the result comes back — a banner shown only up top looked like
+            nothing had happened. */}
+        {error && <div className="error-banner">{error}</div>}
+        {saved && (
+          <div className="success-banner">
+            Profile saved.{' '}
+            {['seeker', 'assistant'].includes(role) && (
+              <Link href="/my-profile" style={{ fontWeight: 700 }}>View my profile →</Link>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
           <button type="submit" disabled={busy} className="btn btn-primary">
             {busy ? 'Saving…' : 'Save profile'}
           </button>
           <button
             type="button"
-            onClick={goToDashboard}
+            onClick={goToProfile}
             style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-soft)' }}
           >
             Skip for now

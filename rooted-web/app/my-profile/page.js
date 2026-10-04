@@ -1,0 +1,282 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useSession } from '@/components/SessionProvider';
+import { supabase } from '@/lib/supabaseClient';
+import { ROLE_LABELS, initialsFor } from '@/lib/roles';
+import { ROLE_TABLES, ROLE_PROFILE_FIELDS } from '@/lib/roleProfileFields';
+
+// The read-only counterpart to /complete-profile: a summary of everything
+// a Seeker or Assistant has filled in, plus a preview of how that shows up
+// to other people. Currently built for seeker/assistant — the other three
+// roles already have a full dashboard (Overview, Offerings, Settings) and
+// don't need a separate profile view.
+const SUPPORTED_ROLES = new Set(['seeker', 'assistant']);
+
+function Avatar({ url, name, size = 52, fontSize = 16 }) {
+  if (url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url}
+        alt={name}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '3px solid var(--white)' }}
+      />
+    );
+  }
+  return (
+    <div className="avatar" style={{ width: size, height: size, fontSize, border: '3px solid var(--white)' }}>
+      {initialsFor(name)}
+    </div>
+  );
+}
+
+export default function MyProfilePage() {
+  const router = useRouter();
+  const { session, profile, loading } = useSession();
+  const role = profile?.role;
+  const table = role ? ROLE_TABLES[role] : null;
+  const config = role ? ROLE_PROFILE_FIELDS[role] || [] : [];
+
+  const [row, setRow] = useState(null);
+  const [rowLoading, setRowLoading] = useState(true);
+  const [pictureUrl, setPictureUrl] = useState(null);
+
+  useEffect(() => {
+    if (!loading && !session) router.replace('/login');
+  }, [loading, session, router]);
+
+  useEffect(() => {
+    let active = true;
+    if (!session?.user?.id || !table) return undefined;
+    setRowLoading(true);
+    supabase
+      .from(table)
+      .select('*')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) {
+          setRow(data || null);
+          setRowLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [session?.user?.id, table]);
+
+  useEffect(() => {
+    let active = true;
+    if (!row?.profile_picture_path) {
+      setPictureUrl(null);
+      return undefined;
+    }
+    supabase.storage
+      .from('profile-pictures')
+      .createSignedUrl(row.profile_picture_path, 3600)
+      .then(({ data }) => {
+        if (active) setPictureUrl(data?.signedUrl || null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [row?.profile_picture_path]);
+
+  if (loading || (session && rowLoading)) {
+    return <div style={{ padding: 48, textAlign: 'center' }} className="muted">Loading…</div>;
+  }
+
+  if (!role || !SUPPORTED_ROLES.has(role)) {
+    // Mothers/Pastors/Leaders already have a full dashboard — send them there
+    // instead of a page that isn't built for their role.
+    router.replace('/dashboard');
+    return null;
+  }
+
+  const filledFields = config.filter((f) => {
+    const val = row?.[f.column];
+    return f.type === 'checkboxes' ? Array.isArray(val) && val.length > 0 : !!val;
+  });
+  const hasAnyData = filledFields.length > 0;
+
+  const displayName = row?.preferred_display || row?.nickname || row?.name?.split(' ')[0] || row?.name || 'You';
+  const storyField = role === 'seeker' ? 'your_story' : 'story_testimony';
+  const story = row?.[storyField];
+  const tagField = role === 'seeker' ? 'support_needs' : 'spiritual_gifts';
+  const tags = Array.isArray(row?.[tagField]) ? row[tagField] : [];
+
+  return (
+    <div style={{ maxWidth: 820, margin: '0 auto', padding: '48px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div>
+        <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
+          My Profile
+        </div>
+        <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+          Everything below is private to you. Here&rsquo;s a preview of what others see alongside it.
+        </div>
+      </div>
+
+      {/* ---- Private summary ---- */}
+      <div className="card" style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Avatar url={pictureUrl} name={row?.name} />
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="serif" style={{ fontSize: 19, fontWeight: 700, color: 'var(--text)' }}>{row?.name}</div>
+            <span className="badge">{ROLE_LABELS[role]}</span>
+          </div>
+          <Link href="/complete-profile" className="btn btn-outline btn-small">Edit profile</Link>
+        </div>
+
+        {!hasAnyData ? (
+          <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, paddingTop: 14, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+            You haven&rsquo;t filled in your profile yet.{' '}
+            <Link href="/complete-profile" style={{ fontWeight: 700 }}>Complete your profile</Link> so people on
+            Rooted Together can get to know you.
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '14px 18px',
+                paddingTop: 14,
+                borderTop: '1px solid rgba(107,66,38,0.1)',
+              }}
+            >
+              <Field label="Email" value={row?.email} />
+              {row?.date_of_birth && (
+                <Field
+                  label="Date of birth"
+                  value={new Date(row.date_of_birth).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                />
+              )}
+              {role === 'seeker' && row?.religion && <Field label="Religion" value={row.religion} />}
+              {filledFields
+                .filter((f) => f.type !== 'checkboxes' && f.type !== 'textarea')
+                .map((f) => (
+                  <Field key={f.column} label={f.label.replace(' (optional)', '')} value={row[f.column]} />
+                ))}
+            </div>
+
+            {tags.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 14, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+                <span className="field-label" style={{ marginBottom: 0 }}>
+                  {role === 'seeker' ? 'What kind of support you&rsquo;re looking for' : 'Spiritual gifts & areas of focus'}
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {tags.map((t) => (
+                    <span key={t} className="badge" style={{ background: 'var(--cream)', border: '1px solid rgba(107,66,38,0.18)' }}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filledFields
+              .filter((f) => f.type === 'textarea')
+              .map((f) => (
+                <div key={f.column} style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 14, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+                  <span className="field-label" style={{ marginBottom: 0 }}>{f.label.replace(' (optional)', '')}</span>
+                  <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text)' }}>{row[f.column]}</div>
+                </div>
+              ))}
+          </>
+        )}
+      </div>
+
+      {/* ---- Public preview ---- */}
+      {hasAnyData && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="field-label" style={{ marginBottom: 0 }}>
+            {role === 'seeker' ? 'How you appear when you send a request' : 'How you appear to others'}
+          </div>
+
+          {role === 'seeker' ? (
+            <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Avatar url={pictureUrl} name={displayName} size={40} fontSize={13} />
+                <div>
+                  <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{displayName}</div>
+                  <div className="muted" style={{ fontSize: 11.5 }}>Sent a request</div>
+                </div>
+              </div>
+              {tags.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {tags.slice(0, 3).map((t) => (
+                    <span key={t} className="badge" style={{ background: 'var(--cream)', border: '1px solid rgba(107,66,38,0.18)' }}>{t}</span>
+                  ))}
+                </div>
+              )}
+              {story && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    color: 'var(--text)',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {story}
+                </div>
+              )}
+              <div className="muted" style={{ fontSize: 11, paddingTop: 8, borderTop: '1px solid rgba(107,66,38,0.08)' }}>
+                Your email and date of birth are never shown here — only your display name.
+              </div>
+            </div>
+          ) : (
+            <div className="card" style={{ overflow: 'hidden', maxWidth: 320 }}>
+              <div style={{ height: 80, background: 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)' }} />
+              <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Avatar url={pictureUrl} name={row?.name} size={62} fontSize={18} />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{row?.name}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{ROLE_LABELS.assistant}</div>
+                </div>
+                {story && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.55,
+                      color: 'var(--text)',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {story}
+                  </div>
+                )}
+                {tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {tags.slice(0, 2).map((t) => (
+                      <span key={t} className="badge" style={{ background: 'var(--cream)', border: '1px solid rgba(107,66,38,0.18)' }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value }) {
+  if (!value) return null;
+  return (
+    <div>
+      <span className="field-label">{label}</span>
+      <div style={{ fontSize: 13.5, color: 'var(--text)' }}>{value}</div>
+    </div>
+  );
+}
