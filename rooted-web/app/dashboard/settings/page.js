@@ -149,6 +149,9 @@ export default function SettingsPage() {
           <GroupLabel>Creator tools</GroupLabel>
           <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+              <LinkRow href="/complete-profile" label="Complete your profile" />
+            </div>
+            <div style={{ borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
               <LinkRow href="/dashboard/branding" label="Storefront branding" />
             </div>
             <LinkRow href="/dashboard/payouts" label="Payouts & sales" />

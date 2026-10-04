@@ -21,158 +21,6 @@ const ROLE_OPTIONS = [
   { key: 'influencer', label: ROLE_LABELS.influencer, blurb: 'Share your voice and ministry with a wider community. Reviewed before going live.' },
 ];
 
-const EXPERIENCE_OPTIONS = ['Less than 1 year', '1–3 years', '3–5 years', '5–10 years', '10+ years'];
-const SPIRITUAL_GIFTS_OPTIONS = [
-  'Prayer & intercession', 'Teaching', 'Counseling', 'Worship', 'Healing', 'Discernment', 'Hospitality', 'Administration', 'Other',
-];
-const EDUCATION_OPTIONS = [
-  'High school', 'Associate degree', "Bachelor's degree", "Master's degree", 'Doctorate / PhD', 'Seminary / ministry training', 'Other',
-];
-
-// Per-role field config. Each `key` is the exact human-readable field name
-// the submit-signup Edge Function's FIELD_MAP expects for that role — keep
-// these in sync with that function if its FIELD_MAP ever changes. Name,
-// Email, and Date of Birth are handled as common fields outside this list.
-const ROLE_FIELD_CONFIGS = {
-  seeker: [
-    { key: 'Religion', label: 'Religion', type: 'text', required: true },
-    { key: 'Signing Up For', label: 'Who is this for?', type: 'select', options: ['Myself', 'My child'] },
-    { key: 'Child Age', label: "Child's age", type: 'text', showIf: (v) => v['Signing Up For'] === 'My child' },
-    {
-      key: 'What Kind of Support Are You Looking For',
-      label: 'What kind of support are you looking for?',
-      type: 'checkboxes',
-      options: ['Prayer', 'Meditation & mindfulness', '1:1 mentorship', 'Community & connection', 'Grief & loss support', 'Family & relationships', 'Addiction recovery', 'Other'],
-    },
-    { key: 'Faith Background', label: 'Faith background', type: 'text' },
-    { key: 'Nickname', label: 'Nickname (optional)', type: 'text' },
-    { key: 'Preferred Display', label: 'Preferred display name (optional)', type: 'text', helper: 'How should we show your name publicly — a nickname, first name only, or your full name?' },
-    { key: 'Your Story', label: 'Your story (optional)', type: 'textarea' },
-    { key: 'Country', label: 'Country', type: 'text' },
-    { key: 'Instagram', label: 'Instagram (optional)', type: 'text', placeholder: '@yourhandle' },
-  ],
-  assistant: [
-    { key: 'Faith Tradition / Church', label: 'Faith tradition / church', type: 'text' },
-    { key: 'Your Story / Testimony', label: 'Your story / testimony', type: 'textarea' },
-    { key: 'Spiritual Gifts & Areas of Focus', label: 'Spiritual gifts & areas of focus', type: 'checkboxes', options: SPIRITUAL_GIFTS_OPTIONS },
-    { key: 'Years of Experience', label: 'Years of experience', type: 'select', options: EXPERIENCE_OPTIONS },
-    { key: 'Church or Pastoral Reference', label: 'Church or pastoral reference (optional)', type: 'text' },
-    { key: 'Anything Else', label: 'Anything else? (optional)', type: 'textarea' },
-    { key: 'Instagram', label: 'Instagram (optional)', type: 'text', placeholder: '@yourhandle' },
-  ],
-  mother: [
-    { key: 'Faith Tradition / Church', label: 'Faith tradition / church', type: 'text' },
-    { key: 'Your Story / Testimony', label: 'Your story / testimony', type: 'textarea' },
-    { key: 'Spiritual Gifts & Areas of Focus', label: 'Spiritual gifts & areas of focus', type: 'checkboxes', options: SPIRITUAL_GIFTS_OPTIONS },
-    { key: 'Years of Experience', label: 'Years of experience', type: 'select', options: EXPERIENCE_OPTIONS },
-    { key: 'Capacity (How Many People)', label: 'How many people can you support?', type: 'text', placeholder: 'e.g. 10' },
-    { key: 'Assistant Preference', label: 'Would you like an assistant to help manage requests?', type: 'select', options: ["Yes, I'd like an assistant", "No, I'll manage it myself", 'Not sure yet'] },
-    { key: 'Desired Amount Per Seeker', label: 'Desired amount per seeker', type: 'text', placeholder: 'e.g. $20/month' },
-    { key: 'Church or Pastoral Reference', label: 'Church or pastoral reference (optional)', type: 'text' },
-    { key: 'Anything Else', label: 'Anything else? (optional)', type: 'textarea' },
-    { key: 'Instagram', label: 'Instagram (optional)', type: 'text', placeholder: '@yourhandle' },
-  ],
-  priest: [
-    { key: 'Church / Parish Name', label: 'Church / parish name', type: 'text' },
-    { key: 'Denomination', label: 'Denomination', type: 'text' },
-    { key: 'Church Location', label: 'Church location', type: 'text', placeholder: 'City, State / Country' },
-    { key: 'Your Story / Testimony', label: 'Your story / testimony', type: 'textarea' },
-    { key: "How They'd Like to Help", label: "How you'd like to help", type: 'checkboxes', options: ['Prayer requests', '1:1 mentorship calls', 'Teaching & courses', 'Community events', 'Counseling', 'Other'] },
-    { key: 'Years in Ministry', label: 'Years in ministry', type: 'select', options: EXPERIENCE_OPTIONS },
-    { key: 'Desired Amount Per Seeker', label: 'Desired amount per seeker', type: 'text', placeholder: 'e.g. $20/month' },
-    { key: 'Anything Else', label: 'Anything else? (optional)', type: 'textarea' },
-    { key: 'Instagram', label: 'Instagram (optional)', type: 'text', placeholder: '@yourhandle' },
-  ],
-  influencer: [
-    { key: 'Instagram', label: 'Instagram', type: 'text', placeholder: '@yourhandle' },
-    { key: 'Approximate Following / Community Size', label: 'Approximate following / community size', type: 'select', options: ['Under 1,000', '1,000–10,000', '10,000–50,000', '50,000–100,000', '100,000+'] },
-    { key: 'Anything Else', label: 'Anything else? (optional)', type: 'textarea' },
-  ],
-};
-
-// Mother, Pastor, and Leader can optionally document credentials — this
-// mirrors the app's "Has Relevant Credentials" step, which only sends
-// Highest Level of Education / Licenses & Certifications / Areas of
-// Specialty (plus the certification file) through when the answer is
-// "Yes, I do" (see submit-signup's FIELD_MAP and v9 changelog note).
-const CREDENTIALED_ROLES = new Set(['mother', 'priest', 'influencer']);
-
-function splitTags(value) {
-  return (value || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function fileToPayload(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const base64 = result.split(',')[1] || '';
-      resolve({ base64, filename: file.name, contentType: file.type || 'application/octet-stream' });
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function Field({ field, value, onChange }) {
-  const { type, label, helper, placeholder, options } = field;
-  return (
-    <div>
-      <label className="field-label">{label}</label>
-      {type === 'text' && (
-        <input className="input-field" placeholder={placeholder} value={value || ''} onChange={(e) => onChange(e.target.value)} />
-      )}
-      {type === 'textarea' && (
-        <textarea className="input-field" rows={3} placeholder={placeholder} value={value || ''} onChange={(e) => onChange(e.target.value)} />
-      )}
-      {type === 'select' && (
-        <select className="input-field" value={value || ''} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Select…</option>
-          {options.map((o) => (
-            <option key={o} value={o}>{o}</option>
-          ))}
-        </select>
-      )}
-      {type === 'checkboxes' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {options.map((o) => {
-            const arr = Array.isArray(value) ? value : [];
-            const checked = arr.includes(o);
-            return (
-              <label
-                key={o}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12.5,
-                  background: checked ? 'var(--cream-dark)' : 'transparent',
-                  border: '1px solid rgba(107,66,38,0.18)',
-                  borderRadius: 999,
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => onChange(checked ? arr.filter((x) => x !== o) : [...arr, o])}
-                  style={{ margin: 0 }}
-                />
-                {o}
-              </label>
-            );
-          })}
-        </div>
-      )}
-      {helper && <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>{helper}</div>}
-    </div>
-  );
-}
-
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -409,18 +257,19 @@ function RolePicker({ onPick }) {
   );
 }
 
+// Signup stays minimal — just enough to create the account. Everything
+// role-specific (spiritual gifts, church info, credentials, file uploads,
+// etc.) is filled in afterwards on /complete-profile, once the person is
+// signed in. The only thing this form adds beyond the original signup is the
+// role picker, so the right table/profile gets created from the start.
 function SignupForm({ router }) {
   const searchParams = useSearchParams();
   const [role, setRole] = useState(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState('');
+  const [religion, setReligion] = useState('');
   const [password, setPassword] = useState('');
-  const [fieldValues, setFieldValues] = useState({});
-  const [hasCredentials, setHasCredentials] = useState('');
-  const [credentialValues, setCredentialValues] = useState({});
-  const [profilePictureFile, setProfilePictureFile] = useState(null);
-  const [certificationFile, setCertificationFile] = useState(null);
   // Prefilled from a referral link (?ref=RT-00042) when present, but always
   // left editable — this is also how someone invited in person or by a
   // printed/QR code types a code in by hand instead of following a link.
@@ -430,11 +279,6 @@ function SignupForm({ router }) {
 
   const pickRole = (key) => {
     setRole(key);
-    setFieldValues({});
-    setHasCredentials('');
-    setCredentialValues({});
-    setProfilePictureFile(null);
-    setCertificationFile(null);
     setError('');
   };
 
@@ -442,9 +286,7 @@ function SignupForm({ router }) {
     return <RolePicker onPick={pickRole} />;
   }
 
-  const config = ROLE_FIELD_CONFIGS[role] || [];
   const roleMeta = ROLE_OPTIONS.find((o) => o.key === role);
-  const setFieldValue = (key, value) => setFieldValues((prev) => ({ ...prev, [key]: value }));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -452,41 +294,7 @@ function SignupForm({ router }) {
     setBusy(true);
 
     const fields = { Name: name, Email: email, 'Date of Birth': dob };
-    for (const f of config) {
-      if (f.showIf && !f.showIf(fieldValues)) continue;
-      const val = fieldValues[f.key];
-      if (f.type === 'checkboxes') {
-        if (Array.isArray(val) && val.length) fields[f.key] = val;
-      } else if (val !== undefined && val !== '') {
-        fields[f.key] = val;
-      }
-    }
-
-    if (CREDENTIALED_ROLES.has(role) && hasCredentials) {
-      fields['Has Relevant Credentials'] = hasCredentials;
-      if (hasCredentials === 'Yes, I do') {
-        if (credentialValues['Highest Level of Education']) {
-          fields['Highest Level of Education'] = credentialValues['Highest Level of Education'];
-        }
-        const licenses = splitTags(credentialValues['Licenses & Certifications']);
-        if (licenses.length) fields['Licenses & Certifications'] = licenses;
-        const specialties = splitTags(credentialValues['Areas of Specialty']);
-        if (specialties.length) fields['Areas of Specialty'] = specialties;
-      }
-    }
-
-    let profilePicture;
-    let certificationPayload;
-    try {
-      if (profilePictureFile) profilePicture = await fileToPayload(profilePictureFile);
-      if (CREDENTIALED_ROLES.has(role) && hasCredentials === 'Yes, I do' && certificationFile) {
-        certificationPayload = await fileToPayload(certificationFile);
-      }
-    } catch {
-      setBusy(false);
-      setError("Couldn't read one of your files — please try choosing it again.");
-      return;
-    }
+    if (role === 'seeker') fields.Religion = religion;
 
     try {
       const res = await fetch(SUBMIT_ENDPOINT, {
@@ -499,8 +307,6 @@ function SignupForm({ router }) {
         body: JSON.stringify({
           role,
           fields,
-          profilePicture,
-          certificationFile: certificationPayload,
           password,
           referredByCode: referralCode.trim() || undefined,
         }),
@@ -517,7 +323,8 @@ function SignupForm({ router }) {
         setError('Account created — please log in.');
         return;
       }
-      router.push(role === 'seeker' ? '/' : '/dashboard');
+      // Everything role-specific still needs filling in — send them there next.
+      router.push('/complete-profile');
     } catch {
       setBusy(false);
       setError("Couldn't reach the server — please try again.");
@@ -553,77 +360,12 @@ function SignupForm({ router }) {
         <label className="field-label">Date of birth</label>
         <input className="input-field" type="date" required value={dob} onChange={(e) => setDob(e.target.value)} />
       </div>
-
-      {config.map((f) => {
-        if (f.showIf && !f.showIf(fieldValues)) return null;
-        return (
-          <Field key={f.key} field={f} value={fieldValues[f.key]} onChange={(v) => setFieldValue(f.key, v)} />
-        );
-      })}
-
-      {CREDENTIALED_ROLES.has(role) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'var(--cream)', borderRadius: 14, padding: 16 }}>
-          <div>
-            <label className="field-label">Do you have relevant credentials?</label>
-            <select className="input-field" value={hasCredentials} onChange={(e) => setHasCredentials(e.target.value)}>
-              <option value="">Select…</option>
-              <option value="Yes, I do">Yes, I do</option>
-              <option value="No, I don't">No, I don&rsquo;t</option>
-            </select>
-          </div>
-          {hasCredentials === 'Yes, I do' && (
-            <>
-              <div>
-                <label className="field-label">Highest level of education</label>
-                <select
-                  className="input-field"
-                  value={credentialValues['Highest Level of Education'] || ''}
-                  onChange={(e) => setCredentialValues((prev) => ({ ...prev, 'Highest Level of Education': e.target.value }))}
-                >
-                  <option value="">Select…</option>
-                  {EDUCATION_OPTIONS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="field-label">Licenses &amp; certifications</label>
-                <input
-                  className="input-field"
-                  placeholder="Separate multiple with commas"
-                  value={credentialValues['Licenses & Certifications'] || ''}
-                  onChange={(e) => setCredentialValues((prev) => ({ ...prev, 'Licenses & Certifications': e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="field-label">Areas of specialty</label>
-                <input
-                  className="input-field"
-                  placeholder="Separate multiple with commas"
-                  value={credentialValues['Areas of Specialty'] || ''}
-                  onChange={(e) => setCredentialValues((prev) => ({ ...prev, 'Areas of Specialty': e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="field-label">Certification document (optional)</label>
-                <input
-                  type="file"
-                  accept="application/pdf,image/*"
-                  onChange={(e) => setCertificationFile(e.target.files?.[0] || null)}
-                />
-                <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
-                  Kept private — used only for internal review, never shown publicly.
-                </div>
-              </div>
-            </>
-          )}
+      {role === 'seeker' && (
+        <div>
+          <label className="field-label">Religion</label>
+          <input className="input-field" required value={religion} onChange={(e) => setReligion(e.target.value)} />
         </div>
       )}
-
-      <div>
-        <label className="field-label">Profile picture (optional)</label>
-        <input type="file" accept="image/*" onChange={(e) => setProfilePictureFile(e.target.files?.[0] || null)} />
-      </div>
 
       <div>
         <label className="field-label">Password</label>
