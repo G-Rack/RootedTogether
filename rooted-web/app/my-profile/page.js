@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
 import { supabase } from '@/lib/supabaseClient';
@@ -10,10 +9,9 @@ import { ROLE_TABLES, ROLE_PROFILE_FIELDS } from '@/lib/roleProfileFields';
 
 // The read-only counterpart to /complete-profile: a summary of everything
 // a Seeker or Assistant has filled in, plus a preview of how that shows up
-// to other people. Currently built for seeker/assistant — the other three
-// roles already have a full dashboard (Overview, Offerings, Settings) and
-// don't need a separate profile view.
-const SUPPORTED_ROLES = new Set(['seeker', 'assistant']);
+// to other people. Lives inside app/my-profile/layout.js's account shell,
+// which already handles the signed-in/role gate — this page only needs to
+// load its own row.
 
 function Avatar({ url, name, size = 52, fontSize = 16 }) {
   if (url) {
@@ -34,7 +32,6 @@ function Avatar({ url, name, size = 52, fontSize = 16 }) {
 }
 
 export default function MyProfilePage() {
-  const router = useRouter();
   const { session, profile, loading } = useSession();
   const role = profile?.role;
   const table = role ? ROLE_TABLES[role] : null;
@@ -43,10 +40,6 @@ export default function MyProfilePage() {
   const [row, setRow] = useState(null);
   const [rowLoading, setRowLoading] = useState(true);
   const [pictureUrl, setPictureUrl] = useState(null);
-
-  useEffect(() => {
-    if (!loading && !session) router.replace('/login');
-  }, [loading, session, router]);
 
   useEffect(() => {
     let active = true;
@@ -85,15 +78,8 @@ export default function MyProfilePage() {
     };
   }, [row?.profile_picture_path]);
 
-  if (loading || (session && rowLoading)) {
-    return <div style={{ padding: 48, textAlign: 'center' }} className="muted">Loading…</div>;
-  }
-
-  if (!role || !SUPPORTED_ROLES.has(role)) {
-    // Mothers/Pastors/Leaders already have a full dashboard — send them there
-    // instead of a page that isn't built for their role.
-    router.replace('/dashboard');
-    return null;
+  if (loading || rowLoading) {
+    return <div className="skeleton" style={{ height: 240 }} />;
   }
 
   const filledFields = config.filter((f) => {
@@ -109,7 +95,7 @@ export default function MyProfilePage() {
   const tags = Array.isArray(row?.[tagField]) ? row[tagField] : [];
 
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', padding: '48px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ maxWidth: 780, display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
         <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
           My Profile
