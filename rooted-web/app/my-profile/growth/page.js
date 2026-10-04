@@ -6,8 +6,19 @@ import { supabase } from '@/lib/supabaseClient';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Was `d.toISOString().slice(0, 10)` — that reads the date back in UTC, so
+// anyone west or east of UTC (basically everyone) could get a dateKey one
+// day off from their actual local calendar day. A check saved just after
+// local midnight (stored as `now()`, a real UTC instant) would come back
+// from the DB keyed to a different day than the optimistic local update
+// that showed it as checked — so it looked right until the page reloaded,
+// then reset. Using local date parts keeps "today" meaning the same thing
+// everywhere it's computed, insert, read-back, and the week-dots render.
 function dateKey(d) {
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function startOfDay(d) {

@@ -193,7 +193,7 @@ export default function MyProfilePage() {
             <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', maxWidth: 420 }}>
               <div
                 style={{
-                  height: 64,
+                  height: 110,
                   background: banner
                     ? `center 70% / cover no-repeat url(${banner})`
                     : 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
@@ -201,9 +201,9 @@ export default function MyProfilePage() {
               />
               <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Avatar url={pictureUrl} name={displayName} size={40} fontSize={13} style={{ marginTop: -20 }} />
+                  <Avatar url={pictureUrl} name={displayName} size={64} fontSize={19} style={{ marginTop: -32 }} />
                   <div>
-                    <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>{displayName}</div>
+                    <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text)' }}>{displayName}</div>
                     <div className="muted" style={{ fontSize: 11.5 }}>Sent a request</div>
                   </div>
                 </div>
