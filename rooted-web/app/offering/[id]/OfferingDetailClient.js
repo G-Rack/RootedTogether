@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { coverUrl, avatarUrl } from '@/lib/storage';
+import { FUNCTIONS_URL } from '@/lib/config';
 import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
@@ -14,6 +15,7 @@ import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitRe
 export default function OfferingDetailClient() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { session } = useSession();
 
   const [offering, setOffering] = useState(null);
@@ -25,13 +27,34 @@ export default function OfferingDetailClient() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [buying, setBuying] = useState(false);
+  const [awaitingWebhook, setAwaitingWebhook] = useState(false);
   const [tab, setTab] = useState('description');
 
   const [reviewStats, setReviewStats] = useState({ review_count: 0, avg_rating: 0 });
   const [reviews, setReviews] = useState([]);
   const [myReview, setMyReview] = useState(null);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
+
+  const loadPurchaseAndContent = async (offeringRow, sessionObj) => {
+    if (!sessionObj) {
+      setPurchase(null);
+      return null;
+    }
+    const { data: purchaseRow } = await supabase
+      .from('offering_purchases')
+      .select('*')
+      .eq('offering_id', offeringRow.id)
+      .eq('buyer_auth_id', sessionObj.user.id)
+      .maybeSingle();
+    setPurchase(purchaseRow || null);
+    if (purchaseRow) {
+      const { data: contentRow } = await supabase.from('offering_content').select('content_url').eq('offering_id', offeringRow.id).maybeSingle();
+      setContentUrl(contentRow?.content_url || null);
+    }
+    return purchaseRow || null;
+  };
 
   useEffect(() => {
     let active = true;
@@ -46,25 +69,17 @@ export default function OfferingDetailClient() {
       }
       setOffering(o);
 
-      const [{ data: prof }, { data: sf }, familyRes, purchaseRes] = await Promise.all([
+      const [{ data: prof }, { data: sf }, familyRes] = await Promise.all([
         supabase.from('creator_public_profiles').select('*').eq('auth_user_id', o.creator_auth_id).maybeSingle(),
         supabase.from('creator_storefronts').select('handle, avatar_path').eq('auth_user_id', o.creator_auth_id).maybeSingle(),
         session ? supabase.rpc('is_accepted_family_member_of_creator', { creator_id: o.creator_auth_id }) : Promise.resolve({ data: false }),
-        session
-          ? supabase.from('offering_purchases').select('*').eq('offering_id', o.id).eq('buyer_auth_id', session.user.id).maybeSingle()
-          : Promise.resolve({ data: null }),
       ]);
 
       if (!active) return;
       setCreatorProfile(prof || null);
       setStorefront(sf || null);
       setIsFamily(!!familyRes.data);
-      setPurchase(purchaseRes.data || null);
-
-      if (purchaseRes.data) {
-        const { data: contentRow } = await supabase.from('offering_content').select('content_url').eq('offering_id', o.id).maybeSingle();
-        if (active) setContentUrl(contentRow?.content_url || null);
-      }
+      await loadPurchaseAndContent(o, session);
 
       setLoading(false);
     }
@@ -74,6 +89,45 @@ export default function OfferingDetailClient() {
       active = false;
     };
   }, [id, session]);
+
+  // After a Stripe Checkout redirect back here, the webhook that actually
+  // writes the offering_purchases row may not have landed yet — Stripe
+  // sends the buyer back to success_url around the same time it fires the
+  // webhook, not strictly after. Poll briefly rather than showing "you
+  // don't own this" for a purchase that genuinely just succeeded.
+  useEffect(() => {
+    const purchaseParam = searchParams.get('purchase');
+    if (purchaseParam === 'cancelled') {
+      setNotice('Checkout was cancelled — you have not been charged.');
+      return;
+    }
+    if (purchaseParam !== 'success' || !offering || !session || purchase) return;
+
+    let active = true;
+    setAwaitingWebhook(true);
+    let attempts = 0;
+
+    const poll = async () => {
+      if (!active) return;
+      attempts += 1;
+      const found = await loadPurchaseAndContent(offering, session);
+      if (!active) return;
+      if (found || attempts >= 6) {
+        setAwaitingWebhook(false);
+        if (!found) {
+          setNotice("Payment went through — this page just needs a moment to catch up. Refresh if it doesn't update shortly.");
+        }
+        return;
+      }
+      setTimeout(poll, 1500);
+    };
+    poll();
+
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, offering, session, purchase]);
 
   useEffect(() => {
     if (!offering) return;
@@ -102,22 +156,47 @@ export default function OfferingDetailClient() {
       return;
     }
     setError('');
+    setNotice('');
     setBuying(true);
-    const pricePaid = offering.is_free_for_family && isFamily ? 0 : offering.price_cents;
-    const { error: insertError } = await supabase.from('offering_purchases').insert({
-      offering_id: offering.id,
-      buyer_auth_id: session.user.id,
-      price_paid_cents: pricePaid,
-    });
-    setBuying(false);
-    if (insertError) {
-      setError("Couldn't complete that — please try again.");
+
+    const freeForYou = offering.is_free_for_family && isFamily;
+
+    if (freeForYou) {
+      const { error: insertError } = await supabase.from('offering_purchases').insert({
+        offering_id: offering.id,
+        buyer_auth_id: session.user.id,
+        price_paid_cents: 0,
+      });
+      setBuying(false);
+      if (insertError) {
+        setError("Couldn't complete that — please try again.");
+        return;
+      }
+      await loadPurchaseAndContent(offering, session);
       return;
     }
-    const { data: fresh } = await supabase.from('offering_purchases').select('*').eq('offering_id', offering.id).eq('buyer_auth_id', session.user.id).maybeSingle();
-    setPurchase(fresh);
-    const { data: contentRow } = await supabase.from('offering_content').select('content_url').eq('offering_id', offering.id).maybeSingle();
-    setContentUrl(contentRow?.content_url || null);
+
+    // Everything with a real price goes through Stripe Checkout now —
+    // the server (create-checkout-session) verifies the creator has
+    // payouts set up and computes the platform fee; this function only
+    // redirects to the hosted checkout page it returns.
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ offeringId: offering.id, origin: window.location.origin }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setError(data.error || "Couldn't start checkout — please try again.");
+        setBuying(false);
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Couldn't start checkout — please try again.");
+      setBuying(false);
+    }
   };
 
   if (loading) {
@@ -308,8 +387,13 @@ export default function OfferingDetailClient() {
           )}
 
           {error && <div className="error-banner">{error}</div>}
+          {notice && !error && <div className="success-banner">{notice}</div>}
 
-          {alreadyOwned ? (
+          {awaitingWebhook ? (
+            <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+              Finishing up your purchase…
+            </div>
+          ) : alreadyOwned ? (
             <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
               {isCall ? 'Booked' : 'Already yours'}
             </div>
@@ -324,7 +408,11 @@ export default function OfferingDetailClient() {
           )}
 
           <div className="muted" style={{ fontSize: 12, textAlign: 'center' }}>
-            {isCall ? "You'll get a video call link by email after payment" : 'Test checkout — no real payment is taken yet.'}
+            {isCall
+              ? "You'll get a video call link by email after payment"
+              : freeForYou
+                ? 'No payment needed — this one’s free for you.'
+                : 'Secure checkout powered by Stripe.'}
           </div>
 
           <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />

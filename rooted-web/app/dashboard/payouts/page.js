@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { FUNCTIONS_URL } from '@/lib/config';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -26,6 +28,7 @@ function tierForCount(tiers, count) {
 
 export default function PayoutsPage() {
   const { session, profile } = useSession();
+  const searchParams = useSearchParams();
   const [offerings, setOfferings] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [tiers, setTiers] = useState([]);
@@ -35,6 +38,26 @@ export default function PayoutsPage() {
   const [recentReferrals, setRecentReferrals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+
+  // Stripe Connect status, kept on `profiles` (every user has exactly one
+  // row there — see stripe-connect-onboarding's own comment on why this
+  // isn't on creator_storefronts instead).
+  const [stripeAccountId, setStripeAccountId] = useState(null);
+  const [stripePayoutsEnabled, setStripePayoutsEnabled] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState(null);
+  const [checkingStripeReturn, setCheckingStripeReturn] = useState(false);
+
+  async function loadStripeStatus(authId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('stripe_account_id, stripe_payouts_enabled')
+      .eq('id', authId)
+      .maybeSingle();
+    setStripeAccountId(data?.stripe_account_id || null);
+    setStripePayoutsEnabled(!!data?.stripe_payouts_enabled);
+    return data;
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -66,6 +89,7 @@ export default function PayoutsPage() {
           .eq('referrer_auth_id', session.user.id)
           .order('created_at', { ascending: false })
           .limit(8),
+        loadStripeStatus(session.user.id),
       ]);
 
       if (!active) return;
@@ -85,6 +109,58 @@ export default function PayoutsPage() {
       active = false;
     };
   }, [session]);
+
+  // Returning from Stripe's hosted onboarding: account.updated usually
+  // reaches the webhook within a second or two, but it's still a race —
+  // poll briefly rather than showing "not connected" right after the user
+  // just finished connecting.
+  useEffect(() => {
+    const stripeParam = searchParams.get('stripe');
+    if (!session || !stripeParam) return;
+    if (stripeParam === 'complete') {
+      let cancelled = false;
+      setCheckingStripeReturn(true);
+      (async () => {
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          const data = await loadStripeStatus(session.user.id);
+          if (cancelled) return;
+          if (data?.stripe_payouts_enabled) break;
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+        if (!cancelled) setCheckingStripeReturn(false);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (stripeParam === 'refresh') {
+      setConnectError('That Stripe setup link expired — click "Connect with Stripe" to get a fresh one.');
+    }
+  }, [session, searchParams]);
+
+  async function handleConnectStripe() {
+    if (!session) return;
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ origin: window.location.origin }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || "Couldn't start Stripe onboarding.");
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      setConnectError(err.message || "Couldn't start Stripe onboarding — please try again.");
+      setConnecting(false);
+    }
+  }
 
   const offeringById = useMemo(() => Object.fromEntries(offerings.map((o) => [o.id, o])), [offerings]);
 
@@ -136,8 +212,9 @@ export default function PayoutsPage() {
         Payouts &amp; Sales
       </div>
       <div className="muted" style={{ fontSize: 13.5, marginBottom: 22 }}>
-        Every sale below is a real record from a real buyer — but checkout is still in test mode, so no money has
-        actually moved and there&rsquo;s no real payout method connected yet.
+        {stripePayoutsEnabled
+          ? 'Checkout is still in Stripe test mode, so no real money has moved yet — but your payout account is connected and ready for when it goes live.'
+          : 'Every sale below is a real record from a real buyer — but checkout is still in test mode, so no money has actually moved and there’s no real payout method connected yet.'}
       </div>
 
       <div className="responsive-3col" style={{ '--col-a': '1.3fr', '--col-gap': '16px', marginBottom: 24 }}>
@@ -195,9 +272,37 @@ export default function PayoutsPage() {
             Payout method
           </div>
           <div className="card" style={{ padding: '13px 16px' }}>
-            <div style={{ fontSize: 13, color: 'var(--text-soft)' }}>
-              Not connected yet — this is where a real bank or Stripe payout account will go once checkout is live.
-            </div>
+            {stripePayoutsEnabled ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--success-text, #2e7d32)', flexShrink: 0 }} />
+                <div style={{ fontSize: 13 }}>
+                  <strong>Connected</strong> — Stripe payouts are enabled on this account.
+                </div>
+              </div>
+            ) : checkingStripeReturn ? (
+              <div style={{ fontSize: 13, color: 'var(--text-soft)' }}>Checking your Stripe status…</div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 13, color: 'var(--text-soft)', marginBottom: 10 }}>
+                  {stripeAccountId
+                    ? "You started Stripe onboarding but haven't finished it yet — pick up where you left off."
+                    : 'Not connected yet — connect a Stripe account to receive payouts once checkout goes live.'}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-small"
+                  onClick={handleConnectStripe}
+                  disabled={connecting}
+                >
+                  {connecting ? 'Redirecting to Stripe…' : stripeAccountId ? 'Finish Stripe setup' : 'Connect with Stripe'}
+                </button>
+                {connectError && (
+                  <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
+                    {connectError}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

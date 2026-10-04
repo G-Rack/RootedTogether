@@ -6,3 +6,6 @@ export const SUPABASE_URL = 'https://ethrhogtyebqndeyytqd.supabase.co';
 export const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0aHJob2d0eWVicW5kZXl5dHFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MjE1MTIsImV4cCI6MjEwMzk5NzUxMn0.5VYHM6swun4gNrsqg7FwLS0dyG44bQtV2EteUt7Y1Bc';
 export const SUBMIT_ENDPOINT = `${SUPABASE_URL}/functions/v1/submit-signup`;
+// Base URL for every other Edge Function — the Stripe Checkout / Connect
+// functions and any future one all hang off this same pattern.
+export const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
