@@ -2,12 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { ROLE_TABLES } from '@/lib/roleProfileFields';
 
 const SessionContext = createContext({
   session: null,
   profile: null,
   isCreator: false,
   avatarPath: null,
+  pictureUrl: null,
   loading: true,
   refreshProfile: () => {},
   signOut: () => {},
@@ -32,6 +34,13 @@ export default function SessionProvider({ children }) {
   // sidebar can both show the real photo instead of just initials, without
   // each needing its own Supabase query.
   const [avatarPath, setAvatarPath] = useState(null);
+  // Seekers/Assistants don't have a creator_storefronts row, so avatarPath
+  // above is always null for them — their photo lives on their own role
+  // table (seekers.profile_picture_path / assistants.profile_picture_path)
+  // in the private `profile-pictures` bucket instead, which needs a signed
+  // URL rather than a public one. Resolved here (not a raw path) so Header
+  // and the my-profile sidebar can use it directly.
+  const [pictureUrl, setPictureUrl] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (userId) => {
@@ -39,6 +48,7 @@ export default function SessionProvider({ children }) {
       setProfile(null);
       setIsCreator(false);
       setAvatarPath(null);
+      setPictureUrl(null);
       return;
     }
     const [{ data: profileRow }, { data: creatorFlag }, { data: storefront }] = await Promise.all([
@@ -49,6 +59,19 @@ export default function SessionProvider({ children }) {
     setProfile(profileRow || null);
     setIsCreator(!!creatorFlag);
     setAvatarPath(storefront?.avatar_path || null);
+
+    const table = ['seeker', 'assistant'].includes(profileRow?.role) ? ROLE_TABLES[profileRow.role] : null;
+    if (table) {
+      const { data: roleRow } = await supabase.from(table).select('profile_picture_path').eq('auth_user_id', userId).maybeSingle();
+      if (roleRow?.profile_picture_path) {
+        const { data: signed } = await supabase.storage.from('profile-pictures').createSignedUrl(roleRow.profile_picture_path, 3600);
+        setPictureUrl(signed?.signedUrl || null);
+      } else {
+        setPictureUrl(null);
+      }
+    } else {
+      setPictureUrl(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -81,7 +104,7 @@ export default function SessionProvider({ children }) {
   }, [session, loadProfile]);
 
   return (
-    <SessionContext.Provider value={{ session, profile, isCreator, avatarPath, loading, refreshProfile, signOut }}>
+    <SessionContext.Provider value={{ session, profile, isCreator, avatarPath, pictureUrl, loading, refreshProfile, signOut }}>
       {children}
     </SessionContext.Provider>
   );

@@ -6,6 +6,7 @@ import { useSession } from '@/components/SessionProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { ROLE_LABELS, initialsFor } from '@/lib/roles';
 import { ROLE_TABLES, ROLE_PROFILE_FIELDS } from '@/lib/roleProfileFields';
+import { bannerUrl } from '@/lib/storage';
 
 // The read-only counterpart to /complete-profile: a summary of everything
 // a Seeker or Assistant has filled in, plus a preview of how that shows up
@@ -13,19 +14,19 @@ import { ROLE_TABLES, ROLE_PROFILE_FIELDS } from '@/lib/roleProfileFields';
 // which already handles the signed-in/role gate — this page only needs to
 // load its own row.
 
-function Avatar({ url, name, size = 52, fontSize = 16 }) {
+function Avatar({ url, name, size = 52, fontSize = 16, style = {} }) {
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
         alt={name}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '3px solid var(--white)' }}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '3px solid var(--white)', ...style }}
       />
     );
   }
   return (
-    <div className="avatar" style={{ width: size, height: size, fontSize, border: '3px solid var(--white)' }}>
+    <div className="avatar" style={{ width: size, height: size, fontSize, border: '3px solid var(--white)', ...style }}>
       {initialsFor(name)}
     </div>
   );
@@ -93,6 +94,7 @@ export default function MyProfilePage() {
   const story = row?.[storyField];
   const tagField = role === 'seeker' ? 'support_needs' : 'spiritual_gifts';
   const tags = Array.isArray(row?.[tagField]) ? row[tagField] : [];
+  const banner = bannerUrl(row?.banner_path);
 
   return (
     <div style={{ maxWidth: 780, display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -218,19 +220,30 @@ export default function MyProfilePage() {
               </div>
             </div>
           ) : (
+            // Matches components/CreatorCard.js exactly (same banner height,
+            // avatar size/overlap, and padding as the Spiritual Mothers'
+            // storefront cards) so a Seeker browsing the marketplace sees a
+            // consistent card style regardless of who it belongs to.
             <div className="card" style={{ overflow: 'hidden', maxWidth: 320 }}>
-              <div style={{ height: 80, background: 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)' }} />
-              <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <Avatar url={pictureUrl} name={row?.name} size={62} fontSize={18} />
+              <div
+                style={{
+                  height: 120,
+                  background: banner
+                    ? `center 70% / cover no-repeat url(${banner})`
+                    : 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
+                }}
+              />
+              <div style={{ padding: '0 22px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <Avatar url={pictureUrl} name={row?.name} size={78} fontSize={22} style={{ marginTop: -39 }} />
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{row?.name}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>{ROLE_LABELS.assistant}</div>
+                  <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text)' }}>{row?.name}</div>
+                  <div className="muted" style={{ fontSize: 12.5 }}>{ROLE_LABELS.assistant}</div>
                 </div>
                 {story && (
                   <div
                     style={{
                       fontSize: 13,
-                      lineHeight: 1.55,
+                      lineHeight: 1.5,
                       color: 'var(--text)',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,

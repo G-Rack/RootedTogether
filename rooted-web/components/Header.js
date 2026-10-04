@@ -19,11 +19,14 @@ const NAV_LINKS = [
 ];
 
 export default function Header() {
-  const { session, profile, isCreator, avatarPath, signOut } = useSession();
+  const { session, profile, isCreator, avatarPath, pictureUrl, signOut } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === '/';
-  const avatar = avatarUrl(avatarPath);
+  // Creators have a storefront avatar (public bucket); Seekers/Assistants
+  // have a profile picture from /complete-profile instead (private bucket,
+  // already resolved to a signed URL by SessionProvider).
+  const avatar = avatarUrl(avatarPath) || pictureUrl;
   const [menuOpen, setMenuOpen] = useState(false);
   // Close the mobile menu whenever the route changes (back/forward nav,
   // programmatic redirects, etc) — adjusted during render per React's

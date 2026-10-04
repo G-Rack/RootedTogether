@@ -53,7 +53,7 @@ const NAV = [
 ];
 
 export default function MyProfileLayout({ children }) {
-  const { session, profile, loading, signOut } = useSession();
+  const { session, profile, loading, signOut, pictureUrl } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -123,9 +123,15 @@ export default function MyProfileLayout({ children }) {
             marginBottom: 16,
           }}
         >
-          <div className="avatar" style={{ width: 38, height: 38, fontSize: 14 }}>
-            {initialsFor(profile?.full_name)}
-          </div>
+          {pictureUrl ? (
+            <div
+              style={{ width: 38, height: 38, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${pictureUrl})` }}
+            />
+          ) : (
+            <div className="avatar" style={{ width: 38, height: 38, fontSize: 14 }}>
+              {initialsFor(profile?.full_name)}
+            </div>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {profile?.full_name || session.user.email}
