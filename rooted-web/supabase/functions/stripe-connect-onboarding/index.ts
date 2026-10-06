@@ -1,21 +1,35 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@17?target=deno";
 
-// Creates (if needed) a Stripe Express connected account for the signed-in
-// creator and returns a one-time onboarding link. Called from the
-// dashboard's Payouts page "Connect with Stripe" button. The creator does
-// everything else — identity, bank details — on Stripe's own hosted page;
-// this function never sees or stores any of that, only the resulting
-// account id.
+// Creates (if needed) a Stripe connected account for the signed-in creator
+// and returns a one-time onboarding link, OR (action: "status") re-checks
+// whether that creator has actually finished onboarding. Called from the
+// dashboard's Payouts page.
+//
+// Uses Stripe's Accounts v2 API (POST /v2/core/accounts) — Stripe no longer
+// allows creating new Accounts v1 connected accounts for new Connect
+// integrations. The account is an Express-dashboard "recipient" account
+// that can receive transfers from the platform (what destination charges in
+// create-checkout-session need). The creator does everything else —
+// identity, bank details — on Stripe's own hosted page; this function never
+// sees or stores any of that, only the resulting account id.
+//
+// v2 API calls go out as plain fetch() requests rather than through the
+// Stripe SDK, so this function doesn't depend on an SDK version that
+// supports the v2 preview API.
 //
 // The account id + whether payouts are actually enabled live on `profiles`
 // (stripe_account_id / stripe_payouts_enabled) rather than
 // creator_storefronts, because every signed-up user already has exactly
 // one profiles row — creator_storefronts only gets created once a creator
-// picks a public handle, and `handle` is NOT NULL there, so it can't be
-// used as a landing spot for Stripe state that should exist independent of
-// whether branding has been set up yet.
+// picks a public handle, and `handle` is NOT NULL there.
+//
+// stripe_payouts_enabled is refreshed by the "status" action (the Payouts
+// page calls it when the creator returns from Stripe) rather than only by
+// webhook, since v2 accounts don't send the v1 account.updated event.
+
+const STRIPE_API = "https://api.stripe.com";
+const STRIPE_V2_VERSION = "2026-09-30.preview";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -28,6 +42,29 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
+}
+
+async function stripeV2(stripeKey: string, method: string, path: string, body?: unknown) {
+  const res = await fetch(`${STRIPE_API}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${stripeKey}`,
+      "Stripe-Version": STRIPE_V2_VERSION,
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    // fall through — handled below via res.ok
+  }
+  if (!res.ok) {
+    const message = data?.error?.message || `Stripe returned ${res.status}`;
+    throw new Error(message);
+  }
+  return data;
 }
 
 Deno.serve(async (req: Request) => {
@@ -60,6 +97,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     // no body is fine — origin is optional, falls back below
   }
+  const action = payload?.action === "status" ? "status" : "onboard";
   const origin = typeof payload?.origin === "string" && payload.origin.startsWith("https://")
     ? payload.origin
     : "https://rootedtogether.club";
@@ -69,7 +107,6 @@ Deno.serve(async (req: Request) => {
     console.error("STRIPE_SECRET_KEY is not set.");
     return jsonResponse({ error: "Payments aren't configured yet. Please try again later." }, 500);
   }
-  const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
   const { data: profileRow } = await supabase
     .from("profiles")
@@ -79,15 +116,52 @@ Deno.serve(async (req: Request) => {
 
   let accountId = profileRow?.stripe_account_id || null;
 
+  // --- Status check: has this creator finished Stripe's onboarding? -------
+  if (action === "status") {
+    if (!accountId) return jsonResponse({ payoutsEnabled: false, hasAccount: false });
+    try {
+      const account = await stripeV2(
+        stripeKey,
+        "GET",
+        `/v2/core/accounts/${accountId}?include=configuration.recipient`,
+      );
+      const transfersStatus =
+        account?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status;
+      const payoutsEnabled = transfersStatus === "active";
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ stripe_payouts_enabled: payoutsEnabled })
+        .eq("id", userId);
+      if (updateError) console.error("Updating stripe_payouts_enabled failed:", updateError);
+      return jsonResponse({ payoutsEnabled, hasAccount: true, transfersStatus: transfersStatus || null });
+    } catch (e) {
+      console.error("Stripe account status error:", e);
+      return jsonResponse({ error: "Couldn't check your Stripe status — please try again." }, 502);
+    }
+  }
+
+  // --- Onboard: create the account if needed, then a hosted onboarding link
   if (!accountId) {
     const { data: authUser } = await supabase.auth.admin.getUserById(userId);
     try {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: authUser?.user?.email || undefined,
-        business_type: "individual",
-        capabilities: { transfers: { requested: true } },
-        metadata: { rooted_together_auth_user_id: userId, full_name: profileRow?.full_name || "" },
+      const account = await stripeV2(stripeKey, "POST", "/v2/core/accounts", {
+        contact_email: authUser?.user?.email || undefined,
+        display_name: profileRow?.full_name || authUser?.user?.email || "Rooted Together creator",
+        dashboard: "express",
+        defaults: {
+          responsibilities: {
+            fees_collector: "application",
+            losses_collector: "application",
+          },
+        },
+        identity: { country: "us" },
+        configuration: {
+          recipient: {
+            capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
+          },
+        },
+        metadata: { rooted_together_auth_user_id: userId },
+        include: ["configuration.recipient", "identity", "requirements"],
       });
       accountId = account.id;
     } catch (e) {
@@ -103,11 +177,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const accountLink = await stripe.accountLinks.create({
+    const accountLink = await stripeV2(stripeKey, "POST", "/v2/core/account_links", {
       account: accountId,
-      refresh_url: `${origin}/dashboard/payouts?stripe=refresh`,
-      return_url: `${origin}/dashboard/payouts?stripe=complete`,
-      type: "account_onboarding",
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: {
+          configurations: ["recipient"],
+          refresh_url: `${origin}/dashboard/payouts?stripe=refresh`,
+          return_url: `${origin}/dashboard/payouts?stripe=complete`,
+        },
+      },
     });
     return jsonResponse({ url: accountLink.url });
   } catch (e) {

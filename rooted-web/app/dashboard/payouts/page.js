@@ -110,10 +110,11 @@ export default function PayoutsPage() {
     };
   }, [session]);
 
-  // Returning from Stripe's hosted onboarding: account.updated usually
-  // reaches the webhook within a second or two, but it's still a race —
-  // poll briefly rather than showing "not connected" right after the user
-  // just finished connecting.
+  // Returning from Stripe's hosted onboarding: ask the onboarding function
+  // to re-check the account directly with Stripe and update
+  // profiles.stripe_payouts_enabled, rather than waiting on a webhook.
+  // A new account can take a few seconds to show as active, so retry briefly
+  // rather than showing "not connected" right after the user just finished.
   useEffect(() => {
     const stripeParam = searchParams.get('stripe');
     if (!session || !stripeParam) return;
@@ -122,10 +123,22 @@ export default function PayoutsPage() {
       setCheckingStripeReturn(true);
       (async () => {
         for (let attempt = 0; attempt < 6; attempt += 1) {
+          try {
+            await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ action: 'status' }),
+            });
+          } catch (err) {
+            // fall through — loadStripeStatus below just reads what's stored
+          }
           const data = await loadStripeStatus(session.user.id);
           if (cancelled) return;
           if (data?.stripe_payouts_enabled) break;
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         if (!cancelled) setCheckingStripeReturn(false);
       })();
