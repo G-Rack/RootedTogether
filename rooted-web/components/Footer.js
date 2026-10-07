@@ -19,7 +19,7 @@ export default function Footer() {
             A faith-based mentorship community — on the app, and now in the marketplace.
           </div>
           <div style={{ marginTop: 10 }}>
-            <StoreBadges />
+            <StoreBadges showNote={false} />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
