@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import OfferingCard from '@/components/OfferingCard';
 import CreatorCard from '@/components/CreatorCard';
+import StoreBadges from '@/components/StoreBadges';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchMarketStats } from '@/lib/reviews';
 
@@ -178,6 +179,9 @@ function HomePageInner() {
             <Link href="/login?tab=signup" className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
               Become a Creator
             </Link>
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <StoreBadges />
           </div>
           <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)' }}>
             Already on the Rooted Together app? Your login works here too.

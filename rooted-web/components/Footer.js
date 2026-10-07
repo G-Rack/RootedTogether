@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import StoreBadges from '@/components/StoreBadges';
 
 export default function Footer() {
   return (
@@ -16,6 +17,9 @@ export default function Footer() {
           <span className="serif" style={{ fontSize: 19, fontWeight: 700, color: 'var(--brown)' }}>Rooted Together</span>
           <div className="muted" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 260 }}>
             A faith-based mentorship community — on the app, and now in the marketplace.
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <StoreBadges />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

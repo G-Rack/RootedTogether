@@ -9,3 +9,9 @@ export const SUBMIT_ENDPOINT = `${SUPABASE_URL}/functions/v1/submit-signup`;
 // Base URL for every other Edge Function — the Stripe Checkout / Connect
 // functions and any future one all hang off this same pattern.
 export const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+
+// App store listings. Leave empty until the app is live — the website's
+// download buttons show "Coming soon" while these are blank, and become
+// real links the moment you paste the store URLs in.
+export const APP_STORE_URL = '';
+export const PLAY_STORE_URL = '';
