@@ -75,21 +75,41 @@ Deno.serve(async (req: Request) => {
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
     const applicationFeeAmount = paymentIntentId ? await fetchApplicationFee(stripe, paymentIntentId) : 0;
 
-    // upsert on the unique stripe_checkout_session_id index — Stripe can
-    // and does retry webhook delivery, so this must be safe to run twice
-    // for the same session without creating a duplicate purchase.
-    const { error } = await supabase.from("offering_purchases").upsert(
-      {
+    // Stripe can and does retry webhook delivery, so this must be safe to
+    // run twice for the same session without creating a duplicate purchase.
+    // (A plain upsert with onConflict doesn't work here: the unique index on
+    // stripe_checkout_session_id is partial — WHERE ... IS NOT NULL — and
+    // Postgres can't infer a partial index for ON CONFLICT, error 42P10.)
+    // So: look for an existing row first, then insert; a concurrent retry
+    // that slips between the two hits the unique index (23505) and is ignored.
+    const { data: existing, error: lookupError } = await supabase
+      .from("offering_purchases")
+      .select("id")
+      .eq("stripe_checkout_session_id", session.id)
+      .maybeSingle();
+    if (lookupError) console.error("Purchase lookup failed:", lookupError);
+
+    if (existing) {
+      console.log("Purchase already recorded for session", session.id);
+    } else {
+      const { error } = await supabase.from("offering_purchases").insert({
         offering_id: offeringId,
         buyer_auth_id: buyerAuthId,
         price_paid_cents: amountTotal,
         platform_fee_cents: applicationFeeAmount,
         stripe_checkout_session_id: session.id,
         stripe_payment_intent_id: paymentIntentId,
-      },
-      { onConflict: "stripe_checkout_session_id" },
-    );
-    if (error) console.error("Failed to record purchase from webhook:", error);
+      });
+      if (error && error.code === "23505") {
+        console.log("Purchase already recorded (duplicate ignored) for session", session.id, error.message);
+      } else if (error) {
+        console.error("Failed to record purchase from webhook:", error);
+        // Non-2xx so Stripe retries delivery instead of silently dropping a paid purchase.
+        return new Response("Failed to record purchase.", { status: 500 });
+      } else {
+        console.log("Purchase recorded for session", session.id);
+      }
+    }
   }
 
   if (event.type === "account.updated") {

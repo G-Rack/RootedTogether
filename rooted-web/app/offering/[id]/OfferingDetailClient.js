@@ -389,14 +389,20 @@ export default function OfferingDetailClient() {
           {error && <div className="error-banner">{error}</div>}
           {notice && !error && <div className="success-banner">{notice}</div>}
 
-          {awaitingWebhook ? (
+          {awaitingWebhook && !alreadyOwned ? (
             <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
               Finishing up your purchase…
             </div>
           ) : alreadyOwned ? (
-            <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
-              {isCall ? 'Booked' : 'Already yours'}
-            </div>
+            !isCall && contentUrl ? (
+              <a href={contentUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
+                Open / download
+              </a>
+            ) : (
+              <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+                {isCall ? 'Booked' : 'Already yours'}
+              </div>
+            )
           ) : (
             <button
               onClick={handleBuy}
