@@ -183,6 +183,13 @@ export default function PayoutsPage() {
     if (!session) return;
     setOpeningDashboard(true);
     setConnectError(null);
+    // Open the new tab right away, inside the click, so the browser's popup
+    // blocker allows it — then point it at Stripe once the link is ready.
+    const stripeTab = window.open('', '_blank');
+    if (stripeTab) {
+      stripeTab.opener = null;
+      stripeTab.document.title = 'Opening Stripe…';
+    }
     try {
       const res = await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
         method: 'POST',
@@ -196,8 +203,16 @@ export default function PayoutsPage() {
       if (!res.ok || !data?.url) {
         throw new Error(data?.error || "Couldn't open your Stripe dashboard.");
       }
-      window.location.href = data.url;
+      if (stripeTab) {
+        stripeTab.location.href = data.url;
+      } else {
+        // Popup blocked entirely — fall back to this tab.
+        window.location.href = data.url;
+        return;
+      }
+      setOpeningDashboard(false);
     } catch (err) {
+      if (stripeTab) stripeTab.close();
       setConnectError(err.message || "Couldn't open your Stripe dashboard — please try again.");
       setOpeningDashboard(false);
     }
