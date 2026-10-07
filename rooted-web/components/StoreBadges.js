@@ -10,10 +10,9 @@ function Badge({ href, small, big, icon }) {
     <>
       {icon}
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
-        <span style={{ fontSize: 11, letterSpacing: 0.4, opacity: 0.82 }}>{small}</span>
-        <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3, marginTop: 3 }}>{big}</span>
+        <span style={{ fontSize: 11.5, letterSpacing: 0.2 }}>{small}</span>
+        <span style={{ fontSize: 25, fontWeight: 600, letterSpacing: -0.5, marginTop: 1 }}>{big}</span>
       </span>
-      {!live && <span className="store-badge-tag">Soon</span>}
     </>
   );
   return live ? (
@@ -27,22 +26,18 @@ function Badge({ href, small, big, icon }) {
   );
 }
 
-// iPhone: cream tile with a phone receiving a download arrow.
+// Plain white glyphs (no tile), like the official badge layout.
 const iosIcon = (
-  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-    <rect x="1" y="1" width="38" height="38" rx="11" fill="#FBF6EF" />
-    <rect x="12.5" y="7.5" width="15" height="25" rx="3.6" stroke="#6B4226" strokeWidth="2" />
-    <path d="M17.5 10.5h5" stroke="#6B4226" strokeWidth="2" strokeLinecap="round" />
-    <path d="M20 15.5v8M16.6 20.4l3.4 3.4 3.4-3.4" stroke="#6B4226" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  <svg width="30" height="34" viewBox="0 0 30 34" fill="none" aria-hidden="true">
+    <rect x="5" y="2" width="20" height="30" rx="4.5" stroke="#fff" strokeWidth="2.4" />
+    <path d="M12 6h6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+    <path d="M15 12v10M10.8 18l4.2 4.2 4.2-4.2" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
-// Android: gold tile with a play triangle.
 const androidIcon = (
-  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-    <rect x="1" y="1" width="38" height="38" rx="11" fill="#C8923F" />
-    <path d="M15 11.5v17c0 .9 1 1.4 1.7.9l13-8.5c.6-.4.6-1.3 0-1.8l-13-8.5c-.7-.5-1.7 0-1.7.9z" fill="#1B100A" />
-    <path d="M15.4 11.9l10.4 8.1" stroke="#C8923F" strokeWidth="1.3" strokeLinecap="round" opacity="0.6" />
+  <svg width="30" height="34" viewBox="0 0 30 34" fill="none" aria-hidden="true">
+    <path d="M5 3.8v26.4c0 1.4 1.5 2.2 2.7 1.5l20-13.2c1-.7 1-2.2 0-2.9L7.7 2.3C6.5 1.6 5 2.4 5 3.8z" fill="#fff" />
   </svg>
 );
 
@@ -79,7 +74,7 @@ export default function StoreBadges({ align = 'flex-start', showNote = true }) {
           </>
         )}
       </div>
-      {showNote && <div style={{ fontSize: 12.5, opacity: 0.8 }}>Free to download. iPhone and Android.</div>}
+      {showNote && <div style={{ fontSize: 12.5, opacity: 0.85 }}>{APP_STORE_URL || PLAY_STORE_URL ? 'Free to download. iPhone and Android.' : 'Coming soon. Free to download on iPhone and Android.'}</div>}
     </div>
   );
 }
