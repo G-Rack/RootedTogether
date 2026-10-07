@@ -45,6 +45,7 @@ export default function PayoutsPage() {
   const [stripeAccountId, setStripeAccountId] = useState(null);
   const [stripePayoutsEnabled, setStripePayoutsEnabled] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [openingDashboard, setOpeningDashboard] = useState(false);
   const [connectError, setConnectError] = useState(null);
   const [checkingStripeReturn, setCheckingStripeReturn] = useState(false);
 
@@ -175,6 +176,33 @@ export default function PayoutsPage() {
     }
   }
 
+  // Sends a connected creator to their Stripe Express Dashboard (balance,
+  // upcoming payouts, bank details). Stripe's login links are single-use,
+  // so a fresh one is requested on every click.
+  async function handleOpenStripeDashboard() {
+    if (!session) return;
+    setOpeningDashboard(true);
+    setConnectError(null);
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ action: 'dashboard' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || "Couldn't open your Stripe dashboard.");
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      setConnectError(err.message || "Couldn't open your Stripe dashboard — please try again.");
+      setOpeningDashboard(false);
+    }
+  }
+
   const offeringById = useMemo(() => Object.fromEntries(offerings.map((o) => [o.id, o])), [offerings]);
 
   const total = purchases.reduce((sum, p) => sum + (p.price_paid_cents || 0), 0);
@@ -292,9 +320,31 @@ export default function PayoutsPage() {
                   <strong>Connected</strong> — Stripe payouts are enabled on this account.
                 </div>
               </div>
-            ) : checkingStripeReturn ? (
+            ) : null}
+            {stripePayoutsEnabled ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--text-soft)', marginBottom: 10 }}>
+                  Earnings are paid out to your bank automatically on Stripe&apos;s schedule. Open your Stripe
+                  dashboard to see your balance, upcoming payouts and bank details.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-small"
+                  onClick={handleOpenStripeDashboard}
+                  disabled={openingDashboard}
+                >
+                  {openingDashboard ? 'Opening Stripe…' : 'Open Stripe dashboard'}
+                </button>
+                {connectError && (
+                  <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
+                    {connectError}
+                  </div>
+                )}
+              </div>
+            ) : null}
+            {!stripePayoutsEnabled && checkingStripeReturn ? (
               <div style={{ fontSize: 13, color: 'var(--text-soft)' }}>Checking your Stripe status…</div>
-            ) : (
+            ) : !stripePayoutsEnabled ? (
               <div>
                 <div style={{ fontSize: 13, color: 'var(--text-soft)', marginBottom: 10 }}>
                   {stripeAccountId
@@ -315,7 +365,7 @@ export default function PayoutsPage() {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 

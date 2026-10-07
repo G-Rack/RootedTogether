@@ -97,7 +97,11 @@ Deno.serve(async (req: Request) => {
   } catch {
     // no body is fine — origin is optional, falls back below
   }
-  const action = payload?.action === "status" ? "status" : "onboard";
+  const action = payload?.action === "status"
+    ? "status"
+    : payload?.action === "dashboard"
+    ? "dashboard"
+    : "onboard";
   const origin = typeof payload?.origin === "string" && payload.origin.startsWith("https://")
     ? payload.origin
     : "https://rootedtogether.club";
@@ -107,6 +111,10 @@ Deno.serve(async (req: Request) => {
     console.error("STRIPE_SECRET_KEY is not set.");
     return jsonResponse({ error: "Payments aren't configured yet. Please try again later." }, 500);
   }
+  // Diagnostic: the first 25 characters of a Stripe secret key are only the
+  // key type + the owning account's id (not secret) — logged so we can tell
+  // which Stripe account / sandbox this key belongs to.
+  console.log("Stripe key in use belongs to:", stripeKey.slice(0, 25));
 
   const { data: profileRow } = await supabase
     .from("profiles")
@@ -140,6 +148,29 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // --- Dashboard: one-time login link into the creator's Express Dashboard
+  // (balance, upcoming payouts, bank details). The link is single-use and
+  // only ever returned to the signed-in creator who owns this account.
+  if (action === "dashboard") {
+    if (!accountId) {
+      return jsonResponse({ error: "Connect your Stripe account first." }, 400);
+    }
+    try {
+      const res = await fetch(`${STRIPE_API}/v1/accounts/${accountId}/login_links`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${stripeKey}` },
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error?.message || `Stripe returned ${res.status}`);
+      }
+      return jsonResponse({ url: data.url });
+    } catch (e) {
+      console.error("Login link creation error:", e);
+      return jsonResponse({ error: "Couldn't open your Stripe dashboard — please try again." }, 502);
+    }
+  }
+
   // --- Onboard: create the account if needed, then a hosted onboarding link
   if (!accountId) {
     const { data: authUser } = await supabase.auth.admin.getUserById(userId);
@@ -164,6 +195,7 @@ Deno.serve(async (req: Request) => {
         include: ["configuration.recipient", "identity", "requirements"],
       });
       accountId = account.id;
+      console.log("Created connected account:", accountId, JSON.stringify(account?.configuration?.recipient?.capabilities || {}));
     } catch (e) {
       console.error("Stripe account creation error:", e);
       return jsonResponse({ error: "Couldn't start Stripe onboarding — please try again." }, 502);
@@ -182,7 +214,6 @@ Deno.serve(async (req: Request) => {
       use_case: {
         type: "account_onboarding",
         account_onboarding: {
-          configurations: ["recipient"],
           refresh_url: `${origin}/dashboard/payouts?stripe=refresh`,
           return_url: `${origin}/dashboard/payouts?stripe=complete`,
         },

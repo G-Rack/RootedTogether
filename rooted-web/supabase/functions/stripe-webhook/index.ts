@@ -7,34 +7,55 @@ import Stripe from "https://esm.sh/stripe@17?target=deno";
 // thing that proves a request genuinely came from Stripe is the signature
 // check below; never trust this payload otherwise.
 //
-// Handles two event types:
-//   - checkout.session.completed: writes the real offering_purchases row
-//     (the client never inserts this for a paid purchase — see
-//     create-checkout-session and the add_stripe_connect_and_checkout
-//     migration's tightened RLS policy).
-//   - account.updated: keeps profiles.stripe_payouts_enabled in sync with
-//     whether a creator has actually finished Stripe's onboarding.
+// Stripe uses a SEPARATE endpoint (and a separate signing secret) for
+// events on your own account vs. events on connected accounts, so this
+// function accepts up to two secrets and tries each:
+//   - STRIPE_WEBHOOK_SECRET          ("Your account" endpoint:
+//                                     checkout.session.completed)
+//   - STRIPE_CONNECT_WEBHOOK_SECRET  ("Connected accounts" endpoint:
+//                                     account events; optional)
+// Point both Stripe destinations at this same function URL.
+//
+// Handles:
+//   - checkout.session.completed: writes the real offering_purchases row.
+//   - account.updated (v1 event): syncs profiles.stripe_payouts_enabled.
+//   - v2.core.account* (thin v2 events, what Accounts v2 sends): looks the
+//     account up and syncs profiles.stripe_payouts_enabled.
+
+const STRIPE_API = "https://api.stripe.com";
+const STRIPE_V2_VERSION = "2026-09-30.preview";
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed.", { status: 405 });
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  if (!stripeKey || !webhookSecret) {
-    console.error("Stripe secrets are not set.");
+  const secrets = [
+    Deno.env.get("STRIPE_WEBHOOK_SECRET"),
+    Deno.env.get("STRIPE_CONNECT_WEBHOOK_SECRET"),
+  ].filter((s): s is string => !!s);
+  if (!stripeKey || secrets.length === 0) {
+    console.error("Stripe secrets are not set (need STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET).");
     return new Response("Not configured.", { status: 500 });
   }
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(body, signature!, webhookSecret);
-  } catch (e) {
-    console.error("Webhook signature verification failed:", e);
+  let event: any = null;
+  let lastError: unknown = null;
+  for (const secret of secrets) {
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature!, secret);
+      break;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  if (!event) {
+    console.error("Webhook signature verification failed:", lastError);
     return new Response("Invalid signature.", { status: 400 });
   }
+  console.log("Stripe webhook received:", event.type, event.id);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -79,6 +100,35 @@ Deno.serve(async (req: Request) => {
       .update({ stripe_payouts_enabled: payoutsEnabled })
       .eq("stripe_account_id", account.id);
     if (error) console.error("Failed to update stripe_payouts_enabled:", error);
+  }
+
+  // Accounts v2 sends thin events with no account body — just the id of the
+  // related object — so look the account up and re-derive the flag.
+  if (typeof event.type === "string" && event.type.startsWith("v2.core.account")) {
+    const accountId = event.related_object?.id;
+    if (accountId) {
+      try {
+        const res = await fetch(
+          `${STRIPE_API}/v2/core/accounts/${accountId}?include=configuration.recipient`,
+          {
+            headers: {
+              Authorization: `Bearer ${stripeKey}`,
+              "Stripe-Version": STRIPE_V2_VERSION,
+            },
+          },
+        );
+        const account = await res.json();
+        if (!res.ok) throw new Error(account?.error?.message || `Stripe returned ${res.status}`);
+        const status = account?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status;
+        const { error } = await supabase
+          .from("profiles")
+          .update({ stripe_payouts_enabled: status === "active" })
+          .eq("stripe_account_id", accountId);
+        if (error) console.error("Failed to update stripe_payouts_enabled (v2):", error);
+      } catch (e) {
+        console.error("v2 account lookup from webhook failed:", e);
+      }
+    }
   }
 
   return new Response("ok", { status: 200 });
