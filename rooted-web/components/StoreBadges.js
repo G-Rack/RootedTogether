@@ -1,4 +1,4 @@
-import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/config';
+import { APP_STORE_URL, PLAY_STORE_URL, USE_OFFICIAL_BADGES } from '@/lib/config';
 
 // Original store-style download buttons (not the official Apple / Google
 // badge artwork). Before launch, swap in the official badges from Apple's
@@ -46,12 +46,38 @@ const androidIcon = (
   </svg>
 );
 
+// Official badge artwork, used when USE_OFFICIAL_BADGES is true. Download the
+// files from Apple's and Google's badge pages and save them as
+// public/badges/app-store.svg and public/badges/google-play.png.
+function OfficialBadge({ href, src, alt, height, trim = 0 }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  const img = <img src={src} alt={alt} style={{ height, display: 'block', margin: trim }} />;
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer" aria-label={alt} style={{ display: 'inline-flex' }}>
+      {img}
+    </a>
+  ) : (
+    <span style={{ display: 'inline-flex', opacity: 0.9 }} title="Coming soon">
+      {img}
+    </span>
+  );
+}
+
 export default function StoreBadges({ align = 'flex-start', showNote = true }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: align }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: align }}>
-        <Badge href={APP_STORE_URL} small="Download on the" big="App Store" icon={iosIcon} />
-        <Badge href={PLAY_STORE_URL} small="Get it on" big="Google Play" icon={androidIcon} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: align }}>
+        {USE_OFFICIAL_BADGES ? (
+          <>
+            <OfficialBadge href={APP_STORE_URL} src="/badges/app-store.svg" alt="Download on the App Store" height={54} />
+            <OfficialBadge href={PLAY_STORE_URL} src="/badges/google-play.png" alt="Get it on Google Play" height={80} trim="-13px" />
+          </>
+        ) : (
+          <>
+            <Badge href={APP_STORE_URL} small="Download on the" big="App Store" icon={iosIcon} />
+            <Badge href={PLAY_STORE_URL} small="Get it on" big="Google Play" icon={androidIcon} />
+          </>
+        )}
       </div>
       {showNote && <div style={{ fontSize: 12.5, opacity: 0.8 }}>Free to download. iPhone and Android.</div>}
     </div>

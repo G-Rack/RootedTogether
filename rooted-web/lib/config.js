@@ -15,3 +15,8 @@ export const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 // real links the moment you paste the store URLs in.
 export const APP_STORE_URL = '';
 export const PLAY_STORE_URL = '';
+
+// Set to true once you've dropped the OFFICIAL badge files into
+// public/badges/ (app-store.svg and google-play.png). Until then the
+// website shows its own styled download buttons instead.
+export const USE_OFFICIAL_BADGES = false;
