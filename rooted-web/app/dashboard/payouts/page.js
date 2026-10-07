@@ -46,6 +46,11 @@ export default function PayoutsPage() {
   const [stripePayoutsEnabled, setStripePayoutsEnabled] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [openingDashboard, setOpeningDashboard] = useState(false);
+  // Manual payouts: the creator's Stripe balance and the "Request payout" flow.
+  const [payoutBalance, setPayoutBalance] = useState(null); // { availableCents, pendingCents, minPayoutCents }
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutNotice, setPayoutNotice] = useState(null);
+  const [payoutError, setPayoutError] = useState(null);
   const [connectError, setConnectError] = useState(null);
   const [checkingStripeReturn, setCheckingStripeReturn] = useState(false);
 
@@ -173,6 +178,56 @@ export default function PayoutsPage() {
     } catch (err) {
       setConnectError(err.message || "Couldn't start Stripe onboarding — please try again.");
       setConnecting(false);
+    }
+  }
+
+  async function callStripeFunction(body) {
+    const res = await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  }
+
+  async function loadPayoutBalance() {
+    if (!session) return;
+    try {
+      const { ok, data } = await callStripeFunction({ action: 'balance' });
+      if (ok) setPayoutBalance(data);
+    } catch {
+      // Balance is a nicety — the page still works without it.
+    }
+  }
+
+  useEffect(() => {
+    if (session && stripePayoutsEnabled) loadPayoutBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, stripePayoutsEnabled]);
+
+  async function handleRequestPayout() {
+    if (!session || payoutBusy) return;
+    setPayoutBusy(true);
+    setPayoutError(null);
+    setPayoutNotice(null);
+    try {
+      const { ok, data } = await callStripeFunction({ action: 'payout' });
+      if (!ok) throw new Error(data?.error || "Couldn't create your payout.");
+      const arrives = data.arrivalDate
+        ? new Date(data.arrivalDate * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : null;
+      setPayoutNotice(
+        `Payout of ${formatPrice(data.amountCents)} requested${arrives ? ` — expected in your bank by ${arrives}` : ''}.`
+      );
+      await loadPayoutBalance();
+    } catch (err) {
+      setPayoutError(err.message || "Couldn't create your payout — please try again.");
+    } finally {
+      setPayoutBusy(false);
     }
   }
 
@@ -338,18 +393,59 @@ export default function PayoutsPage() {
             ) : null}
             {stripePayoutsEnabled ? (
               <div style={{ marginTop: 12 }}>
+                {payoutBalance ? (
+                  <div style={{ display: 'flex', gap: 24, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-soft)' }}>Available to pay out</div>
+                      <div className="serif" style={{ fontSize: 20, fontWeight: 700, color: 'var(--brown)' }}>
+                        {formatPrice(payoutBalance.availableCents)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-soft)' }}>Pending</div>
+                      <div className="serif" style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-soft)' }}>
+                        {formatPrice(payoutBalance.pendingCents)}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 <div style={{ fontSize: 12.5, color: 'var(--text-soft)', marginBottom: 10 }}>
-                  Earnings are paid out to your bank automatically on Stripe&apos;s schedule. Open your Stripe
-                  dashboard to see your balance, upcoming payouts and bank details.
+                  Your earnings build up in your Stripe balance. Request a payout whenever you&apos;d like to send
+                  them to your bank
+                  {payoutBalance ? ` (minimum ${formatPrice(payoutBalance.minPayoutCents)})` : ''}.
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-small"
-                  onClick={handleOpenStripeDashboard}
-                  disabled={openingDashboard}
-                >
-                  {openingDashboard ? 'Opening Stripe…' : 'Open Stripe dashboard'}
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-small"
+                    onClick={handleRequestPayout}
+                    disabled={
+                      payoutBusy ||
+                      !payoutBalance ||
+                      payoutBalance.availableCents < payoutBalance.minPayoutCents
+                    }
+                  >
+                    {payoutBusy ? 'Requesting payout…' : 'Request payout'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-small"
+                    onClick={handleOpenStripeDashboard}
+                    disabled={openingDashboard}
+                  >
+                    {openingDashboard ? 'Opening Stripe…' : 'Open Stripe dashboard'}
+                  </button>
+                </div>
+                {payoutNotice && (
+                  <div className="success-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
+                    {payoutNotice}
+                  </div>
+                )}
+                {payoutError && (
+                  <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
+                    {payoutError}
+                  </div>
+                )}
                 {connectError && (
                   <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
                     {connectError}
