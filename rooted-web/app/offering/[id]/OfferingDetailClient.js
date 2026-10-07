@@ -30,6 +30,7 @@ export default function OfferingDetailClient() {
   const [notice, setNotice] = useState('');
   const [buying, setBuying] = useState(false);
   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [tab, setTab] = useState('description');
 
   const [reviewStats, setReviewStats] = useState({ review_count: 0, avg_rating: 0 });
@@ -150,6 +151,29 @@ export default function OfferingDetailClient() {
     };
   }, [offering, session]);
 
+  // Checkout opens in a new tab, so this tab stays behind. Poll for the
+  // purchase so it flips to "owned" on its own once payment completes.
+  useEffect(() => {
+    if (!checkoutOpen || !offering || !session || purchase) return;
+    let active = true;
+    let attempts = 0;
+    const timer = setInterval(async () => {
+      attempts += 1;
+      const found = await loadPurchaseAndContent(offering, session);
+      if (!active) return;
+      if (found || attempts >= 200) {
+        clearInterval(timer);
+        setCheckoutOpen(false);
+        if (found) setNotice('');
+      }
+    }, 3000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutOpen, offering, session, purchase]);
+
   const handleBuy = async () => {
     if (!session) {
       router.push('/login');
@@ -180,6 +204,11 @@ export default function OfferingDetailClient() {
     // the server (create-checkout-session) verifies the creator has
     // payouts set up and computes the platform fee; this function only
     // redirects to the hosted checkout page it returns.
+    // Open the new tab synchronously inside the click so the browser
+    // doesn't treat it as a blocked popup, then point it at Stripe once
+    // the checkout URL is ready.
+    const checkoutTab = window.open('', '_blank');
+    if (checkoutTab) checkoutTab.opener = null;
     try {
       const res = await fetch(`${FUNCTIONS_URL}/create-checkout-session`, {
         method: 'POST',
@@ -188,12 +217,22 @@ export default function OfferingDetailClient() {
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
+        if (checkoutTab) checkoutTab.close();
         setError(data.error || "Couldn't start checkout — please try again.");
         setBuying(false);
         return;
       }
-      window.location.href = data.url;
+      if (checkoutTab) {
+        checkoutTab.location.href = data.url;
+        setNotice('Checkout opened in a new tab. Finish paying there — this page will update on its own.');
+        setCheckoutOpen(true);
+        setBuying(false);
+      } else {
+        // Popup blocked — fall back to this tab.
+        window.location.href = data.url;
+      }
     } catch {
+      if (checkoutTab) checkoutTab.close();
       setError("Couldn't start checkout — please try again.");
       setBuying(false);
     }
