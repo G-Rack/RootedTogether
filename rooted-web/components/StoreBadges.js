@@ -4,23 +4,23 @@ import { APP_STORE_URL, PLAY_STORE_URL, USE_OFFICIAL_BADGES } from '@/lib/config
 // badge artwork). Before launch, swap in the official badges from Apple's
 // and Google's marketing-resources pages if you want the exact marks.
 // Styles live in globals.css under ".store-badge".
-function Badge({ href, small, big, icon }) {
+function Badge({ href, small, soonSmall, big, icon, tone }) {
   const live = !!href;
   const inner = (
     <>
       {icon}
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
-        <span style={{ fontSize: 11.5, letterSpacing: 0.2 }}>{small}</span>
-        <span style={{ fontSize: 25, fontWeight: 600, letterSpacing: -0.5, marginTop: 1 }}>{big}</span>
+        <span style={{ fontSize: 15, letterSpacing: 0.3 }}>{live ? small : soonSmall}</span>
+        <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: -0.4, marginTop: 2 }}>{big}</span>
       </span>
     </>
   );
   return live ? (
-    <a href={href} target="_blank" rel="noreferrer" className="store-badge" aria-label={`${small} ${big}`}>
+    <a href={href} target="_blank" rel="noreferrer" className={`store-badge${tone === 'onDark' ? ' store-badge-ondark' : ''}`} aria-label={`${small} ${big}`}>
       {inner}
     </a>
   ) : (
-    <span className="store-badge store-badge-soon" aria-label={`${big}, coming soon`}>
+    <span className={`store-badge store-badge-soon${tone === 'onDark' ? ' store-badge-ondark' : ''}`} aria-label={`${big}, coming soon`}>
       {inner}
     </span>
   );
@@ -58,10 +58,16 @@ function OfficialBadge({ href, src, alt, height, trim = 0 }) {
   );
 }
 
-export default function StoreBadges({ align = 'flex-start', showNote = true }) {
+export default function StoreBadges({ align = 'flex-start', tone = 'default', showLabel = true }) {
+  const live = !!(APP_STORE_URL || PLAY_STORE_URL);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: align }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: align }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: align }}>
+      {showLabel && (
+        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.8 }}>
+          {live ? 'Get the app on iOS and Android' : 'Launching soon on iOS and Android'}
+        </div>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', justifyContent: align }}>
         {USE_OFFICIAL_BADGES ? (
           <>
             <OfficialBadge href={APP_STORE_URL} src="/badges/app-store.svg" alt="Download on the App Store" height={54} />
@@ -69,12 +75,11 @@ export default function StoreBadges({ align = 'flex-start', showNote = true }) {
           </>
         ) : (
           <>
-            <Badge href={APP_STORE_URL} small="Download on the" big="App Store" icon={iosIcon} />
-            <Badge href={PLAY_STORE_URL} small="Get it on" big="Google Play" icon={androidIcon} />
+            <Badge href={APP_STORE_URL} small="Download on the" soonSmall="Coming soon on the" big="App Store" icon={iosIcon} tone={tone} />
+            <Badge href={PLAY_STORE_URL} small="Get it on" soonSmall="Coming soon on" big="Google Play" icon={androidIcon} tone={tone} />
           </>
         )}
       </div>
-      {showNote && <div style={{ fontSize: 12.5, opacity: 0.85 }}>{APP_STORE_URL || PLAY_STORE_URL ? 'Free to download. iPhone and Android.' : 'Coming soon. Free to download on iPhone and Android.'}</div>}
     </div>
   );
 }

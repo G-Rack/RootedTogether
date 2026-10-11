@@ -181,7 +181,7 @@ function HomePageInner() {
             </Link>
           </div>
           <div style={{ marginTop: 6 }}>
-            <StoreBadges />
+            <StoreBadges tone="onDark" />
           </div>
           <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)' }}>
             Already on the Rooted Together app? Your login works here too.
