@@ -9,6 +9,7 @@ import CreatorCard from '@/components/CreatorCard';
 import StoreBadges from '@/components/StoreBadges';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchMarketStats } from '@/lib/reviews';
+import { ONBOARDING_URL } from '@/lib/config';
 
 const TYPE_FILTERS = ['all', 'course', 'ebook', 'routine', 'call'];
 
@@ -176,9 +177,9 @@ function HomePageInner() {
             <a href="#offerings" className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
               Explore the Marketplace
             </a>
-            <Link href="/login?tab=signup" className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
+            <a href={ONBOARDING_URL} className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
               Become a Creator
-            </Link>
+            </a>
           </div>
           <div style={{ marginTop: 6 }}>
             <StoreBadges tone="onDark" />
@@ -358,15 +359,12 @@ function HomePageInner() {
           Ready to grow — or to share what God&rsquo;s given you?
         </div>
         <div style={{ fontSize: 14.5, color: 'rgba(255,255,255,0.85)', marginBottom: 26 }}>
-          One account for the app and the marketplace. Free to join.
+          Open your own storefront with a one-time $49 membership.
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <Link href="/login?tab=signup" className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
-            Sign Up as a Seeker
-          </Link>
-          <Link href="/login?tab=signup" className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
+          <a href={ONBOARDING_URL} className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
             Become a Creator
-          </Link>
+          </a>
         </div>
       </div>
     </main>

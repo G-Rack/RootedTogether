@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import StoreBadges from '@/components/StoreBadges';
+import { ONBOARDING_URL } from '@/lib/config';
 
 export default function Footer() {
   return (
@@ -31,7 +32,7 @@ export default function Footer() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>For Creators</div>
-          <Link href="/login" style={{ fontSize: 13.5 }}>Become a Creator</Link>
+          <a href={ONBOARDING_URL} style={{ fontSize: 13.5 }}>Become a Creator</a>
           <Link href="/dashboard" style={{ fontSize: 13.5 }}>Creator Dashboard</Link>
           <Link href="/dashboard/payouts" style={{ fontSize: 13.5 }}>Payouts</Link>
         </div>

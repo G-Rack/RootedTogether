@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from './SessionProvider';
 import { initialsFor } from '@/lib/roles';
 import { avatarUrl } from '@/lib/storage';
+import { ONBOARDING_URL } from '@/lib/config';
 
 // Purpose-based instead of listing offering types: the homepage already has
 // filter pills (All / Course / Ebook / Daily Routine / 1:1 Call) right above
@@ -15,7 +16,7 @@ import { avatarUrl } from '@/lib/storage';
 const NAV_LINKS = [
   { href: '/', label: 'Marketplace' },
   { href: '#how-it-works', label: 'How It Works' },
-  { href: '/login?tab=signup', label: 'For Creators' },
+  { href: ONBOARDING_URL, label: 'For Creators' },
 ];
 
 export default function Header() {
@@ -75,12 +76,9 @@ export default function Header() {
               <Link href="/login" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 Log In
               </Link>
-              {isHome ? (
-                <Link href="/login?tab=signup" className="btn btn-outline btn-small">Sign Up</Link>
-              ) : null}
-              <Link href="/login?tab=signup" className="btn btn-primary btn-small">
-                {isHome ? 'Become a Creator' : 'Sign Up'}
-              </Link>
+              <a href={ONBOARDING_URL} className="btn btn-primary btn-small">
+                Become a Creator
+              </a>
             </>
           )}
 
@@ -156,9 +154,9 @@ export default function Header() {
           {!session ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
               <Link href="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline">Log In</Link>
-              <Link href="/login?tab=signup" onClick={() => setMenuOpen(false)} className="btn btn-primary">
-                {isHome ? 'Become a Creator' : 'Sign Up'}
-              </Link>
+              <a href={ONBOARDING_URL} onClick={() => setMenuOpen(false)} className="btn btn-primary">
+                Become a Creator
+              </a>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>

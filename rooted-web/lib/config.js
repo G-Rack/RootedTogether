@@ -20,3 +20,6 @@ export const PLAY_STORE_URL = '';
 // public/badges/ (app-store.svg and google-play.png). Until then the
 // website shows its own styled download buttons instead.
 export const USE_OFFICIAL_BADGES = false;
+
+// Creators join (pay the one-time $49) on the onboarding site, then create their account here.
+export const ONBOARDING_URL = 'https://joinrootedtogether.club';
