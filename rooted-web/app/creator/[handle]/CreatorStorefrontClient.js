@@ -8,7 +8,6 @@ import { bannerUrl, avatarUrl } from '@/lib/storage';
 import { initialsFor, ROLE_LABELS, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import OfferingCard from '@/components/OfferingCard';
 import StarRating from '@/components/StarRating';
-import ShareButtons from '@/components/ShareButtons';
 import { activeSocials } from '@/lib/socials';
 import { fetchCreatorReviewStats, fetchCreatorReviews } from '@/lib/reviews';
 
@@ -179,7 +178,6 @@ export default function CreatorStorefrontClient() {
   const avatar = avatarUrl(storefront.avatar_path);
   const isSelf = session?.user?.id === storefront.auth_user_id;
   const freeCount = offerings.filter((o) => o.is_free_for_family && o.status === 'published').length;
-  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   return (
     <div>
@@ -254,9 +252,6 @@ export default function CreatorStorefrontClient() {
           <Stat value={stats.offerings_count ?? 0} label="offerings" />
           <Stat value={stats.students_count ?? 0} label="students" />
           {yearsActive !== null && <Stat value={yearsActive} label="years on Rooted Together" />}
-          <div style={{ marginLeft: 'auto' }}>
-            <ShareButtons url={pageUrl} title={`${profile.name} on Rooted Together`} />
-          </div>
         </div>
 
         <div className="responsive-2col" style={{ '--col-a': '2fr', '--col-b': '1fr', '--col-gap': '40px', padding: '32px 0' }}>
