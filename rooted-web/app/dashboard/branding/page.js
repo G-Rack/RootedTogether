@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { avatarUrl, bannerUrl, uploadAvatar, uploadBanner } from '@/lib/storage';
 import { initialsFor } from '@/lib/roles';
+import { SOCIALS, activeSocials, formValue } from '@/lib/socials';
 
 export default function BrandingPage() {
   const { session, profile } = useSession();
@@ -102,6 +103,20 @@ function StorefrontPreview({ storefront, profile, stats, avatarPath }) {
         </div>
         {storefront?.tagline && <div style={{ fontSize: 13, color: 'var(--text-soft)', marginBottom: 10 }}>{storefront.tagline}</div>}
 
+        {activeSocials(storefront).length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            {activeSocials(storefront).map((so) => (
+              <span
+                key={so.key}
+                title={so.label}
+                style={{ width: 30, height: 30, borderRadius: 999, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {so.icon}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 20, padding: '10px 0', borderTop: '1px solid rgba(107,66,38,0.1)', marginTop: 8 }}>
           <Stat value={stats.offerings_count} label="offerings" />
           <Stat value={stats.followers_count} label="followers" />
@@ -134,8 +149,9 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
   const [handle, setHandle] = useState(storefront?.handle || '');
   const [tagline, setTagline] = useState(storefront?.tagline || '');
   const [bio, setBio] = useState(storefront?.bio || '');
-  const [instagramUrl, setInstagramUrl] = useState(storefront?.instagram_url || '');
-  const [websiteUrl, setWebsiteUrl] = useState(storefront?.website_url || '');
+  const [links, setLinks] = useState(() =>
+    Object.fromEntries(SOCIALS.map((so) => [so.key, formValue(so, storefront?.[so.key])]))
+  );
   const [bannerPath, setBannerPath] = useState(storefront?.banner_path || null);
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -179,8 +195,7 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
       handle: handle.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-'),
       tagline,
       bio,
-      instagram_url: instagramUrl || null,
-      website_url: websiteUrl || null,
+      ...Object.fromEntries(SOCIALS.map((so) => [so.key, so.toValue(links[so.key])])),
       banner_path: bannerPath,
       avatar_path: avatarPath,
       updated_at: new Date().toISOString(),
@@ -192,6 +207,7 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
       return;
     }
     setStorefront(data);
+    setLinks(Object.fromEntries(SOCIALS.map((so) => [so.key, formValue(so, data[so.key])])));
     setSaved(true);
   };
 
@@ -250,14 +266,30 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
           />
         </div>
 
-        <div className="responsive-2col" style={{ '--col-gap': '12px' }}>
-          <div>
-            <label className="field-label">Instagram URL</label>
-            <input className="input-field" value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} placeholder="https://instagram.com/…" />
+        <div>
+          <label className="field-label">Contact &amp; social links</label>
+          <div className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>
+            Add any you like. Only the ones you fill in appear on your public storefront.
           </div>
-          <div>
-            <label className="field-label">Website URL</label>
-            <input className="input-field" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://…" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {SOCIALS.map((so) => (
+              <div key={so.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span
+                  title={so.label}
+                  style={{ width: 38, height: 38, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {so.icon}
+                </span>
+                <input
+                  className="input-field"
+                  type={so.key === 'contact_email' ? 'email' : 'text'}
+                  aria-label={so.label}
+                  value={links[so.key]}
+                  onChange={(e) => setLinks((prev) => ({ ...prev, [so.key]: e.target.value }))}
+                  placeholder={`${so.label}: ${so.placeholder}`}
+                />
+              </div>
+            ))}
           </div>
         </div>
 

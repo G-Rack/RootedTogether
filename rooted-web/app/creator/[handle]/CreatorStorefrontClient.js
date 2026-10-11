@@ -9,6 +9,7 @@ import { initialsFor, ROLE_LABELS, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import OfferingCard from '@/components/OfferingCard';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
+import { activeSocials } from '@/lib/socials';
 import { fetchCreatorReviewStats, fetchCreatorReviews } from '@/lib/reviews';
 
 const TYPE_TABS = ['all', 'course', 'ebook', 'routine', 'call'];
@@ -267,19 +268,25 @@ export default function CreatorStorefrontClient() {
               {storefront.bio || profile.story || 'This creator hasn’t written their story yet.'}
             </div>
           </div>
-          {(storefront.instagram_url || storefront.website_url) && (
-            <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, alignSelf: 'start' }}>
+          {activeSocials(storefront).length > 0 && (
+            <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, alignSelf: 'start' }}>
               <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Connect</div>
-              {storefront.instagram_url && (
-                <a href={storefront.instagram_url} target="_blank" rel="noreferrer" style={{ fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  Instagram →
+              {activeSocials(storefront).map((so) => (
+                <a
+                  key={so.key}
+                  href={so.href}
+                  target={so.key === 'contact_email' ? undefined : '_blank'}
+                  rel="noreferrer"
+                  style={{ fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}
+                >
+                  <span style={{ width: 30, height: 30, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {so.icon}
+                  </span>
+                  <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                    {so.key === 'whatsapp' || so.key === 'contact_email' ? `${so.label}: ${so.text}` : `${so.label} →`}
+                  </span>
                 </a>
-              )}
-              {storefront.website_url && (
-                <a href={storefront.website_url} target="_blank" rel="noreferrer" style={{ fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  Website →
-                </a>
-              )}
+              ))}
             </div>
           )}
         </div>
