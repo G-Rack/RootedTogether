@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice } from '@/lib/roles';
+import { ONBOARDING_URL } from '@/lib/config';
 
 // Tier lookup against the fetched `referral_tiers` rows. The DB is the source
 // of truth, so thresholds and rates can change without a code deploy.
@@ -63,7 +64,7 @@ export default function ReferralsPage() {
 
   // Built from the current origin so it never goes stale if the domain changes.
   const referralLink = referralCode
-    ? `${typeof window !== 'undefined' ? window.location.origin : 'https://rootedtogether.club'}/login?tab=signup&ref=${referralCode}`
+    ? `${ONBOARDING_URL}/?ref=${encodeURIComponent(referralCode)}`
     : null;
   const currentTier = tierForCount(tiers, referredCount);
   const currentTierIndex = currentTier ? tiers.indexOf(currentTier) : -1;

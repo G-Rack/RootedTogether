@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY } from '@/lib/config';
+import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL } from '@/lib/config';
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
 
@@ -226,6 +226,79 @@ function LoginForm({ router }) {
   );
 }
 
+// Shown on the Sign Up tab when there is no confirmed, unused payment.
+function JoinFirst({ gate }) {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const resend = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await fetch(`${FUNCTIONS_URL}/membership-check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'resend', email: email.trim() }),
+      });
+    } catch {
+      // Same neutral confirmation either way, so this can't be used to probe emails.
+    }
+    setBusy(false);
+    setSent(true);
+  };
+
+  const heading =
+    gate === 'claimed' ? 'This payment has already been used' : gate === 'error' ? "We couldn't confirm your payment" : 'Join first, then create your account';
+  const intro =
+    gate === 'claimed'
+      ? 'Each membership creates one account. If you already created yours, log in instead.'
+      : gate === 'error'
+        ? 'Something went wrong on our side. Please refresh this page, or use the box below to get a fresh link by email.'
+        : 'Creator accounts open once you have joined with the one-time $49 membership. After you pay, you will land right back here to set up your account.';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--brown)', marginBottom: 6 }}>{heading}</div>
+        <div className="muted" style={{ fontSize: 13, lineHeight: 1.55 }}>{intro}</div>
+      </div>
+      {gate !== 'claimed' && (
+        <a href={ONBOARDING_URL} className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
+          Join for $49
+        </a>
+      )}
+      <div style={{ borderTop: '1px solid rgba(107,66,38,0.1)', paddingTop: 16 }}>
+        {sent ? (
+          <div className="success-banner" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+            If that email has an unused membership, a sign-up link is on its way. Check your inbox and spam. Still stuck? Write to admin@rootedtogether.club.
+          </div>
+        ) : (
+          <form onSubmit={resend} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--brown)' }}>Already paid?</div>
+            <div className="muted" style={{ fontSize: 12.5 }}>Enter the email you paid with and we will send your sign-up link.</div>
+            <input
+              className="input-field"
+              type="email"
+              required
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <button type="submit" disabled={busy} className="btn btn-outline">
+              {busy ? 'Sending…' : 'Email me my link'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RolePicker({ onPick }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -274,14 +347,71 @@ function SignupForm({ router }) {
   const [password, setPassword] = useState('');
   // A referral link (?ref=RT-00042) is picked up silently from the URL. There
   // is no code field on the form; the code travels inside the link.
-  const referralCode = searchParams.get('ref') || '';
+  const urlReferralCode = searchParams.get('ref') || '';
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Creator sign-up is for paid members only. The Stripe payment link sends
+  // people here with ?session_id=...; the server confirms that payment is real
+  // and unused. Nothing is trusted client-side: submit-signup checks it again.
+  const sessionId = searchParams.get('session_id') || '';
+  const [gate, setGate] = useState(sessionId ? 'checking' : 'needs_payment');
+  const [paidEmail, setPaidEmail] = useState('');
+  const [paidReferral, setPaidReferral] = useState('');
+  const referralCode = urlReferralCode || paidReferral;
+
+  useEffect(() => {
+    if (!sessionId) {
+      setGate('needs_payment');
+      return undefined;
+    }
+    let cancelled = false;
+    setGate('checking');
+    (async () => {
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/membership-check`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            apikey: SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ action: 'verify', sessionId }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (body.ok) {
+          setPaidEmail(body.email || '');
+          setEmail(body.email || '');
+          setPaidReferral(body.referralCode || '');
+          setGate('ok');
+        } else if (body.reason === 'claimed') {
+          setGate('claimed');
+        } else if (res.ok || body.reason) {
+          setGate('needs_payment');
+        } else {
+          setGate('error');
+        }
+      } catch {
+        if (!cancelled) setGate('error');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
 
   const pickRole = (key) => {
     setRole(key);
     setError('');
   };
+
+  if (gate === 'checking') {
+    return <div className="muted" style={{ fontSize: 14 }}>Confirming your payment…</div>;
+  }
+  if (gate !== 'ok') {
+    return <JoinFirst gate={gate} />;
+  }
 
   if (!role) {
     return <RolePicker onPick={pickRole} />;
@@ -309,11 +439,17 @@ function SignupForm({ router }) {
           role,
           fields,
           password,
+          membershipSessionId: sessionId,
           referredByCode: referralCode.trim() || undefined,
         }),
       });
       const body = await res.json();
       if (!res.ok) {
+        if (body.code === 'membership_required') {
+          setGate('claimed');
+          setBusy(false);
+          return;
+        }
         setError(body.error || "Couldn't create your account right now.");
         setBusy(false);
         return;
@@ -355,7 +491,20 @@ function SignupForm({ router }) {
       </div>
       <div>
         <label className="field-label">Email</label>
-        <input className="input-field" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          className="input-field"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          readOnly={!!paidEmail}
+          style={paidEmail ? { opacity: 0.75 } : undefined}
+        />
+        {paidEmail && (
+          <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+            This is the email you paid with.
+          </div>
+        )}
       </div>
       <div>
         <label className="field-label">Date of birth</label>
