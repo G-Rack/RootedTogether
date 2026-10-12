@@ -61,8 +61,8 @@ export default function DateOfBirthField({ value, onChange, required }) {
         onChange={(e) => emit(year, month, e.target.value ? pad(e.target.value) : '')}
       >
         <option value="">Day</option>
-        {Array.from({ length: dayCount }, (_, i) => i + 1).map((d) => (
-          <option key={d} value={pad(d)}>{d}</option>
+        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+          <option key={d} value={pad(d)} disabled={d > dayCount}>{d}</option>
         ))}
       </select>
       <select

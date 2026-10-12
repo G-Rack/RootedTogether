@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { ROLE_LABELS } from '@/lib/roles';
 import ProfileField from '@/components/ProfileField';
+import FileField from '@/components/FileField';
 import {
   ROLE_TABLES,
   ROLE_PROFILE_FIELDS,
@@ -237,8 +238,8 @@ export default function CompleteProfilePage() {
                 ))}
                 <div>
                   <label className="field-label">Certification document (optional)</label>
-                  <input
-                    type="file"
+                  <FileField
+                    kind="document"
                     accept="application/pdf,image/*"
                     onChange={(e) => setCertificationFile(e.target.files?.[0] || null)}
                   />
@@ -262,7 +263,7 @@ export default function CompleteProfilePage() {
               style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: '50%', display: 'block', marginBottom: 8 }}
             />
           )}
-          <input type="file" accept="image/*" onChange={(e) => setProfilePictureFile(e.target.files?.[0] || null)} />
+          <FileField accept="image/*" onChange={(e) => setProfilePictureFile(e.target.files?.[0] || null)} />
         </div>
 
         {/* Repeated here (not just at the top of the form) because on a long

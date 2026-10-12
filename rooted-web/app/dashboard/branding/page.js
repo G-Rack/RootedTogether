@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { avatarUrl, bannerUrl, uploadAvatar, uploadBanner } from '@/lib/storage';
 import { initialsFor } from '@/lib/roles';
 import { SOCIALS, activeSocials, formValue } from '@/lib/socials';
+import FileField from '@/components/FileField';
 
 export default function BrandingPage() {
   const { session, profile } = useSession();
@@ -234,7 +235,7 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
             ) : (
               <div className="avatar" style={{ width: 56, height: 56, fontSize: 18, flexShrink: 0 }}>?</div>
             )}
-            <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ maxWidth: '100%' }} />
+            <FileField accept="image/*" onChange={handleAvatarChange} label={avatar ? 'Change photo' : 'Choose a photo'} />
           </div>
           {uploadingAvatar && <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Uploading…</div>}
           <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
@@ -246,7 +247,7 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
           <label className="field-label">Banner image</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             {banner && <div style={{ width: 120, height: 60, borderRadius: 8, flexShrink: 0, background: `center / cover no-repeat url(${banner})` }} />}
-            <input type="file" accept="image/*" onChange={handleBannerChange} style={{ maxWidth: '100%' }} />
+            <FileField accept="image/*" onChange={handleBannerChange} label={banner ? 'Change banner' : 'Choose a banner'} />
           </div>
         </div>
 
