@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import PasswordField from '@/components/PasswordField';
+import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
 
 function ChevronRight() {
   return (
@@ -45,6 +46,79 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  // Delete account: a two-step flow (open the warning, then confirm with the
+  // password and the word DELETE). The delete-account Edge Function is the same
+  // one the mobile app uses; it only ever deletes the caller's own account.
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteWord, setDeleteWord] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const leadsFamily = profile?.role === 'mother' || profile?.role === 'pastor';
+  const isCreatorRole = ['mother', 'pastor', 'influencer'].includes(profile?.role);
+
+  const closeDelete = () => {
+    setDeleteOpen(false);
+    setDeletePassword('');
+    setDeleteWord('');
+    setDeleteError('');
+  };
+
+  const deleteAccount = async (e) => {
+    e.preventDefault();
+    setDeleteError('');
+    if (deleteWord.trim() !== 'DELETE') {
+      setDeleteError('Type DELETE in capitals to confirm.');
+      return;
+    }
+    if (!deletePassword) {
+      setDeleteError('Enter your password to confirm.');
+      return;
+    }
+    setDeleteBusy(true);
+
+    // Same re-authentication used for changing a password, so a stray open
+    // session on a shared computer can't delete the account.
+    const { data: reauth, error: verifyError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: deletePassword,
+    });
+    if (verifyError) {
+      setDeleteBusy(false);
+      setDeleteError('Password is incorrect.');
+      return;
+    }
+    const token = reauth?.session?.access_token || session?.access_token;
+
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: SUPABASE_ANON_KEY,
+        },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.ok) {
+        setDeleteBusy(false);
+        setDeleteError(body.error || "Couldn't delete your account right now. Please try again.");
+        return;
+      }
+    } catch {
+      setDeleteBusy(false);
+      setDeleteError("Couldn't reach the server. Please try again.");
+      return;
+    }
+
+    try {
+      await signOut();
+    } catch {
+      // The account is already gone; clearing the local session is best effort.
+    }
+    router.push('/');
+  };
 
   const changePassword = async (e) => {
     e.preventDefault();
@@ -165,6 +239,69 @@ export default function SettingsPage() {
               This marketplace is in test mode — purchases and payouts are simulated, no real money moves yet.
               Questions? Reach out from inside the Rooted Together app.
             </div>
+          </div>
+        </div>
+
+        <div>
+          <GroupLabel>Danger zone</GroupLabel>
+          <div className="card" style={{ padding: deleteOpen ? 20 : '13px 16px', borderColor: 'rgba(138,59,47,0.25)' }}>
+            {!deleteOpen ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>Delete account</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-soft)', marginTop: 2, lineHeight: 1.45 }}>
+                    Permanently remove your account and everything attached to it.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="btn btn-outline btn-small"
+                  style={{ color: '#8A3B2F', borderColor: 'rgba(138,59,47,0.35)', flexShrink: 0 }}
+                >
+                  Delete
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={deleteAccount} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#8A3B2F' }}>Delete your account?</div>
+                <div style={{ fontSize: 13, color: 'var(--text-soft)', lineHeight: 1.55 }}>
+                  This permanently deletes your account, posts, messages and everything else attached to it. This can&rsquo;t be undone.
+                  {isCreatorRole && ' Your storefront and offerings will be removed, and your one-time $49 membership is not refundable or transferable. Withdraw any earnings from Payouts & sales first.'}
+                  {leadsFamily && ' Because you lead a Spiritual Family, that family and everyone in it will be removed too.'}
+                </div>
+                {deleteError && <div className="error-banner">{deleteError}</div>}
+                <PasswordField
+                  placeholder="Your password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+                <div>
+                  <label className="field-label">Type DELETE to confirm</label>
+                  <input
+                    className="input-field"
+                    value={deleteWord}
+                    onChange={(e) => setDeleteWord(e.target.value)}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="submit"
+                    disabled={deleteBusy}
+                    className="btn btn-primary"
+                    style={{ background: '#8A3B2F' }}
+                  >
+                    {deleteBusy ? 'Deleting…' : 'Permanently delete my account'}
+                  </button>
+                  <button type="button" onClick={closeDelete} disabled={deleteBusy} className="btn btn-outline">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
 
