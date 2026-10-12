@@ -62,7 +62,7 @@ export default function Header() {
           {isHome && (
             <div className="desktop-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
               {NAV_LINKS.map((l) => (
-                <Link key={l.label} href={l.href} style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>
+                <Link key={l.label} href={l.href} {...(l.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})} style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>
                   {l.label}
                 </Link>
               ))}
@@ -76,7 +76,7 @@ export default function Header() {
               <Link href="/login" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 Log In
               </Link>
-              <a href={ONBOARDING_URL} className="btn btn-primary btn-small">
+              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-small">
                 Become a Creator
               </a>
             </>
@@ -144,6 +144,7 @@ export default function Header() {
             <Link
               key={l.label}
               href={l.href}
+              {...(l.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               onClick={() => setMenuOpen(false)}
               style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, padding: '12px 4px', borderBottom: '1px solid rgba(107,66,38,0.06)' }}
             >
@@ -154,7 +155,7 @@ export default function Header() {
           {!session ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
               <Link href="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline">Log In</Link>
-              <a href={ONBOARDING_URL} onClick={() => setMenuOpen(false)} className="btn btn-primary">
+              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} className="btn btn-primary">
                 Become a Creator
               </a>
             </div>

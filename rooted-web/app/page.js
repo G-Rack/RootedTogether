@@ -177,7 +177,7 @@ function HomePageInner() {
             <a href="#offerings" className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
               Explore the Marketplace
             </a>
-            <a href={ONBOARDING_URL} className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
+            <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
               Become a Creator
             </a>
           </div>
@@ -362,7 +362,7 @@ function HomePageInner() {
           Open your own storefront with a one-time $49 membership.
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <a href={ONBOARDING_URL} className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
+          <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
             Become a Creator
           </a>
         </div>

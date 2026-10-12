@@ -275,7 +275,7 @@ function JoinFirst({ gate }) {
         <div className="muted" style={{ fontSize: 13, lineHeight: 1.55 }}>{intro}</div>
       </div>
       {gate !== 'claimed' && (
-        <a href={ONBOARDING_URL} className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
+        <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
           Join for $49
         </a>
       )}
