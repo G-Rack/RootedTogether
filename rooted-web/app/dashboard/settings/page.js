@@ -243,7 +243,7 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <GroupLabel>Danger zone</GroupLabel>
+          <GroupLabel>Close your account</GroupLabel>
           <div className="card" style={{ padding: deleteOpen ? 20 : '13px 16px', borderColor: 'rgba(138,59,47,0.25)' }}>
             {!deleteOpen ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
