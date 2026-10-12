@@ -139,7 +139,12 @@ function LoginForm({ router }) {
     });
     setBusy(false);
     if (resetError) {
-      setError("Couldn't send that email — please try again.");
+      const tooMany = resetError.status === 429 || resetError.code === 'over_email_send_rate_limit';
+      setError(
+        tooMany
+          ? 'Too many reset emails requested. Please wait a few minutes and try again.'
+          : "Couldn't send that email — please try again.",
+      );
       return;
     }
     setForgotSent(true);

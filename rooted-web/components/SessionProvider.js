@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { ROLE_TABLES } from '@/lib/roleProfileFields';
 
@@ -26,6 +27,7 @@ export function useSession() {
 // server-side through RLS, used here just to decide what the header/nav
 // show.
 export default function SessionProvider({ children }) {
+  const router = useRouter();
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
@@ -84,7 +86,13 @@ export default function SessionProvider({ children }) {
       if (active) setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      // A password-reset link signs the person in with a one-off recovery session.
+      // Never drop them into the dashboard from that: always show the new-password
+      // form first, whichever page the link happened to open.
+      if (event === 'PASSWORD_RECOVERY') {
+        router.push('/reset-password');
+      }
       setSession(newSession);
       await loadProfile(newSession?.user?.id);
     });
@@ -93,7 +101,7 @@ export default function SessionProvider({ children }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [loadProfile]);
+  }, [loadProfile, router]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

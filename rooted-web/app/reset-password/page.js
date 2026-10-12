@@ -58,7 +58,19 @@ export default function ResetPasswordPage() {
       return;
     }
     setDone(true);
-    setTimeout(() => router.push('/'), 2000);
+    // They're already signed in from the reset link. Send creators to their
+    // dashboard, everyone else to the home page, same as after a normal login.
+    let destination = '/';
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        const { data: isCreator } = await supabase.rpc('is_valid_creator', { check_auth_id: userData.user.id });
+        if (isCreator) destination = '/dashboard';
+      }
+    } catch {
+      // Fall back to the home page.
+    }
+    setTimeout(() => router.push(destination), 1500);
   };
 
   return (
@@ -109,7 +121,7 @@ export default function ResetPasswordPage() {
           </form>
         )}
 
-        {done && <div className="success-banner">Password updated. Taking you to Rooted Together…</div>}
+        {done && <div className="success-banner">Password updated. Taking you to your account…</div>}
       </div>
     </div>
   );
