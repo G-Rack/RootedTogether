@@ -71,43 +71,45 @@ export default function ResetPasswordPage() {
         {!ready && <div className="muted" style={{ fontSize: 13.5 }}>Checking your link…</div>}
 
         {ready && !hasSession && (
-          <div className="error-banner">
-            This reset link is invalid or has expired. Go back to Log In and request a new one.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="error-banner">
+              This reset link is invalid or has expired. Request a new one from the Log In page.
+            </div>
+            <a href="/login" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
+              Back to log in
+            </a>
           </div>
         )}
 
         {ready && hasSession && !done && (
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {error && <div className="error-banner">{error}</div>}
-            <div>
-              <label className="field-label">New password</label>
-              <PasswordField
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
+            <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+              Choose a new password for your Rooted Together account.
             </div>
-            <div>
-              <label className="field-label">Confirm password</label>
-              <PasswordField
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Type it again"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </div>
-            <button type="submit" disabled={busy} className="btn btn-primary" style={{ marginTop: 4 }}>
-              {busy ? 'Saving…' : 'Set new password'}
+            <PasswordField
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="New password (at least 8 characters)"
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+            <PasswordField
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Confirm new password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+            <button type="submit" disabled={busy} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
+              {busy ? 'Saving…' : 'Update password'}
             </button>
           </form>
         )}
 
-        {done && <div className="success-banner">Password updated — taking you to the marketplace…</div>}
+        {done && <div className="success-banner">Password updated. Taking you to Rooted Together…</div>}
       </div>
     </div>
   );
