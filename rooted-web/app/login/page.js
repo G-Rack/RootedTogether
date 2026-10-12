@@ -106,7 +106,8 @@ function LoginForm({ router }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState('login'); // 'login' | 'forgot'
+  const loginParams = useSearchParams();
+  const [mode, setMode] = useState(loginParams.get('forgot') ? 'forgot' : 'login'); // 'login' | 'forgot'
   const [forgotSent, setForgotSent] = useState(false);
 
   const submit = async (e) => {

@@ -14,8 +14,18 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [expired, setExpired] = useState(false);
 
   useEffect(() => {
+    // Sent here by SessionProvider (or an old bookmark) when the link was dead.
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || '';
+    if (params.get('expired') || /error_code=otp_expired/.test(hash)) {
+      setExpired(true);
+      setReady(true);
+      return undefined;
+    }
+
     // The reset-link redirect carries a recovery token in the URL —
     // supabase-js (detectSessionInUrl: true) picks it up and fires this
     // automatically once it's done, which is why we wait for it rather
@@ -82,7 +92,18 @@ export default function ResetPasswordPage() {
 
         {!ready && <div className="muted" style={{ fontSize: 13.5 }}>Checking your link…</div>}
 
-        {ready && !hasSession && (
+        {ready && expired && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="error-banner">
+              This reset link has expired or was already used. Reset links work once and only for a short time.
+            </div>
+            <a href="/login?forgot=1" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
+              Send me a new link
+            </a>
+          </div>
+        )}
+
+        {ready && !expired && !hasSession && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="error-banner">
               This reset link is invalid or has expired. Request a new one from the Log In page.
@@ -93,7 +114,7 @@ export default function ResetPasswordPage() {
           </div>
         )}
 
-        {ready && hasSession && !done && (
+        {ready && !expired && hasSession && !done && (
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {error && <div className="error-banner">{error}</div>}
             <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>

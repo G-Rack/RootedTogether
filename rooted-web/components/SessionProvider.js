@@ -77,6 +77,12 @@ export default function SessionProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // An expired or already-used reset link comes back as #error_code=otp_expired on
+    // whatever page Supabase redirected to. Show a clear message instead of a normal page.
+    if (typeof window !== 'undefined' && /error_code=otp_expired/.test(window.location.hash)) {
+      router.replace('/reset-password?expired=1');
+    }
+
     let active = true;
 
     supabase.auth.getSession().then(async ({ data }) => {
