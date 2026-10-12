@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL } from '@/lib/config';
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
+import DateOfBirthField from '@/components/DateOfBirthField';
 
 // The signup flow's role keys match what the submit-signup Edge Function
 // expects in `TABLES` / `FIELD_MAP` there. Note "priest" here, not
@@ -508,7 +509,7 @@ function SignupForm({ router }) {
       </div>
       <div>
         <label className="field-label">Date of birth</label>
-        <input className="input-field" type="date" required value={dob} onChange={(e) => setDob(e.target.value)} />
+        <DateOfBirthField required value={dob} onChange={setDob} />
       </div>
       {role === 'seeker' && (
         <div>
