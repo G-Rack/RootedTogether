@@ -10,8 +10,8 @@ function Badge({ href, small, soonSmall, big, icon, tone }) {
     <>
       {icon}
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
-        <span style={{ fontSize: 15, letterSpacing: 0.3 }}>{live ? small : soonSmall}</span>
-        <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: -0.4, marginTop: 2 }}>{big}</span>
+        <span className="sb-small" style={{ fontSize: 15, letterSpacing: 0.3 }}>{live ? small : soonSmall}</span>
+        <span className="sb-big" style={{ fontSize: 26, fontWeight: 600, letterSpacing: -0.4, marginTop: 2 }}>{big}</span>
       </span>
     </>
   );
@@ -61,7 +61,7 @@ function OfficialBadge({ href, src, alt, height, trim = 0 }) {
 export default function StoreBadges({ align = 'flex-start', tone = 'default', showLabel = true }) {
   const live = !!(APP_STORE_URL || PLAY_STORE_URL);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: align }}>
+    <div className="store-badges" style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: align }}>
       {showLabel && (
         <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.8 }}>
           {live ? 'Get the app on iOS and Android' : 'Launching soon on iOS and Android'}

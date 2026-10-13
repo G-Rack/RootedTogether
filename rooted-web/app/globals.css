@@ -382,3 +382,39 @@ a.store-badge:focus-visible { outline: 3px solid #C8923F; outline-offset: 3px; }
 }
 .file-btn:focus-visible { outline: 3px solid #C8923F; outline-offset: 2px; }
 .file-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ===== Phones: the whole UI is drawn at a smaller scale ===========================
+   Most of the site's sizes are set inline in px, so rather than chase each one we
+   scale the page on phones (CSS `zoom`, supported in Safari, Chrome and Firefox).
+   Text, spacing and cards all shrink together; desktop and tablet are untouched.
+   --ui-zoom is also used to keep full-height fixed elements the right size. */
+@media (max-width: 600px) {
+  :root { --ui-zoom: 0.86; }
+  html { zoom: var(--ui-zoom); }
+
+  /* Fixed full-height drawer: 100vh is scaled by zoom too, so undo that. */
+  .dashboard-sidebar { height: calc(100vh / var(--ui-zoom)) !important; }
+  .dashboard-scrim { height: calc(100vh / var(--ui-zoom)); }
+}
+
+/* ===== Phones: extra tightening for the bulkiest pieces ===== */
+@media (max-width: 600px) {
+  /* App Store / Google Play buttons */
+  .store-badges { gap: 10px !important; }
+  .store-badge { min-height: 50px; padding: 8px 20px 8px 16px; gap: 11px; border-radius: 12px; }
+  .store-badge svg { width: 24px; height: 27px; }
+  .store-badge .sb-small { font-size: 12px !important; }
+  .store-badge .sb-big { font-size: 20px !important; }
+
+  /* Footer: link columns sit three across instead of stacked */
+  .footer-wrap { padding-top: 32px !important; padding-bottom: 28px !important; }
+  .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 22px 14px !important; }
+  .footer-grid > div:first-child { grid-column: 1 / -1; }
+  .footer-wrap .footer-grid > div:not(:first-child) { gap: 8px !important; }
+
+  /* Buttons, pills, banners */
+  .btn { padding: 11px 20px; }
+  .btn-small { padding: 8px 14px; }
+  .error-banner, .success-banner { padding: 11px 13px; }
+  .grid-cards { gap: 16px; }
+}

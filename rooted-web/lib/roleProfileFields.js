@@ -31,6 +31,18 @@ export const CREDENTIALED_ROLES = new Set(['mother', 'pastor', 'influencer']);
 
 // type: 'text' | 'number' | 'textarea' | 'select' | 'checkboxes' (checkboxes/array columns save as a text[])
 // Any field may carry a `section` label; the page shows it as a heading above the first field of that section.
+// Church option lists — declared before ROLE_PROFILE_FIELDS, which reads them at load time.
+export const CHURCH_TYPE_OPTIONS = ['Church', 'Ministry', 'Parachurch / non-profit', 'Fellowship / small group', 'Other'];
+export const CHURCH_SIZE_OPTIONS = ['Under 50', '50–150', '150–500', '500–2,000', '2,000+'];
+export const CHURCH_FOCUS_OPTIONS = [
+  'Prayer', 'Teaching & discipleship', 'Worship', 'Youth & young adults', 'Women', 'Men', 'Marriage & family',
+  'Counselling & care', 'Outreach & missions', 'Recovery & healing', 'Online ministry', 'Other',
+];
+export const CHURCH_MEETING_OPTIONS = ['In person', 'Online', 'Both in person and online'];
+export const CHURCH_REGISTRATION_OPTIONS = [
+  'Registered charity / non-profit', 'Incorporated church or ministry', 'Part of a denomination or network', 'Not formally registered',
+];
+
 export const ROLE_PROFILE_FIELDS = {
   seeker: [
     { column: 'signing_up_for', label: 'Who is this for?', type: 'select', options: ['Myself', 'My child'] },
@@ -123,17 +135,6 @@ export const ROLE_PROFILE_FIELDS = {
 export const ROLE_PRIVATE_TABLES = {
   church: 'church_private',
 };
-
-export const CHURCH_TYPE_OPTIONS = ['Church', 'Ministry', 'Parachurch / non-profit', 'Fellowship / small group', 'Other'];
-export const CHURCH_SIZE_OPTIONS = ['Under 50', '50–150', '150–500', '500–2,000', '2,000+'];
-export const CHURCH_FOCUS_OPTIONS = [
-  'Prayer', 'Teaching & discipleship', 'Worship', 'Youth & young adults', 'Women', 'Men', 'Marriage & family',
-  'Counselling & care', 'Outreach & missions', 'Recovery & healing', 'Online ministry', 'Other',
-];
-export const CHURCH_MEETING_OPTIONS = ['In person', 'Online', 'Both in person and online'];
-export const CHURCH_REGISTRATION_OPTIONS = [
-  'Registered charity / non-profit', 'Incorporated church or ministry', 'Part of a denomination or network', 'Not formally registered',
-];
 
 // Shared across all credentialed roles — column names match on every table.
 export const CREDENTIAL_FIELDS = [

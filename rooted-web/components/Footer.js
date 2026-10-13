@@ -4,8 +4,9 @@ import { ONBOARDING_URL } from '@/lib/config';
 
 export default function Footer() {
   return (
-    <div className="section-x" style={{ paddingBlock: '48px 40px', background: 'var(--white)', borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+    <div className="section-x footer-wrap" style={{ paddingBlock: '48px 40px', background: 'var(--white)', borderTop: '1px solid rgba(107,66,38,0.1)' }}>
       <div
+        className="footer-grid"
         style={{
           maxWidth: 1280,
           margin: '0 auto',
