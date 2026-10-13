@@ -12,6 +12,31 @@ import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 
+// Files live on another domain (Supabase Storage), where a plain <a download>
+// is ignored by the browser. Storage honours a ?download=<name> parameter that
+// makes it send the file as an attachment, so the page stays put and the file
+// just downloads. The upload step prefixes names with a timestamp; drop that.
+function downloadUrlFor(url) {
+  if (!url) return null;
+  const base = url.split('?')[0];
+  if (!base.includes('/storage/v1/object/')) return url;
+  let name = 'download';
+  try {
+    name = decodeURIComponent(base.split('/').pop() || '').replace(/^\d{10,}-/, '') || 'download';
+  } catch {}
+  return `${base}?download=${encodeURIComponent(name)}`;
+}
+
+function startDownload(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noreferrer';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 export default function OfferingDetailClient() {
   const { id } = useParams();
   const router = useRouter();
@@ -184,19 +209,33 @@ export default function OfferingDetailClient() {
     setBuying(true);
 
     const freeForYou = offering.is_free_for_family && isFamily;
+    const isFreeItem = offering.type !== 'call' && (freeForYou || !offering.price_cents);
 
-    if (freeForYou) {
-      const { error: insertError } = await supabase.from('offering_purchases').insert({
-        offering_id: offering.id,
-        buyer_auth_id: session.user.id,
-        price_paid_cents: 0,
-      });
-      setBuying(false);
-      if (insertError) {
-        setError("Couldn't complete that — please try again.");
-        return;
+    // Free items skip checkout entirely: record the claim (so it lands in
+    // "My purchases" and unlocks the file), then download it straight away.
+    if (freeForYou || isFreeItem) {
+      if (!purchase) {
+        const { error: insertError } = await supabase.from('offering_purchases').insert({
+          offering_id: offering.id,
+          buyer_auth_id: session.user.id,
+          price_paid_cents: 0,
+        });
+        // 23505 = already claimed earlier; that's fine, carry on to the download.
+        if (insertError && insertError.code !== '23505') {
+          setBuying(false);
+          setError("Couldn't complete that — please try again.");
+          return;
+        }
       }
+      const { data: contentRow } = await supabase.from('offering_content').select('content_url').eq('offering_id', offering.id).maybeSingle();
       await loadPurchaseAndContent(offering, session);
+      setBuying(false);
+      if (contentRow?.content_url) {
+        startDownload(downloadUrlFor(contentRow.content_url));
+        setNotice('Your download has started.');
+      } else {
+        setNotice('Added to your library — the creator has not attached a file yet.');
+      }
       return;
     }
 
@@ -259,6 +298,8 @@ export default function OfferingDetailClient() {
   const isCall = offering.type === 'call';
   const alreadyOwned = !!purchase;
   const freeForYou = offering.is_free_for_family && isFamily;
+  // Anything that costs nothing (and isn't a call) is a straight download.
+  const isFreeItem = !isCall && (freeForYou || !offering.price_cents);
   const cover = coverUrl(offering.cover_path);
   const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
 
@@ -434,9 +475,15 @@ export default function OfferingDetailClient() {
             </div>
           ) : alreadyOwned ? (
             !isCall && contentUrl ? (
-              <a href={contentUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
-                Open / download
-              </a>
+              isFreeItem ? (
+                <a href={downloadUrlFor(contentUrl)} rel="noreferrer" className="btn btn-primary">
+                  Download
+                </a>
+              ) : (
+                <a href={contentUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
+                  Open / download
+                </a>
+              )
             ) : (
               <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
                 {isCall ? 'Booked' : 'Already yours'}
@@ -448,7 +495,7 @@ export default function OfferingDetailClient() {
               disabled={buying || (offering.is_free_for_family && !isFamily && !session)}
               className="btn btn-primary"
             >
-              {buying ? 'Please wait…' : isCall ? 'Reserve & Pay' : 'Buy Now'}
+              {buying ? 'Please wait…' : isCall ? 'Reserve & Pay' : isFreeItem ? 'Download' : 'Buy Now'}
             </button>
           )}
 
@@ -457,7 +504,9 @@ export default function OfferingDetailClient() {
               ? "You'll get a video call link by email after payment"
               : freeForYou
                 ? 'No payment needed — this one’s free for you.'
-                : 'Secure checkout powered by Stripe.'}
+                : isFreeItem
+                  ? (session ? 'Free — no payment needed.' : 'Free — log in to download.')
+                  : 'Secure checkout powered by Stripe.'}
           </div>
 
           <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />
