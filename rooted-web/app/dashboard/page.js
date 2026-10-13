@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
+import FoundingPledgeCard from '@/components/FoundingPledgeCard';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -96,6 +97,13 @@ export default function DashboardOverviewPage() {
   const callBookings = purchases.filter((p) => offeringById[p.offering_id]?.type === 'call');
   const newRequestsCount = requests.filter((r) => r.status === 'new').length;
 
+  // People are greeted by first name; an organisation is greeted by its whole name.
+  const greetingName = profile?.full_name
+    ? profile.role === 'church'
+      ? profile.full_name.trim()
+      : profile.full_name.trim().split(' ')[0]
+    : '';
+
   if (loading) {
     return <div className="skeleton" style={{ height: 300 }} />;
   }
@@ -105,7 +113,7 @@ export default function DashboardOverviewPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)' }}>
-            Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+            Welcome back{greetingName ? `, ${greetingName}` : ''}
           </div>
           <div className="muted" style={{ fontSize: 13.5, marginTop: 2 }}>Here&rsquo;s how your storefront is doing.</div>
         </div>
@@ -115,6 +123,8 @@ export default function DashboardOverviewPage() {
           <Link href="/dashboard/branding" className="btn btn-outline btn-small">Set up your storefront</Link>
         )}
       </div>
+
+      <FoundingPledgeCard />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
         <StatCard label="Total earnings" value={formatPrice(totalEarnings)} />
