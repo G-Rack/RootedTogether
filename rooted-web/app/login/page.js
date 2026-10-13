@@ -369,14 +369,18 @@ function SignupForm({ router }) {
   // people here with ?session_id=...; the server confirms that payment is real
   // and unused. Nothing is trusted client-side: submit-signup checks it again.
   const sessionId = searchParams.get('session_id') || '';
-  const [gate, setGate] = useState(sessionId ? 'checking' : 'needs_payment');
+  // Invited founders arrive from the private invitation page with ?invite=<token>. The
+  // $49 is waived for them; submit-signup checks the token against the invitations table.
+  const rawInvite = searchParams.get('invite') || '';
+  const inviteToken = /^[a-f0-9]{64}$/.test(rawInvite) ? rawInvite : '';
+  const [gate, setGate] = useState(sessionId ? 'checking' : inviteToken ? 'ok' : 'needs_payment');
   const [paidEmail, setPaidEmail] = useState('');
   const [paidReferral, setPaidReferral] = useState('');
   const referralCode = urlReferralCode || paidReferral;
 
   useEffect(() => {
     if (!sessionId) {
-      setGate('needs_payment');
+      setGate(inviteToken ? 'ok' : 'needs_payment');
       return undefined;
     }
     let cancelled = false;
@@ -413,7 +417,7 @@ function SignupForm({ router }) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, inviteToken]);
 
   const pickRole = (key) => {
     setRole(key);
@@ -470,11 +474,17 @@ function SignupForm({ router }) {
           fields,
           password,
           membershipSessionId: sessionId,
+          inviteToken: inviteToken || undefined,
           referredByCode: referralCode.trim() || undefined,
         }),
       });
       const body = await res.json();
       if (!res.ok) {
+        if (body.code === 'membership_required' && inviteToken && !sessionId) {
+          setError('This invitation is no longer active. Please write to admin@rootedtogether.club and we will sort it out.');
+          setBusy(false);
+          return;
+        }
         if (body.code === 'membership_required') {
           setGate('claimed');
           setBusy(false);
