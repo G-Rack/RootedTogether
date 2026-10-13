@@ -10,11 +10,34 @@ import ProfileField from '@/components/ProfileField';
 import FileField from '@/components/FileField';
 import {
   ROLE_TABLES,
+  ROLE_PRIVATE_TABLES,
+  ROLE_PRIVATE_FIELDS,
   ROLE_PROFILE_FIELDS,
   CREDENTIAL_FIELDS,
   CREDENTIALED_ROLES,
   splitTags,
 } from '@/lib/roleProfileFields';
+
+// Renders a list of fields, with a small heading above the first field of each
+// `section` (churches use this to group organisation / trust / contact fields).
+function FieldList({ fields, values, onChange }) {
+  let lastSection = null;
+  return fields.map((f) => {
+    if (f.showIf && !f.showIf(values)) return null;
+    const heading = f.section && f.section !== lastSection ? f.section : null;
+    if (f.section) lastSection = f.section;
+    return (
+      <div key={f.column} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {heading && (
+          <div className="serif" style={{ fontSize: 16, fontWeight: 700, color: 'var(--brown)', marginTop: 8, paddingTop: 12, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+            {heading}
+          </div>
+        )}
+        <ProfileField field={f} value={values[f.column]} onChange={(v) => onChange(f.column, v)} />
+      </div>
+    );
+  });
+}
 
 // Everything role-specific that used to live directly in the signup form —
 // spiritual gifts, church/ministry info, credentials, profile picture,
@@ -29,9 +52,13 @@ export default function CompleteProfilePage() {
   const table = role ? ROLE_TABLES[role] : null;
   const config = role ? ROLE_PROFILE_FIELDS[role] || [] : [];
   const isCredentialed = role ? CREDENTIALED_ROLES.has(role) : false;
+  // Churches keep contact / reference details in a second, owner-only table.
+  const privateTable = role ? ROLE_PRIVATE_TABLES[role] || null : null;
+  const privateConfig = role ? ROLE_PRIVATE_FIELDS[role] || [] : [];
 
   const [rowLoading, setRowLoading] = useState(true);
   const [values, setValues] = useState({});
+  const [privateValues, setPrivateValues] = useState({});
   const [hasCredentials, setHasCredentials] = useState('');
   const [credentialValues, setCredentialValues] = useState({});
   const [existingPicturePath, setExistingPicturePath] = useState(null);
@@ -52,15 +79,21 @@ export default function CompleteProfilePage() {
     if (!session?.user?.id || !table) return undefined;
 
     setRowLoading(true);
-    supabase
-      .from(table)
-      .select('*')
-      .eq('auth_user_id', session.user.id)
-      .maybeSingle()
-      .then(({ data: row }) => {
+    Promise.all([
+      supabase.from(table).select('*').eq('auth_user_id', session.user.id).maybeSingle(),
+      privateTable
+        ? supabase.from(privateTable).select('*').eq('auth_user_id', session.user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+      .then(([{ data: row }, { data: privateRow }]) => {
         if (!active || !row) {
           if (active) setRowLoading(false);
           return;
+        }
+        if (privateRow) {
+          const nextPrivate = {};
+          for (const f of privateConfig) nextPrivate[f.column] = privateRow[f.column] || '';
+          setPrivateValues(nextPrivate);
         }
         const nextValues = {};
         for (const f of config) {
@@ -75,7 +108,7 @@ export default function CompleteProfilePage() {
           areas_of_specialty: Array.isArray(row.areas_of_specialty) ? row.areas_of_specialty.join(', ') : '',
         });
         setExistingPicturePath(row.profile_picture_path || null);
-        setExistingCertificationPath(row.certification_file_path || null);
+        setExistingCertificationPath((privateRow ? privateRow.certification_file_path : row.certification_file_path) || null);
         setRowLoading(false);
       });
 
@@ -104,6 +137,7 @@ export default function CompleteProfilePage() {
   }, [existingPicturePath]);
 
   const setFieldValue = (column, value) => setValues((prev) => ({ ...prev, [column]: value }));
+  const setPrivateFieldValue = (column, value) => setPrivateValues((prev) => ({ ...prev, [column]: value }));
 
   // Mothers/Pastors/Leaders have a real creator dashboard; Seekers and
   // Assistants don't (and /dashboard would just bounce them straight back
@@ -124,9 +158,18 @@ export default function CompleteProfilePage() {
       const val = values[f.column];
       if (f.type === 'checkboxes') {
         if (Array.isArray(val) && val.length) updates[f.column] = val;
+      } else if (f.type === 'number') {
+        const n = parseInt(val, 10);
+        if (Number.isFinite(n)) updates[f.column] = n;
       } else if (val !== undefined && val !== '') {
         updates[f.column] = val;
       }
+    }
+
+    const privateUpdates = {};
+    for (const f of privateConfig) {
+      const val = privateValues[f.column];
+      if (val !== undefined && val !== '') privateUpdates[f.column] = val;
     }
 
     if (isCredentialed && hasCredentials) {
@@ -152,6 +195,15 @@ export default function CompleteProfilePage() {
         if (uploadError) throw uploadError;
         updates.profile_picture_path = path;
       }
+      if (privateTable && certificationFile) {
+        const ext = certificationFile.name.split('.').pop() || 'pdf';
+        const path = `${session.user.id}/certification.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('certification-documents')
+          .upload(path, certificationFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        privateUpdates.certification_file_path = path;
+      }
       if (isCredentialed && hasCredentials === 'Yes, I do' && certificationFile) {
         const ext = certificationFile.name.split('.').pop() || 'pdf';
         const path = `${session.user.id}/certification.${ext}`;
@@ -167,7 +219,10 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    const { error: updateError } = await supabase.from(table).update(updates).eq('auth_user_id', session.user.id);
+    let { error: updateError } = await supabase.from(table).update(updates).eq('auth_user_id', session.user.id);
+    if (!updateError && privateTable && Object.keys(privateUpdates).length) {
+      ({ error: updateError } = await supabase.from(privateTable).update(privateUpdates).eq('auth_user_id', session.user.id));
+    }
     setBusy(false);
     if (updateError) {
       setError("Couldn't save your profile right now — please try again.");
@@ -175,6 +230,7 @@ export default function CompleteProfilePage() {
     }
     if (updates.profile_picture_path) setExistingPicturePath(updates.profile_picture_path);
     if (updates.certification_file_path) setExistingCertificationPath(updates.certification_file_path);
+    if (privateUpdates.certification_file_path) setExistingCertificationPath(privateUpdates.certification_file_path);
     setProfilePictureFile(null);
     setCertificationFile(null);
     refreshProfile();
@@ -203,18 +259,33 @@ export default function CompleteProfilePage() {
       <div className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 24 }}>
         You&rsquo;re signed in as a <strong>{ROLE_LABELS[role]}</strong>. Fill in as much as you&rsquo;d like now — you
         can always finish this later from Settings.
+        {role === 'church' && ' Your organisation is already live; the more you add, the more people can trust and find you. Contact and reference details stay private.'}
       </div>
 
       <form onSubmit={submit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {error && <div className="error-banner">{error}</div>}
         {saved && <div className="success-banner">Profile saved.</div>}
 
-        {config.map((f) => {
-          if (f.showIf && !f.showIf(values)) return null;
-          return (
-            <ProfileField key={f.column} field={f} value={values[f.column]} onChange={(v) => setFieldValue(f.column, v)} />
-          );
-        })}
+        <FieldList fields={config} values={values} onChange={setFieldValue} />
+
+        {privateConfig.length > 0 && (
+          <>
+            <FieldList fields={privateConfig} values={privateValues} onChange={setPrivateFieldValue} />
+            <div>
+              <label className="field-label">Verification document (optional)</label>
+              <FileField
+                kind="document"
+                accept="application/pdf,image/*"
+                onChange={(e) => setCertificationFile(e.target.files?.[0] || null)}
+              />
+              <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+                For example a charity or incorporation certificate, or a letter from your denomination. Kept private,
+                used only for internal review and never shown publicly.
+                {existingCertificationPath && !certificationFile && ' A document is already on file.'}
+              </div>
+            </div>
+          </>
+        )}
 
         {isCredentialed && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'var(--cream)', borderRadius: 14, padding: 16 }}>
@@ -254,7 +325,7 @@ export default function CompleteProfilePage() {
         )}
 
         <div>
-          <label className="field-label">Profile picture (optional)</label>
+          <label className="field-label">{role === 'church' ? 'Logo or photo (optional)' : 'Profile picture (optional)'}</label>
           {picturePreviewUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img

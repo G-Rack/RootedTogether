@@ -1,7 +1,7 @@
 'use client';
 
 // Generic field renderer shared by the "Complete your profile" page. Handles
-// the field `type`s used in lib/roleProfileFields.js: text, textarea, select,
+// the field `type`s used in lib/roleProfileFields.js: text, number, textarea, select,
 // checkboxes (saved as a text[] column), and tags (free-typed comma list,
 // also saved as a text[] column via splitTags()).
 export default function ProfileField({ field, value, onChange }) {
@@ -11,6 +11,9 @@ export default function ProfileField({ field, value, onChange }) {
       <label className="field-label">{label}</label>
       {type === 'text' && (
         <input className="input-field" placeholder={placeholder} value={value || ''} onChange={(e) => onChange(e.target.value)} />
+      )}
+      {type === 'number' && (
+        <input className="input-field" type="number" inputMode="numeric" placeholder={placeholder} value={value || ''} onChange={(e) => onChange(e.target.value)} />
       )}
       {type === 'textarea' && (
         <textarea className="input-field" rows={3} placeholder={placeholder} value={value || ''} onChange={(e) => onChange(e.target.value)} />

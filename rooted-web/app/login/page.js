@@ -7,6 +7,7 @@ import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL } fro
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
 import DateOfBirthField from '@/components/DateOfBirthField';
+import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
 // The signup flow's role keys match what the submit-signup Edge Function
 // expects in `TABLES` / `FIELD_MAP` there. Note "priest" here, not
@@ -22,6 +23,7 @@ const ROLE_OPTIONS = [
   { key: 'mother', label: ROLE_LABELS.mother, blurb: 'Offer prayer, mentorship, and guidance to seekers who need you.' },
   { key: 'priest', label: ROLE_LABELS.pastor, blurb: 'Offer prayer, mentorship, and guidance to seekers who need you.' },
   { key: 'influencer', label: ROLE_LABELS.influencer, blurb: 'Share your voice and ministry with a wider community. Reviewed before going live.' },
+  { key: 'church', label: ROLE_LABELS.church, blurb: 'Give your church or ministry a home: share your community, teaching and offerings. Goes live as soon as you sign up.' },
 ];
 
 function LoginPageInner() {
@@ -49,7 +51,7 @@ function LoginPageInner() {
         </div>
         <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, maxWidth: 400, marginTop: 16 }}>
           Sign in with the same details you use on the Rooted Together app — whether you&rsquo;re a Seeker, a
-          Spiritual Assistant, Mother, Pastor, or Leader.
+          Spiritual Assistant, Mother, Pastor, Leader, or a Church or Ministry.
         </div>
       </div>
 
@@ -351,6 +353,11 @@ function SignupForm({ router }) {
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState('');
   const [religion, setReligion] = useState('');
+  // Church / Ministry essentials. Everything else is asked on /complete-profile.
+  const [org, setOrg] = useState({
+    name: '', type: '', denomination: '', city: '', country: '', contactName: '', contactRole: '',
+  });
+  const setOrgField = (key, value) => setOrg((prev) => ({ ...prev, [key]: value }));
   const [password, setPassword] = useState('');
   // A referral link (?ref=RT-00042) is picked up silently from the URL. There
   // is no code field on the form; the code travels inside the link.
@@ -431,8 +438,24 @@ function SignupForm({ router }) {
     setError('');
     setBusy(true);
 
-    const fields = { Name: name, Email: email, 'Date of Birth': dob };
-    if (role === 'seeker') fields.Religion = religion;
+    let fields;
+    if (role === 'church') {
+      // Church sign-ups have no date of birth; the person filling the form is
+      // recorded as the (private) contact, and the organisation is the profile.
+      fields = {
+        'Organisation Name': org.name.trim(),
+        'Organisation Type': org.type,
+        Denomination: org.denomination.trim(),
+        City: org.city.trim(),
+        Country: org.country.trim(),
+        'Contact Name': org.contactName.trim(),
+        'Contact Role': org.contactRole.trim(),
+        Email: email,
+      };
+    } else {
+      fields = { Name: name, Email: email, 'Date of Birth': dob };
+      if (role === 'seeker') fields.Religion = religion;
+    }
 
     try {
       const res = await fetch(SUBMIT_ENDPOINT, {
@@ -492,10 +515,56 @@ function SignupForm({ router }) {
         {role === 'influencer' && ' Spiritual Leader profiles are reviewed before they appear publicly.'}
       </div>
 
-      <div>
-        <label className="field-label">Name</label>
-        <input className="input-field" required value={name} onChange={(e) => setName(e.target.value)} />
-      </div>
+      {role === 'church' ? (
+        <>
+          <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+            Your church or ministry goes live as soon as you sign up. You can add more detail (trust and verification,
+            contact and reference details) on the next page. Contact details are kept private.
+          </div>
+          <div>
+            <label className="field-label">Church or ministry name</label>
+            <input className="input-field" required value={org.name} onChange={(e) => setOrgField('name', e.target.value)} />
+          </div>
+          <div>
+            <label className="field-label">Type of organisation</label>
+            <select className="input-field" required value={org.type} onChange={(e) => setOrgField('type', e.target.value)}>
+              <option value="">Select…</option>
+              {CHURCH_TYPE_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="field-label">Denomination or tradition (optional)</label>
+            <input className="input-field" value={org.denomination} onChange={(e) => setOrgField('denomination', e.target.value)} placeholder="e.g. Baptist, Pentecostal, non-denominational" />
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label className="field-label">City</label>
+              <input className="input-field" required value={org.city} onChange={(e) => setOrgField('city', e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="field-label">Country</label>
+              <input className="input-field" required value={org.country} onChange={(e) => setOrgField('country', e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label className="field-label">Your name</label>
+              <input className="input-field" required value={org.contactName} onChange={(e) => setOrgField('contactName', e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label className="field-label">Your role</label>
+              <input className="input-field" value={org.contactRole} onChange={(e) => setOrgField('contactRole', e.target.value)} placeholder="e.g. Senior Pastor" />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div>
+          <label className="field-label">Name</label>
+          <input className="input-field" required value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+      )}
       <div>
         <label className="field-label">Email</label>
         <input
@@ -513,10 +582,12 @@ function SignupForm({ router }) {
           </div>
         )}
       </div>
-      <div>
-        <label className="field-label">Date of birth</label>
-        <DateOfBirthField required value={dob} onChange={setDob} />
-      </div>
+      {role !== 'church' && (
+        <div>
+          <label className="field-label">Date of birth</label>
+          <DateOfBirthField required value={dob} onChange={setDob} />
+        </div>
+      )}
       {role === 'seeker' && (
         <div>
           <label className="field-label">Religion</label>

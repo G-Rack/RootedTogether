@@ -56,7 +56,7 @@ export default function SettingsPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const leadsFamily = profile?.role === 'mother' || profile?.role === 'pastor';
-  const isCreatorRole = ['mother', 'pastor', 'influencer'].includes(profile?.role);
+  const isCreatorRole = ['mother', 'pastor', 'influencer', 'church'].includes(profile?.role);
 
   const closeDelete = () => {
     setDeleteOpen(false);
