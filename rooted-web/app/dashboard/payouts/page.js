@@ -125,10 +125,42 @@ export default function PayoutsPage() {
     }
   }, [session, searchParams]);
 
+  // Stripe now opens in its own tab, so when the creator comes back to this one, re-check
+  // whether their payouts are switched on instead of leaving "Finish Stripe setup" showing.
+  useEffect(() => {
+    if (!session || !stripeAccountId || stripePayoutsEnabled) return undefined;
+    const recheck = async () => {
+      if (document.visibilityState === 'hidden') return;
+      try {
+        await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'status' }),
+        });
+      } catch {
+        // just read what is stored
+      }
+      await loadStripeStatus(session.user.id);
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [session, stripeAccountId, stripePayoutsEnabled]);
+
   async function handleConnectStripe() {
     if (!session) return;
     setConnecting(true);
     setConnectError(null);
+    // Open the new tab right away, inside the click, so the browser's popup blocker allows
+    // it — then point it at Stripe once the link is ready.
+    const stripeTab = window.open('', '_blank');
+    if (stripeTab) {
+      stripeTab.opener = null;
+      stripeTab.document.title = 'Opening Stripe…';
+    }
     try {
       const res = await fetch(`${FUNCTIONS_URL}/stripe-connect-onboarding`, {
         method: 'POST',
@@ -142,8 +174,16 @@ export default function PayoutsPage() {
       if (!res.ok || !data?.url) {
         throw new Error(data?.error || "Couldn't start Stripe onboarding.");
       }
-      window.location.href = data.url;
+      if (stripeTab) {
+        stripeTab.location.href = data.url;
+      } else {
+        // Popup blocked entirely — fall back to this tab.
+        window.location.href = data.url;
+        return;
+      }
+      setConnecting(false);
     } catch (err) {
+      if (stripeTab) stripeTab.close();
       setConnectError(err.message || "Couldn't start Stripe onboarding — please try again.");
       setConnecting(false);
     }
