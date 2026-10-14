@@ -17,6 +17,7 @@ export default function BrandingPage() {
   // Lifted so the preview panel updates the moment a new photo uploads,
   // without waiting for the form to be saved.
   const [avatarPath, setAvatarPath] = useState(null);
+  const [bannerPath, setBannerPath] = useState(null);
 
   useEffect(() => {
     if (!session) return;
@@ -30,6 +31,7 @@ export default function BrandingPage() {
       if (!active) return;
       setStorefront(sf || null);
       setAvatarPath(sf?.avatar_path || null);
+      setBannerPath(sf?.banner_path || null);
       setStats({
         offerings_count: statsRes.data?.[0]?.offerings_count ?? 0,
         followers_count: followRes.count ?? 0,
@@ -60,15 +62,17 @@ export default function BrandingPage() {
           session={session}
           avatarPath={avatarPath}
           setAvatarPath={setAvatarPath}
+          bannerPath={bannerPath}
+          setBannerPath={setBannerPath}
         />
-        <StorefrontPreview storefront={storefront} profile={profile} stats={stats} avatarPath={avatarPath} />
+        <StorefrontPreview storefront={storefront} profile={profile} stats={stats} avatarPath={avatarPath} bannerPath={bannerPath} />
       </div>
     </div>
   );
 }
 
-function StorefrontPreview({ storefront, profile, stats, avatarPath }) {
-  const banner = bannerUrl(storefront?.banner_path);
+function StorefrontPreview({ storefront, profile, stats, avatarPath, bannerPath }) {
+  const banner = bannerUrl(bannerPath);
   const avatar = avatarUrl(avatarPath);
   const name = profile?.full_name || 'Your name';
 
@@ -146,14 +150,13 @@ function Stat({ value, label }) {
   );
 }
 
-function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvatarPath }) {
+function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvatarPath, bannerPath, setBannerPath }) {
   const [handle, setHandle] = useState(storefront?.handle || '');
   const [tagline, setTagline] = useState(storefront?.tagline || '');
   const [bio, setBio] = useState(storefront?.bio || '');
   const [links, setLinks] = useState(() =>
     Object.fromEntries(SOCIALS.map((so) => [so.key, formValue(so, storefront?.[so.key])]))
   );
-  const [bannerPath, setBannerPath] = useState(storefront?.banner_path || null);
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState('');
