@@ -31,12 +31,14 @@ export default function ReferralsPage() {
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  // Referral links are for approved members only: null = never applied, then pending / approved / declined.
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
     if (!session) return;
     let active = true;
     async function load() {
-      const [tiersRes, codeRes, summaryRes, earningsRes] = await Promise.all([
+      const [tiersRes, codeRes, summaryRes, earningsRes, statusRes] = await Promise.all([
         supabase.from('referral_tiers').select('*').order('sort_order', { ascending: true }),
         supabase.rpc('get_my_referral_code'),
         supabase.rpc('get_my_referral_summary'),
@@ -46,8 +48,10 @@ export default function ReferralsPage() {
           .eq('referrer_auth_id', session.user.id)
           .order('created_at', { ascending: false })
           .limit(8),
+        supabase.rpc('get_my_referral_status'),
       ]);
       if (!active) return;
+      setStatus(statusRes.data || null);
       setTiers(tiersRes.data || []);
       setReferralCode(codeRes.data || null);
       const summary = Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data;
@@ -93,6 +97,10 @@ export default function ReferralsPage() {
   };
 
   if (loading) return <div className="skeleton" style={{ height: 300 }} />;
+
+  if (status !== 'approved') {
+    return <ReferralGate status={status} setStatus={setStatus} tiers={tiers} />;
+  }
 
   return (
     <div style={{ maxWidth: 920 }}>
@@ -254,6 +262,115 @@ export default function ReferralsPage() {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// What a creator sees until their referral application has been approved. No link is generated
+// for them: get_my_referral_code only returns a code once we have approved the application.
+function ReferralGate({ status, setStatus, tiers }) {
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const apply = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    const { data, error: err } = await supabase.rpc('apply_for_referral_program', { p_message: message });
+    setBusy(false);
+    if (err) {
+      setError("We couldn't send your application. Please try again in a moment.");
+      return;
+    }
+    setStatus(data || 'pending');
+  };
+
+  return (
+    <div style={{ maxWidth: 920 }}>
+      <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
+        Referral program
+      </div>
+      <div className="muted" style={{ fontSize: 13.5, marginBottom: 22, maxWidth: 640 }}>
+        Invite people onto Rooted Together and earn a cut when they buy on the marketplace. The program is open to approved members.
+        Apply below and, once we approve you, your personal referral link appears here.
+      </div>
+
+      <div className="card" style={{ padding: '22px 22px 20px', marginBottom: 28, border: '1px solid var(--success-border)' }}>
+        {status === 'pending' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--brown)' }}>Application received</span>
+              <span className="badge">Under review</span>
+            </div>
+            <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 8 }}>
+              Thank you. We review every application by hand. Once you are approved, your referral link is created and shows up on this page.
+            </div>
+          </>
+        )}
+        {status === 'declined' && (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--brown)' }}>Not approved at this time</div>
+            <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 8 }}>
+              We are not able to open the referral program to your account right now. Write to admin@rootedtogether.club if you would like to talk it through, or apply again below.
+            </div>
+          </>
+        )}
+        {(status === null || status === 'declined') && (
+          <form onSubmit={apply} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: status === 'declined' ? 16 : 0 }}>
+            {status === null && <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--brown)' }}>Apply to the referral program</div>}
+            <label htmlFor="ref-msg" className="muted" style={{ fontSize: 13 }}>
+              How would you share Rooted Together with your community? (optional)
+            </label>
+            <textarea
+              id="ref-msg"
+              className="input-field"
+              rows={4}
+              maxLength={1000}
+              placeholder="For example: I lead a congregation of about 300 and share with them every week."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+            {error && <div className="error-banner" style={{ fontSize: 12.5 }}>{error}</div>}
+            <div>
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                {busy ? 'Sending…' : 'Apply to the referral program'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--brown)', marginBottom: 12 }}>How it works</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 32 }}>
+        {[
+          { title: 'Apply and get approved', body: 'Tell us how you would share Rooted Together. We review each application.' },
+          ...STEPS,
+        ].map((st, i) => (
+          <div key={st.title} className="card" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown-light)' }}>{i + 1}</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{st.title}</div>
+            <div className="muted" style={{ fontSize: 13, lineHeight: 1.55 }}>{st.body}</div>
+          </div>
+        ))}
+      </div>
+
+      {tiers.length > 0 && (
+        <>
+          <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--brown)', marginBottom: 12 }}>Tiers &amp; milestones</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+            {tiers.map((tier) => (
+              <div key={tier.name} className="card" style={{ padding: '14px 16px' }}>
+                <div className="serif" style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--brown)' }}>{tier.name}</div>
+                <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>{tier.rate_percent}%</div>
+                <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                  {tier.max_referrals == null ? `${tier.min_referrals}+ onboarded` : `${tier.min_referrals}–${tier.max_referrals} onboarded`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
