@@ -30,7 +30,9 @@ export function coverUrl(path) {
 
 export async function uploadBanner(file, userId) {
   const ext = file.name.split('.').pop() || 'jpg';
-  const path = `${userId}/banner.${ext}`;
+  // A fresh file name each time: re-using one name kept the same public URL, so browsers
+  // and the CDN kept showing the first image that was uploaded.
+  const path = `${userId}/banner-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('storefront-banners').upload(path, file, { upsert: true });
   if (error) throw error;
   return path;
@@ -45,7 +47,7 @@ export function avatarUrl(path) {
 
 export async function uploadAvatar(file, userId) {
   const ext = file.name.split('.').pop() || 'jpg';
-  const path = `${userId}/avatar.${ext}`;
+  const path = `${userId}/avatar-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('creator-avatars').upload(path, file, { upsert: true });
   if (error) throw error;
   return path;
