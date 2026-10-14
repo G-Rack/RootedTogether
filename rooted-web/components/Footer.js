@@ -42,6 +42,7 @@ export default function Footer() {
           <a href="#" style={{ fontSize: 13.5 }}>Get the App</a>
           <a href="#" style={{ fontSize: 13.5 }}>About</a>
           <a href="#" style={{ fontSize: 13.5 }}>Contact</a>
+          <Link href="/privacy" style={{ fontSize: 13.5 }}>Privacy Policy</Link>
         </div>
       </div>
       <div
