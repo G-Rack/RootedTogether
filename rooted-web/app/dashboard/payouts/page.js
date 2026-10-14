@@ -319,7 +319,7 @@ export default function PayoutsPage() {
       <div className="responsive-3col" style={{ '--col-a': '1.3fr', '--col-gap': '16px', marginBottom: 24 }}>
         <div style={{ background: 'var(--brown)', borderRadius: 16, padding: '20px 22px', color: 'var(--white)' }}>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Total (test) earnings
+            Total earnings
           </div>
           <div className="serif" style={{ fontSize: 30, fontWeight: 700, marginTop: 4 }}>{formatPrice(total)}</div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', marginTop: 10 }}>No real charges have occurred.</div>
@@ -456,7 +456,7 @@ export default function PayoutsPage() {
                   onClick={handleConnectStripe}
                   disabled={connecting}
                 >
-                  {connecting ? 'Redirecting to Stripe…' : stripeAccountId ? 'Finish Stripe setup' : 'Connect with Stripe'}
+                  {connecting ? 'Opening Stripe…' : stripeAccountId ? 'Finish Stripe setup' : 'Connect with Stripe'}
                 </button>
                 {connectError && (
                   <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
