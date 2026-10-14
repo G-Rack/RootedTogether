@@ -169,7 +169,7 @@ export default function ReferralsPage() {
           <div className="serif" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brown)', marginTop: 6 }}>
             {formatPrice(earningsCents)}
           </div>
-          <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>Test mode. No real charges have occurred.</div>
+          <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>No real charges have occurred.</div>
         </div>
         <div className="card" style={{ padding: '18px 20px' }}>
           <div className="muted" style={{ fontSize: 12 }}>People you&rsquo;ve onboarded</div>
