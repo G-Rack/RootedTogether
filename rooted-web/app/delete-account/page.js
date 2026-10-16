@@ -34,6 +34,12 @@ const sections = [
     ],
   },
   {
+    title: 'If you have a Premium subscription',
+    body: [
+      'Deleting your account does not automatically cancel a subscription that was bought through Google Play or the Apple App Store. Please cancel it in your Google Play or App Store subscription settings so you are not charged again.',
+    ],
+  },
+  {
     title: 'More information',
     body: [
       `You can read how we handle information in our Privacy Policy at rootedtogether.club/privacy. Questions? Email ${CONTACT_EMAIL}.`,

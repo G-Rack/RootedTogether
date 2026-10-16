@@ -5,7 +5,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = 'admin@rootedtogether.club';
-const EFFECTIVE_DATE = 'October 14, 2026';
+const EFFECTIVE_DATE = 'October 16, 2026';
 
 const sections = [
   {
@@ -22,6 +22,7 @@ const sections = [
       'Content you create: posts, comments, community posts and images, direct and group messages, and, if you use the family features, private notes, practices, and updates.',
       'Activity: who you follow, what you like, and the communities and spiritual families you join.',
       'Purchases and payouts: when you buy an offering or a creator receives earnings, payments are handled by Stripe. We receive order details such as what was bought, the amount, and status. We do not see or store your full card number. Creators who receive payouts complete identity and bank verification directly with Stripe.',
+      'App subscriptions: if you subscribe to Rooted Together Premium in the mobile app, the purchase is made and billed through Google Play (or the Apple App Store on iPhone). Google or Apple handles your payment details and we never see your card number. We use a subscription management service, RevenueCat, which receives an account identifier, your subscription status, and your purchase and renewal history from the app store so we can unlock Premium features for you and keep your access up to date.',
       'Referral information: if you take part in our referral program, we record who referred whom and the resulting commissions.',
       'Support messages: anything you send us when you contact us.',
     ],
@@ -30,7 +31,7 @@ const sections = [
     title: 'How we use your information',
     body: [
       'To create and run your account, show your profile to the people you choose, and deliver the features you use, including messages, communities, and purchases.',
-      'To process payments and payouts, prevent fraud and misuse, and keep the community safe.',
+      'To process payments, subscriptions, and payouts, prevent fraud and misuse, and keep the community safe.',
       'To send essential messages such as email confirmation, password resets, receipts, and important changes to the service.',
       'To understand and improve how the app and marketplace work.',
       'To meet our legal obligations.',
@@ -46,7 +47,7 @@ const sections = [
     title: 'Who we share information with',
     body: [
       'We do not sell your personal information.',
-      'We use trusted service providers who process information on our behalf: Supabase (accounts, database, and file storage), Stripe (payments and creator payouts), Vercel (hosting of our website), and email delivery providers. They may only use your information to provide their services to us.',
+      'We use trusted service providers who process information on our behalf: Supabase (accounts, database, and file storage), Stripe (payments and creator payouts on our website), Google Play and the Apple App Store (app subscriptions), RevenueCat (subscription management), Vercel (hosting of our website), and email delivery providers. They may only use your information to provide their services to us.',
       'We may disclose information if required by law, to protect the rights and safety of our members, or as part of a business transfer such as a merger. If that happens, we will tell you before your information becomes subject to a different policy.',
     ],
   },
@@ -60,6 +61,7 @@ const sections = [
     title: 'Your choices and rights',
     body: [
       'You can view and edit your profile in the app or on the website at any time.',
+      'You can manage or cancel an app subscription at any time in your Google Play or App Store subscription settings. Deleting your account does not cancel a subscription automatically, so please cancel it in the store as well.',
       `You can ask us to access, correct, export, or delete your information, or to delete your account, by emailing ${CONTACT_EMAIL} from the email address on your account. We will respond within a reasonable time, and within any period required by law.`,
       'You can choose what you share publicly and unfollow or leave communities at any time.',
       'Depending on where you live, you may have additional rights under local law, such as the right to object to or restrict certain processing. Contact us to exercise them.',
