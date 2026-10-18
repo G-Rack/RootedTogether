@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice } from '@/lib/roles';
-import { ONBOARDING_URL } from '@/lib/config';
 
 // Tier lookup against the fetched `referral_tiers` rows. The DB is the source
 // of truth, so thresholds and rates can change without a code deploy.
@@ -17,9 +16,9 @@ function tierForCount(tiers, count) {
 }
 
 const STEPS = [
-  { title: 'Share your link', body: 'Send it to anyone who would love Rooted Together. Your code is built into the link.' },
-  { title: 'They sign up', body: 'When they create an account from your link, they are connected to you automatically. Nothing to type.' },
-  { title: 'You earn', body: 'Whenever someone you onboarded buys on the marketplace, you earn a cut of the sale.' },
+  { title: 'Share your link', body: 'Send it to anyone who would love Rooted Together. It opens a page with your code and the app download.' },
+  { title: 'They sign up in the app', body: 'When they create their account in the app, they enter your code and are connected to you.' },
+  { title: 'You earn', body: 'Whenever someone you onboarded buys something or pays for a prayer or meditation request, you earn a cut of the net sale (after payment fees).' },
 ];
 
 export default function ReferralsPage() {
@@ -67,8 +66,8 @@ export default function ReferralsPage() {
   }, [session]);
 
   // Built from the current origin so it never goes stale if the domain changes.
-  const referralLink = referralCode
-    ? `${ONBOARDING_URL}/?ref=${encodeURIComponent(referralCode)}`
+  const referralLink = referralCode && typeof window !== 'undefined'
+    ? `${window.location.origin}/join?ref=${encodeURIComponent(referralCode)}`
     : null;
   const currentTier = tierForCount(tiers, referredCount);
   const currentTierIndex = currentTier ? tiers.indexOf(currentTier) : -1;
@@ -157,7 +156,7 @@ export default function ReferralsPage() {
         </div>
         {referralCode && (
           <div style={{ marginTop: 16, fontSize: 12.5, color: 'rgba(255,255,255,0.8)' }}>
-            Your personal code is <strong style={{ color: 'var(--white)', letterSpacing: 0.4 }}>{referralCode}</strong>. It is already inside your link, so people never have to type it.
+            Your personal code is <strong style={{ color: 'var(--white)', letterSpacing: 0.4 }}>{referralCode}</strong>. People who use your link see it on the page, and can also type it into the app’s sign-up (“Have a referral code?”).
           </div>
         )}
       </div>
@@ -169,7 +168,7 @@ export default function ReferralsPage() {
           <div className="serif" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brown)', marginTop: 6 }}>
             {formatPrice(earningsCents)}
           </div>
-          <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>No real charges have occurred.</div>
+          <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>Worked out on net sales, after payment fees.</div>
         </div>
         <div className="card" style={{ padding: '18px 20px' }}>
           <div className="muted" style={{ fontSize: 12 }}>People you&rsquo;ve onboarded</div>
@@ -250,10 +249,10 @@ export default function ReferralsPage() {
             >
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {r.referred_name} bought {r.offering_title}
+                  {r.referred_name} · {r.offering_title}
                 </div>
                 <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>
-                  {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {formatPrice(r.sale_cents)} sale · {r.rate_percent}% cut
+                  {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {formatPrice(r.net_cents ?? r.sale_cents)} net sale · {r.rate_percent}% cut
                 </div>
               </div>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brown)', flexShrink: 0, paddingLeft: 10 }}>
