@@ -14,6 +14,7 @@ function JoinInner() {
   const raw = (searchParams.get('ref') || '').trim();
   const code = CODE_RE.test(raw) ? raw.toUpperCase().replace(/^RT-?/, 'RT-') : '';
   const [copied, setCopied] = useState(false);
+  const [openTried, setOpenTried] = useState(false);
 
   const copy = async () => {
     try {
@@ -23,6 +24,14 @@ function JoinInner() {
     } catch {
       // Clipboard unavailable: the code is still on screen to copy by hand.
     }
+  };
+
+  // Opens the app straight to sign-up with the code filled in. If the app
+  // isn't installed nothing happens, so after a moment we point at the store.
+  const openApp = () => {
+    try { navigator.clipboard?.writeText(code); } catch { /* ignore */ }
+    window.location.href = `rootedtogether://join?ref=${encodeURIComponent(code)}`;
+    setTimeout(() => setOpenTried(true), 1500);
   };
 
   return (
@@ -47,12 +56,25 @@ function JoinInner() {
           </div>
         )}
 
+        {code && (
+          <div style={{ marginBottom: 28 }}>
+            <button type="button" onClick={openApp} className="btn btn-primary" style={{ width: '100%', maxWidth: 320 }}>
+              Open the app
+            </button>
+            <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.5, marginTop: 10 }}>
+              {openTried
+                ? 'Nothing opened? Get the app below. Your code is copied, so you can paste it at sign-up.'
+                : 'Already have the app? This opens it with your code filled in.'}
+            </div>
+          </div>
+        )}
+
         <div className="card" style={{ padding: '20px 22px', textAlign: 'left', marginBottom: 32 }}>
           {[
             ['Get the app', 'Download Rooted Together for iPhone or Android.'],
             ['Create your account', 'It only takes an email and a password, then a few quick questions.'],
             code
-              ? ['Enter your code', 'On the first screen tap “Have a referral code?” and paste the code above.']
+              ? ['Your code is ready', 'On Android it fills in by itself. On iPhone, tap “Have a referral code?” at sign-up and paste the code above.']
               : ['Start exploring', 'Find mothers, pastors and communities that fit what you’re walking through.'],
           ].map(([title, body], i) => (
             <div key={title} style={{ display: 'flex', gap: 14, padding: '10px 0', borderTop: i === 0 ? 'none' : '1px solid rgba(107,66,38,0.08)' }}>
@@ -65,7 +87,7 @@ function JoinInner() {
           ))}
         </div>
 
-        <StoreBadges align="center" />
+        <StoreBadges align="center" referrer={code} />
       </div>
     </div>
   );

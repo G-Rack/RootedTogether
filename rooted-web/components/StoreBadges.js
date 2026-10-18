@@ -58,8 +58,18 @@ function OfficialBadge({ href, src, alt, height, trim = 0 }) {
   );
 }
 
-export default function StoreBadges({ align = 'flex-start', tone = 'default', showLabel = true }) {
+// `referrer` (e.g. "RT-00042") rides along on the Google Play link. Play hands it
+// to the app on first launch, which is how an invited person's code arrives
+// without them typing it. (Apple offers nothing equivalent, so iPhone users
+// enter the code by hand.)
+function withReferrer(url, referrer) {
+  if (!url || !referrer || !url.includes('play.google.com')) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}referrer=${encodeURIComponent(referrer)}`;
+}
+
+export default function StoreBadges({ align = 'flex-start', tone = 'default', showLabel = true, referrer = '' }) {
   const live = !!(APP_STORE_URL || PLAY_STORE_URL);
+  const playUrl = withReferrer(PLAY_STORE_URL, referrer);
   return (
     <div className="store-badges" style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: align }}>
       {showLabel && (
@@ -71,12 +81,12 @@ export default function StoreBadges({ align = 'flex-start', tone = 'default', sh
         {USE_OFFICIAL_BADGES ? (
           <>
             <OfficialBadge href={APP_STORE_URL} src="/badges/app-store.svg" alt="Download on the App Store" height={54} />
-            <OfficialBadge href={PLAY_STORE_URL} src="/badges/google-play.png" alt="Get it on Google Play" height={80} trim="-13px" />
+            <OfficialBadge href={playUrl} src="/badges/google-play.png" alt="Get it on Google Play" height={80} trim="-13px" />
           </>
         ) : (
           <>
             <Badge href={APP_STORE_URL} small="Download on the" soonSmall="Coming soon on the" big="App Store" icon={iosIcon} tone={tone} />
-            <Badge href={PLAY_STORE_URL} small="Get it on" soonSmall="Coming soon on" big="Google Play" icon={androidIcon} tone={tone} />
+            <Badge href={playUrl} small="Get it on" soonSmall="Coming soon on" big="Google Play" icon={androidIcon} tone={tone} />
           </>
         )}
       </div>
