@@ -38,6 +38,8 @@ export default function DashboardOverviewPage() {
   const [purchases, setPurchases] = useState([]);
   const [storefront, setStorefront] = useState(null);
   const [requests, setRequests] = useState([]);
+  // Paid prayer / meditation requests, kept only for the earnings totals.
+  const [servicePayments, setServicePayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function DashboardOverviewPage() {
     let active = true;
 
     async function load() {
-      const [{ data: offeringRows }, { data: sf }, { data: requestRows }] = await Promise.all([
+      const [{ data: offeringRows }, { data: sf }, { data: requestRows }, { data: paidServiceRows }] = await Promise.all([
         supabase.from('offerings').select('*').eq('creator_auth_id', session.user.id).order('created_at', { ascending: false }),
         supabase.from('creator_storefronts').select('*').eq('auth_user_id', session.user.id).maybeSingle(),
         supabase
@@ -55,6 +57,12 @@ export default function DashboardOverviewPage() {
           .in('status', ['new', 'done'])
           .order('created_at', { ascending: false })
           .limit(8),
+        supabase
+          .from('service_requests')
+          .select('id, amount_cents, paid_at')
+          .eq('creator_auth_id', session.user.id)
+          .in('status', ['new', 'done'])
+          .gt('amount_cents', 0),
       ]);
       if (!active) return;
 
@@ -70,6 +78,7 @@ export default function DashboardOverviewPage() {
       setPurchases(purchaseRows);
       setStorefront(sf || null);
       setRequests(requestRows || []);
+      setServicePayments(paidServiceRows || []);
       setLoading(false);
     }
 
@@ -86,14 +95,18 @@ export default function DashboardOverviewPage() {
 
   const offeringById = useMemo(() => Object.fromEntries(offerings.map((o) => [o.id, o])), [offerings]);
 
-  const totalEarnings = purchases.reduce((sum, p) => sum + (p.price_paid_cents || 0), 0);
   const now = new Date();
-  const thisMonthEarnings = purchases
-    .filter((p) => {
-      const d = new Date(p.purchased_at);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, p) => sum + (p.price_paid_cents || 0), 0);
+  const inThisMonth = (iso) => {
+    const d = new Date(iso);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  };
+  // Earnings = offering sales + paid prayer / meditation requests.
+  const totalEarnings =
+    purchases.reduce((sum, p) => sum + (p.price_paid_cents || 0), 0) +
+    servicePayments.reduce((sum, r) => sum + (r.amount_cents || 0), 0);
+  const thisMonthEarnings =
+    purchases.filter((p) => inThisMonth(p.purchased_at)).reduce((sum, p) => sum + (p.price_paid_cents || 0), 0) +
+    servicePayments.filter((r) => r.paid_at && inThisMonth(r.paid_at)).reduce((sum, r) => sum + (r.amount_cents || 0), 0);
   const activeStudents = new Set(purchases.map((p) => p.buyer_auth_id)).size;
   const callBookings = purchases.filter((p) => offeringById[p.offering_id]?.type === 'call');
   const newRequestsCount = requests.filter((r) => r.status === 'new').length;

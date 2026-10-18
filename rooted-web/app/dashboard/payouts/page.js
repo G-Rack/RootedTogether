@@ -13,7 +13,12 @@ const TYPE_DOT = {
   ebook: 'var(--brown-light)',
   routine: 'var(--brown-pale)',
   call: 'var(--text-soft)',
+  prayer: 'var(--brown-pale)',
+  meditation: 'var(--brown-light)',
 };
+
+const SERVICE_SALE_LABELS = { prayer: 'Daily prayer', meditation: 'Guided meditation' };
+const PACKAGE_SALE_LABELS = { single: 'Single', week: '7-day', month: '30-day' };
 
 export default function PayoutsPage() {
   const { session, profile } = useSession();
@@ -67,6 +72,27 @@ export default function PayoutsPage() {
           .order('purchased_at', { ascending: false });
         purchaseRows = data || [];
       }
+
+      // Paid prayer / meditation requests count as sales too. They're shaped
+      // like offering purchases so the totals, breakdown and recent-sales
+      // list below don't need to care where a sale came from.
+      const { data: serviceRows } = await supabase
+        .from('service_requests')
+        .select('id, service_type, package_id, amount_cents, paid_at')
+        .eq('creator_auth_id', session.user.id)
+        .in('status', ['new', 'done'])
+        .gt('amount_cents', 0);
+      const serviceSales = (serviceRows || []).map((r) => ({
+        id: `service-${r.id}`,
+        offering_id: null,
+        purchased_at: r.paid_at,
+        price_paid_cents: r.amount_cents,
+        _type: r.service_type,
+        _title: `${SERVICE_SALE_LABELS[r.service_type] || 'Request'}${PACKAGE_SALE_LABELS[r.package_id] ? ` · ${PACKAGE_SALE_LABELS[r.package_id]}` : ''}`,
+      }));
+      purchaseRows = [...purchaseRows, ...serviceSales].sort(
+        (a, b) => new Date(b.purchased_at) - new Date(a.purchased_at),
+      );
 
       await Promise.all([
         loadStripeStatus(session.user.id),
@@ -295,7 +321,7 @@ export default function PayoutsPage() {
   const breakdown = useMemo(() => {
     const byType = {};
     purchases.forEach((p) => {
-      const t = offeringById[p.offering_id]?.type || 'other';
+      const t = p._type || offeringById[p.offering_id]?.type || 'other';
       byType[t] = (byType[t] || 0) + (p.price_paid_cents || 0);
     });
     return Object.entries(byType)
@@ -359,7 +385,7 @@ export default function PayoutsPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 8, height: 8, borderRadius: 999, background: TYPE_DOT[t] || 'var(--text-soft)' }} />
-                    <span style={{ fontSize: 13.5 }}>{OFFERING_TYPE_LABELS[t] || 'Other'}</span>
+                    <span style={{ fontSize: 13.5 }}>{OFFERING_TYPE_LABELS[t] || SERVICE_SALE_LABELS[t] || 'Other'}</span>
                   </div>
                   <span style={{ fontSize: 13.5, fontWeight: 700 }}>{formatPrice(cents)}</span>
                 </div>
@@ -492,7 +518,7 @@ export default function PayoutsPage() {
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {offeringById[p.offering_id]?.title || 'Offering'}
+                      {p._title || offeringById[p.offering_id]?.title || 'Offering'}
                     </div>
                     <div className="muted" style={{ fontSize: 11.5, marginTop: 1 }}>
                       {new Date(p.purchased_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
