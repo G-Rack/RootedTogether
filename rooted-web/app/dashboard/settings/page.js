@@ -236,8 +236,7 @@ export default function SettingsPage() {
           <GroupLabel>More</GroupLabel>
           <div className="card" style={{ padding: '13px 16px' }}>
             <div style={{ fontSize: 13, color: 'var(--text-soft)', lineHeight: 1.5 }}>
-              This marketplace is in test mode — purchases and payouts are simulated, no real money moves yet.
-              Questions? Reach out from inside the Rooted Together app.
+              Questions about sales or payouts? Reach out from inside the Rooted Together app.
             </div>
           </div>
         </div>

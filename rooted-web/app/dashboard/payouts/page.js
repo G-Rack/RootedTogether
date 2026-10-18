@@ -312,8 +312,8 @@ export default function PayoutsPage() {
       </div>
       <div className="muted" style={{ fontSize: 13.5, marginBottom: 22 }}>
         {stripePayoutsEnabled
-          ? 'Checkout is still in Stripe test mode, so no real money has moved yet — but your payout account is connected and ready for when it goes live.'
-          : 'Every sale below is a real record from a real buyer — but checkout is still in test mode, so no money has actually moved and there’s no real payout method connected yet.'}
+          ? 'Every sale below is a real purchase. Your payout account is connected, so your earnings are paid out to you through Stripe.'
+          : 'Every sale below is a real purchase. Connect a payout account to get your earnings paid out to you.'}
       </div>
 
       <div className="responsive-3col" style={{ '--col-a': '1.3fr', '--col-gap': '16px', marginBottom: 24 }}>

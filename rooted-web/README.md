@@ -17,7 +17,7 @@ Then open http://localhost:3000
 - `/` — Homepage / marketplace (public): browse creators and published offerings.
 - `/login` — Log In (any existing app account works) / Sign Up (creates a buyer account).
 - `/creator/[handle]` — A creator's public storefront (banner, about, offerings).
-- `/offering/[id]` — Offering detail. Courses/ebooks/routines get a "Buy Now" test-checkout;
+- `/offering/[id]` — Offering detail. Courses/ebooks/routines get a "Buy Now" Stripe checkout;
   1:1 calls get a real embedded Calendly widget for scheduling.
 - `/dashboard` — Creator dashboard (Mothers/Pastors/approved Leaders only): stats, storefront
   branding editor, and the offerings table.
@@ -25,10 +25,9 @@ Then open http://localhost:3000
 
 ## Important notes
 
-- **Payments are fake for now.** "Buy Now" / "Reserve & Pay" instantly record a purchase in the
-  database with no real charge — the same pattern the app uses for Premium Chat. Swapping in a
-  real payment processor later only touches the `handleBuy` function in
-  `app/offering/[id]/page.js`.
+- **Payments are real Stripe.** "Buy Now" goes through the `create-checkout-session` Edge Function;
+  the `stripe-webhook` function records the purchase. Test vs live is decided only by the Stripe keys
+  set as Supabase secrets.
 - **Calendly is real.** The call-booking page embeds Calendly's actual widget using whichever
   link the creator pastes into their dashboard.
 - **Only approved creators see the Dashboard.** A Mother/Pastor/Leader must have

@@ -203,7 +203,7 @@ function BillingSection() {
       <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="muted" style={{ fontSize: 13 }}>No payment method on file.</div>
         <div className="note" style={{ fontSize: 12, color: 'var(--text-soft)', lineHeight: 1.5, background: 'var(--cream-dark)', borderRadius: 10, padding: '10px 12px' }}>
-          This marketplace is in test mode — purchases are simulated, no real card is charged yet.
+          Payments are handled securely by Stripe at checkout. We don’t store your card details.
         </div>
       </div>
     </div>
