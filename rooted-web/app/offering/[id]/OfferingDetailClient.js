@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -37,6 +37,9 @@ function startDownload(url) {
   a.remove();
 }
 
+// Calls up to this long are free once a week for the creator's Spiritual Family.
+const FREE_CALL_MAX_MINUTES = 30;
+
 export default function OfferingDetailClient() {
   const { id } = useParams();
   const router = useRouter();
@@ -57,6 +60,10 @@ export default function OfferingDetailClient() {
   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [tab, setTab] = useState('description');
+  // Free weekly call for Spiritual Family members (30-minute calls):
+  // { is_member, claimed, booked, resets_on } from the free_call_status RPC.
+  const [freeCall, setFreeCall] = useState(null);
+  const [claiming, setClaiming] = useState(false);
 
   const [reviewStats, setReviewStats] = useState({ review_count: 0, avg_rating: 0 });
   const [reviews, setReviews] = useState([]);
@@ -106,6 +113,10 @@ export default function OfferingDetailClient() {
       setStorefront(sf || null);
       setIsFamily(!!familyRes.data);
       await loadPurchaseAndContent(o, session);
+      if (session && o.type === 'call' && o.call_duration_minutes > 0 && o.call_duration_minutes <= FREE_CALL_MAX_MINUTES) {
+        const { data: fc } = await supabase.rpc('free_call_status', { p_creator_id: o.creator_auth_id });
+        if (active) setFreeCall(fc || null);
+      }
 
       setLoading(false);
     }
@@ -198,6 +209,34 @@ export default function OfferingDetailClient() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkoutOpen, offering, session, purchase]);
+
+  // Calendly tells the page when someone finishes booking. If they were using
+  // their free weekly call, that's the moment it counts as used.
+  useEffect(() => {
+    if (!offering || !freeCall?.claimed || freeCall?.booked) return undefined;
+    const onMessage = async (e) => {
+      if (e.origin !== 'https://calendly.com' || e.data?.event !== 'calendly.event_scheduled') return;
+      await supabase.rpc('mark_free_call_booked', { p_creator_id: offering.creator_auth_id });
+      setFreeCall((prev) => (prev ? { ...prev, booked: true } : prev));
+      setNotice('You’re booked. Check your email for the details.');
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [offering, freeCall]);
+
+  const handleClaimFreeCall = async () => {
+    setError('');
+    setNotice('');
+    setClaiming(true);
+    const { data, error: rpcError } = await supabase.rpc('claim_free_family_call', { p_offering_id: offering.id });
+    setClaiming(false);
+    if (rpcError || !data?.ok) {
+      setError(data?.error || "Couldn't claim your free call — please try again.");
+      return;
+    }
+    setFreeCall((prev) => ({ ...(prev || {}), is_member: true, claimed: true, booked: false, resets_on: data.resets_on }));
+    setNotice('Your free call is unlocked. Pick a time below.');
+  };
 
   const handleBuy = async () => {
     if (!session) {
@@ -297,6 +336,16 @@ export default function OfferingDetailClient() {
 
   const isCall = offering.type === 'call';
   const alreadyOwned = !!purchase;
+  // 30-minute calls come free once a week for the creator's Spiritual Family.
+  const freeCallEligible = isCall && offering.call_duration_minutes > 0 && offering.call_duration_minutes <= FREE_CALL_MAX_MINUTES;
+  const hasFreeCallUnlocked = freeCallEligible && !!freeCall?.is_member && !!freeCall.claimed && !freeCall.booked;
+  const freeCallUsed = freeCallEligible && !!freeCall?.is_member && !!freeCall.booked;
+  const freeCallAvailable = freeCallEligible && !!freeCall?.is_member && !freeCall.claimed;
+  // The scheduler appears once you've paid or unlocked your free call.
+  const canPickTime = alreadyOwned || hasFreeCallUnlocked;
+  const resetsLabel = freeCall?.resets_on
+    ? new Date(`${freeCall.resets_on}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' })
+    : 'Monday';
   const freeForYou = offering.is_free_for_family && isFamily;
   // Anything that costs nothing (and isn't a call) is a straight download.
   const isFreeItem = !isCall && (freeForYou || !offering.price_cents);
@@ -424,8 +473,16 @@ export default function OfferingDetailClient() {
               <div className="muted" style={{ fontSize: 12, marginBottom: 14 }}>
                 Real scheduling, powered by Calendly — connected directly by {creatorProfile?.name || 'the creator'}.
               </div>
-              {offering.calendly_url ? (
-                <CalendlyEmbed url={offering.calendly_url} />
+              {!canPickTime ? (
+                <div className="card muted" style={{ padding: 24, fontSize: 13.5, lineHeight: 1.55 }}>
+                  {freeCallAvailable
+                    ? 'Claim your free weekly call on the right, then pick a time here.'
+                    : freeCallUsed
+                      ? `You've used this week's free call. Reserve & pay to book another, or come back ${resetsLabel}.`
+                      : 'Reserve your spot first, then pick a time here.'}
+                </div>
+              ) : offering.calendly_url ? (
+                <CalendlyEmbed url={offering.calendly_url} name={session?.user?.user_metadata?.full_name} email={session?.user?.email} />
               ) : (
                 <div className="card muted" style={{ padding: 24, fontSize: 13.5 }}>
                   This creator hasn&rsquo;t connected a Calendly link yet.
@@ -457,8 +514,20 @@ export default function OfferingDetailClient() {
         {/* Sidebar */}
         <div className="card sticky-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="serif" style={{ fontSize: 28, fontWeight: 700, color: 'var(--brown)' }}>
-            {freeForYou ? 'Free' : formatPrice(offering.price_cents)}
+            {freeForYou || freeCallAvailable || hasFreeCallUnlocked ? 'Free' : formatPrice(offering.price_cents)}
           </div>
+
+          {freeCallEligible && (
+            <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+              {freeCallAvailable
+                ? 'Your Spiritual Family perk: one free 30-minute call a week.'
+                : hasFreeCallUnlocked
+                  ? 'Free call unlocked for this week. Pick a time below.'
+                  : freeCallUsed
+                    ? `You've used this week's free call. It resets ${resetsLabel}.`
+                    : `Members of ${creatorProfile?.name ? `${creatorProfile.name.split(' ')[0]}'s` : 'this'} Spiritual Family get one free 30-minute call a week. Request to join in the app.`}
+            </div>
+          )}
 
           {offering.is_free_for_family && (
             <div className="muted" style={{ fontSize: 12 }}>
@@ -489,6 +558,14 @@ export default function OfferingDetailClient() {
                 {isCall ? 'Booked' : 'Already yours'}
               </div>
             )
+          ) : freeCallAvailable ? (
+            <button onClick={handleClaimFreeCall} disabled={claiming} className="btn btn-primary">
+              {claiming ? 'Please wait…' : 'Claim your free call'}
+            </button>
+          ) : hasFreeCallUnlocked ? (
+            <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+              Free call unlocked
+            </div>
           ) : (
             <button
               onClick={handleBuy}
@@ -672,20 +749,52 @@ function FeatureList({ isCall, offering }) {
   );
 }
 
-function CalendlyEmbed({ url }) {
+function CalendlyEmbed({ url, name, email }) {
+  const ref = useRef(null);
+
+  // Pre-fill who is booking so the creator knows it's one of their family.
+  let dataUrl = url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set('hide_gdpr_banner', '1');
+    if (name) u.searchParams.set('name', name);
+    if (email) u.searchParams.set('email', email);
+    dataUrl = u.toString();
+  } catch {
+    dataUrl = url;
+  }
+
+  // The widget script only scans the page once when it loads, but this embed
+  // can appear later (after claiming a free call or paying), so start it
+  // explicitly whenever the element is ready.
   useEffect(() => {
-    if (document.getElementById('calendly-widget-script')) return;
-    const script = document.createElement('script');
-    script.id = 'calendly-widget-script';
-    script.src = 'https://assets.calendly.com/assets/external/widget.js';
-    script.async = true;
-    document.body.appendChild(script);
-  }, []);
+    const el = ref.current;
+    if (!el) return undefined;
+    const start = () => {
+      if (window.Calendly && el && !el.dataset.started) {
+        el.dataset.started = '1';
+        window.Calendly.initInlineWidget({ url: dataUrl, parentElement: el });
+      }
+    };
+    if (window.Calendly) {
+      start();
+      return undefined;
+    }
+    let script = document.getElementById('calendly-widget-script');
+    if (!script) {
+      script = document.createElement('script');
+      script.id = 'calendly-widget-script';
+      script.src = 'https://assets.calendly.com/assets/external/widget.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+    script.addEventListener('load', start);
+    return () => script.removeEventListener('load', start);
+  }, [dataUrl]);
 
   return (
     <div
-      className="calendly-inline-widget"
-      data-url={url}
+      ref={ref}
       style={{ minWidth: 320, height: 700, borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(107,66,38,0.12)' }}
     />
   );
