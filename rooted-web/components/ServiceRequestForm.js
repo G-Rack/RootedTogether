@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { avatarUrl } from '@/lib/storage';
 import { initialsFor, ROLE_LABELS } from '@/lib/roles';
+import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
 
 const PRAYER_TYPES = [
   { id: 'healing', label: 'Healing' },
@@ -56,8 +57,8 @@ const SERVICE_CONFIG = {
     types: PRAYER_TYPES,
     packagesLabel: 'Choose a prayer package',
     packages: PRAYER_PACKAGES,
-    submitLabel: 'Send Prayer Request',
-    confirm: (name) => `Your prayer request is on its way to ${name}. You'll hear back soon.`,
+    submitLabel: 'Continue to payment',
+    confirm: (name) => `Thank you. Your payment went through and your prayer request is on its way to ${name}. You'll hear back soon.`,
   },
   meditation: {
     title: 'Request a Guided Meditation',
@@ -69,8 +70,8 @@ const SERVICE_CONFIG = {
     types: MEDITATION_TYPES,
     packagesLabel: 'Choose a meditation package',
     packages: MEDITATION_PACKAGES,
-    submitLabel: 'Request Meditation',
-    confirm: (name) => `Your meditation request is on its way to ${name}. You'll hear back soon.`,
+    submitLabel: 'Continue to payment',
+    confirm: (name) => `Thank you. Your payment went through and your meditation request is on its way to ${name}. You'll hear back soon.`,
   },
   special: {
     title: 'Send a Special Request',
@@ -106,6 +107,13 @@ export default function ServiceRequestForm({ serviceKey }) {
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Set when Stripe sends the buyer back to this page after checkout.
+  const [paymentResult, setPaymentResult] = useState(null);
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('payment');
+    if (result === 'success' || result === 'cancelled') setPaymentResult(result);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -156,6 +164,45 @@ export default function ServiceRequestForm({ serviceKey }) {
     const focusAreas = config.types.length
       ? config.types.filter((t) => selectedTypes[t.id]).map((t) => t.label)
       : null;
+
+    // Paid services (prayer, meditation): save nothing yet, go straight to
+    // Stripe Checkout. The request only reaches the creator once the
+    // payment succeeds (create-service-checkout + stripe-webhook).
+    if (config.packages.length > 0) {
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/create-service-checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            creatorAuthId: storefront.auth_user_id,
+            serviceType: serviceKey,
+            packageId: selectedPackage,
+            requesterName: name.trim(),
+            requesterEmail: email.trim(),
+            forWhom: config.hasForWhom ? forWhom : null,
+            forWhomName: config.hasForWhom && forWhom === 'someone-else' ? forWhomName.trim() : null,
+            focusAreas: focusAreas || [],
+            message: message.trim(),
+            origin: window.location.origin,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) {
+          setBusy(false);
+          setError(data.error || "Couldn't start checkout — please try again.");
+          return;
+        }
+        window.location.href = data.url;
+      } catch {
+        setBusy(false);
+        setError("Couldn't start checkout — please try again.");
+      }
+      return;
+    }
 
     const { error: insertError } = await supabase.from('service_requests').insert({
       creator_auth_id: storefront.auth_user_id,
@@ -380,12 +427,29 @@ export default function ServiceRequestForm({ serviceKey }) {
 
         {error && <div className="error-banner" style={{ marginBottom: 14, maxWidth: 460 }}>{error}</div>}
 
-        <button type="button" onClick={submit} disabled={submitted || busy} className="btn btn-primary">
-          {submitted ? 'Sent' : busy ? 'Sending…' : config.submitLabel}
-        </button>
-        <div className="muted" style={{ fontSize: 12, marginTop: 10, maxWidth: 460, lineHeight: 1.5 }}>
-          This sends your request straight to {firstName} &mdash; nothing is charged until they accept it.
-        </div>
+        {paymentResult === 'success' && (
+          <div className="success-banner" style={{ marginBottom: 20, maxWidth: 460 }}>
+            {config.confirm(firstName)}
+          </div>
+        )}
+        {paymentResult === 'cancelled' && (
+          <div className="error-banner" style={{ marginBottom: 20, maxWidth: 460 }}>
+            Payment wasn&rsquo;t completed, so your request hasn&rsquo;t been sent. You can try again below.
+          </div>
+        )}
+
+        {paymentResult !== 'success' && (
+          <>
+            <button type="button" onClick={submit} disabled={submitted || busy} className="btn btn-primary">
+              {submitted ? 'Sent' : busy ? (config.packages.length > 0 ? 'Opening checkout…' : 'Sending…') : config.submitLabel}
+            </button>
+            <div className="muted" style={{ fontSize: 12, marginTop: 10, maxWidth: 460, lineHeight: 1.5 }}>
+              {config.packages.length > 0
+                ? `You'll pay securely with Stripe next. Your request is sent to ${firstName} as soon as your payment goes through.`
+                : `This sends your request straight to ${firstName}.`}
+            </div>
+          </>
+        )}
 
         {submitted && (
           <div className="success-banner" style={{ marginTop: 20, maxWidth: 460 }}>

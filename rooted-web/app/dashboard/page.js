@@ -52,6 +52,7 @@ export default function DashboardOverviewPage() {
           .from('service_requests')
           .select('*')
           .eq('creator_auth_id', session.user.id)
+          .in('status', ['new', 'done'])
           .order('created_at', { ascending: false })
           .limit(8),
       ]);
@@ -285,6 +286,11 @@ export default function DashboardOverviewPage() {
                 {r.package_id && (
                   <span className="muted" style={{ fontSize: 11.5 }}>
                     {REQUEST_PACKAGE_LABELS[r.package_id] || r.package_id}
+                  </span>
+                )}
+                {r.amount_cents > 0 && (
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--brown)' }}>
+                    Paid {formatPrice(r.amount_cents)}
                   </span>
                 )}
                 {r.status === 'new' ? (
