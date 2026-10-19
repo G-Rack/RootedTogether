@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
 import { supabase } from '@/lib/supabaseClient';
 import { ROLE_LABELS } from '@/lib/roles';
@@ -262,7 +261,7 @@ export default function CompleteProfilePage() {
         {role === 'church' && ' Your organisation is already live; the more you add, the more people can trust and find you. Contact and reference details stay private.'}
       </div>
 
-      <form onSubmit={submit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <form onSubmit={submit} onChange={() => setSaved(false)} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {error && <div className="error-banner">{error}</div>}
         {saved && <div className="success-banner">Profile saved.</div>}
 
@@ -344,24 +343,32 @@ export default function CompleteProfilePage() {
         {error && <div className="error-banner">{error}</div>}
         {saved && (
           <div className="success-banner">
-            Profile saved.{' '}
-            {['seeker', 'assistant'].includes(role) && (
-              <Link href="/my-profile" style={{ fontWeight: 700 }}>View my profile →</Link>
-            )}
+            Profile saved.
           </div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-          <button type="submit" disabled={busy} className="btn btn-primary">
-            {busy ? 'Saving…' : 'Save profile'}
-          </button>
-          <button
-            type="button"
-            onClick={goToProfile}
-            style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-soft)' }}
-          >
-            Skip for now
-          </button>
+          {saved ? (
+            // Saved: the primary action becomes "go on", so nobody is left
+            // wondering what to press next. Editing any field switches this
+            // back to Save.
+            <button type="button" onClick={goToProfile} className="btn btn-primary">
+              {['seeker', 'assistant'].includes(role) ? 'Continue to my profile' : 'Continue to your dashboard'} →
+            </button>
+          ) : (
+            <>
+              <button type="submit" disabled={busy} className="btn btn-primary">
+                {busy ? 'Saving…' : 'Save profile'}
+              </button>
+              <button
+                type="button"
+                onClick={goToProfile}
+                style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text-soft)' }}
+              >
+                Skip for now
+              </button>
+            </>
+          )}
         </div>
       </form>
     </div>

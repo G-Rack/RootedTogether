@@ -418,3 +418,48 @@ a.store-badge:focus-visible { outline: 3px solid #C8923F; outline-offset: 3px; }
   .error-banner, .success-banner { padding: 11px 13px; }
   .grid-cards { gap: 16px; }
 }
+
+/* Tick-box chips (ProfileField checkboxes): brand-brown box and tick instead of the browser's default blue. */
+input[type="checkbox"] { accent-color: var(--brown); }
+.check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--white);
+  border: 1px solid rgba(107, 66, 38, 0.2);
+  border-radius: 999px;
+  padding: 7px 14px 7px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.check-chip:hover { border-color: var(--brown-pale); background: var(--cream); }
+.check-chip.is-checked { background: var(--cream-dark); border-color: var(--brown); color: var(--brown); font-weight: 600; }
+.check-chip input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--brown-pale);
+  border-radius: 6px;
+  background: var(--white);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.check-chip input[type="checkbox"]::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid var(--white);
+  border-bottom: 2px solid var(--white);
+  transform: rotate(-45deg) translate(1px, -1px) scale(0);
+  transition: transform 0.12s ease;
+}
+.check-chip input[type="checkbox"]:checked { background: var(--brown); border-color: var(--brown); }
+.check-chip input[type="checkbox"]:checked::after { transform: rotate(-45deg) translate(1px, -1px) scale(1); }
+.check-chip input[type="checkbox"]:focus-visible { outline: 2px solid var(--brown-light); outline-offset: 2px; }

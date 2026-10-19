@@ -35,25 +35,11 @@ export default function ProfileField({ field, value, onChange }) {
             const arr = Array.isArray(value) ? value : [];
             const checked = arr.includes(o);
             return (
-              <label
-                key={o}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12.5,
-                  background: checked ? 'var(--cream-dark)' : 'transparent',
-                  border: '1px solid rgba(107,66,38,0.18)',
-                  borderRadius: 999,
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                }}
-              >
+              <label key={o} className={`check-chip${checked ? ' is-checked' : ''}`}>
                 <input
                   type="checkbox"
                   checked={checked}
                   onChange={() => onChange(checked ? arr.filter((x) => x !== o) : [...arr, o])}
-                  style={{ margin: 0 }}
                 />
                 {o}
               </label>
