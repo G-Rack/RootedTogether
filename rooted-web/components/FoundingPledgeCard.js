@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
-// Shown only to creators who joined through an invitation. It reads the live state of the
-// three pledge tasks from the database (founding_pledge_status) and, once all three are
-// done, lets the creator ask for first access to the app (request_app_access). Both
-// functions are checked on the server, so nothing here can be faked from the browser.
+// The creator's setup checklist on the dashboard overview. It reads the live state of the
+// three setup tasks from the database (founding_pledge_status).
+//   - Creators who joined through an invitation see "Your founding pledge" and, once all
+//     three are done, can ask for first access to the app (request_app_access).
+//   - Creators who joined with the $49 membership see "Get your storefront ready": the same
+//     three tasks, without the app-access step, and the card disappears once all are done.
+// Both functions are checked on the server, so nothing here can be faked from the browser.
 
 const svg = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' };
 
@@ -37,7 +40,8 @@ export default function FoundingPledgeCard() {
     load();
   }, [load]);
 
-  if (!status || !status.invited) return null;
+  if (!status) return null;
+  const invited = !!status.invited;
 
   const offeringsCount = Number(status.offerings_count || 0);
   const tasks = [
@@ -68,6 +72,8 @@ export default function FoundingPledgeCard() {
   ];
   const doneCount = tasks.filter((t) => t.done).length;
   const allDone = doneCount === tasks.length;
+  // Paid-membership creators have nothing left to unlock once the checklist is complete.
+  if (!invited && allDone) return null;
   const requested = !!status.request_status;
   const approved = status.request_status === 'approved';
 
@@ -87,12 +93,17 @@ export default function FoundingPledgeCard() {
     <div className="card" style={{ marginBottom: 28, overflow: 'hidden', border: '1px solid var(--success-border)' }}>
       <div style={{ padding: '18px 20px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--brown)' }}>Your founding pledge</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--brown)' }}>{invited ? 'Your founding pledge' : 'Get your storefront ready'}</span>
           <span className="muted" style={{ fontSize: 12.5, fontWeight: 600 }}>{doneCount} of {tasks.length} complete</span>
         </div>
         <div style={{ height: 6, borderRadius: 999, background: 'var(--cream-dark)', marginTop: 10, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${(doneCount / tasks.length) * 100}%`, background: 'var(--success-text)', borderRadius: 999, transition: 'width .3s' }} />
         </div>
+        {!invited && (
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 10, lineHeight: 1.45 }}>
+            Three quick steps so people can find you and you can get paid.
+          </div>
+        )}
       </div>
 
       {tasks.map((t) => (
@@ -122,6 +133,7 @@ export default function FoundingPledgeCard() {
         </div>
       ))}
 
+      {invited && (
       <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(107,66,38,0.08)', background: 'var(--cream-dark)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <span style={{ width: 38, height: 38, borderRadius: 12, background: allDone ? 'var(--brown)' : 'rgba(107,66,38,0.15)', color: allDone ? '#fff' : 'var(--text-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" {...svg}><rect x="7" y="2.5" width="10" height="19" rx="2.5" /><path d="M11 18.5h2" /></svg>
@@ -148,6 +160,7 @@ export default function FoundingPledgeCard() {
           <span className="badge" style={{ flexShrink: 0 }}>{approved ? 'Approved' : 'Requested'}</span>
         )}
       </div>
+      )}
     </div>
   );
 }
