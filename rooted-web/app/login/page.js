@@ -624,6 +624,12 @@ function SignupForm({ router }) {
       <button type="submit" disabled={busy} className="btn btn-primary" style={{ marginTop: 4 }}>
         {busy ? 'Creating account…' : 'Create account'}
       </button>
+      <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, textAlign: 'center', margin: 0 }}>
+        By creating an account you agree to our{' '}
+        <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>Terms of Service</a>
+        {' '}and{' '}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>Privacy Policy</a>.
+      </p>
     </form>
   );
 }
