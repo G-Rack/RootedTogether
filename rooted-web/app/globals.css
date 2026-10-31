@@ -290,10 +290,11 @@ input[type='file'] {
     height: 100vh;
     z-index: 40;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18);
+    transition: transform 0.2s ease, visibility 0.2s;
+    visibility: hidden;
   }
-  .dashboard-sidebar.open { transform: translateX(0); }
+  /* Shadow only while open - otherwise it bleeds in at the left edge of the page. */
+  .dashboard-sidebar.open { transform: translateX(0); visibility: visible; box-shadow: 2px 0 16px rgba(0, 0, 0, 0.18); }
 
   .dashboard-scrim {
     display: none;

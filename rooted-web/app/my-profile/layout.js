@@ -90,13 +90,13 @@ export default function MyProfileLayout({ children }) {
       <div className="dashboard-mobile-bar">
         <button
           onClick={() => setSidebarOpen(true)}
-          aria-label="Open menu"
-          style={{ background: 'none', border: 'none', padding: 8, marginLeft: -8, display: 'flex' }}
+          aria-label="Open section menu"
+          aria-haspopup="true"
+          style={{ background: 'none', border: 'none', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14.5, fontWeight: 700, color: 'var(--brown)', width: '100%' }}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brown)" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+          <span>{activeLabel}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brown)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
         </button>
-        <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--brown)' }}>{activeLabel}</div>
-        <div style={{ width: 22 }} />
       </div>
 
       <div className={`dashboard-scrim${sidebarOpen ? ' open' : ''}`} onClick={() => setSidebarOpen(false)} />
