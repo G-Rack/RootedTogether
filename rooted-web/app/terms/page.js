@@ -11,7 +11,7 @@ export const metadata = {
   description: 'The terms that apply when you use Rooted Together as a member or a creator.',
 };
 
-const LAST_UPDATED = 'October 19, 2026';
+const LAST_UPDATED = 'October 31, 2026';
 const CONTACT = 'admin@rootedtogether.club';
 
 const SECTIONS = [
@@ -64,7 +64,7 @@ const SECTIONS = [
     title: '5. Creators: membership, fees and payouts',
     body: [
       'Membership fee. A creator account requires a one-time membership fee, currently US$49, paid before the account is created. The fee is non-refundable once your account has been created, except where the law requires otherwise or where we choose to refund it. It is for access to the Service and does not guarantee any level of sales or earnings. Creators who join by personal invitation may have the fee waived.',
-      'Platform fee. We keep a platform fee from each sale you make through the Service, currently 10% of the sale price, in addition to the card-processing fees charged by Stripe, which are deducted from your share. We may change our fees at any time for future sales, and the fee shown at the time of a sale is the one that applies.',
+      'Platform fee. We keep a platform fee from each sale you make through the Service, currently 10% of the sale price. We pay Stripe’s card-processing fees on each sale out of our platform fee, so they are not deducted from your share. Paid items must be priced at US$5.00 or more, and free items are allowed. We may change our fees at any time for future sales, and the fee shown at the time of a sale is the one that applies.',
       'Payouts. Payments are processed by Stripe. To receive money you must complete Stripe’s onboarding and accept Stripe’s terms. We do not hold your funds, we are not a bank, and we are not responsible for Stripe’s delays, holds, fees, verification decisions or account actions. You are responsible for the accuracy of your bank and identity details.',
       'Refunds, chargebacks and fraud. If a sale is refunded, disputed, charged back or found to involve fraud or a breach of these Terms, we may reverse or deduct the amount (and any related fees or penalties) from your balance or future payouts, and you agree to repay any shortfall. We may delay or withhold payouts while we investigate suspected fraud or a breach, to the extent the law allows.',
       'Taxes. You are solely responsible for reporting and paying any taxes on what you earn. We do not give tax advice.',

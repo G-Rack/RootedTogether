@@ -8,6 +8,8 @@ import { coverUrl, uploadCover, uploadContentFile } from '@/lib/storage';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 
 const TYPES = ['course', 'ebook', 'routine', 'call'];
+// Smallest price a paid item can have. Free items (price 0) are still allowed.
+const MIN_PRICE_DOLLARS = 5;
 
 const EXAMPLE_TEXT = {
   course: {
@@ -130,6 +132,15 @@ function UploadPageInner() {
       setError('Give it a title first.');
       return;
     }
+    const priceNum = isFreeForFamily ? 0 : parseFloat(priceDollars || '0');
+    if (!isFreeForFamily && (Number.isNaN(priceNum) || priceNum < 0)) {
+      setError('Enter a valid price.');
+      return;
+    }
+    if (!isFreeForFamily && priceNum > 0 && priceNum < MIN_PRICE_DOLLARS) {
+      setError('Paid items start at $5. Set the price to $5.00 or more, or leave it at 0 to offer it free.');
+      return;
+    }
     setBusy(true);
 
     const row = {
@@ -244,6 +255,7 @@ function UploadPageInner() {
               onChange={(e) => setPriceDollars(e.target.value)}
               placeholder="9.00"
             />
+            <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Paid items start at $5. Leave it at 0 for a free item.</div>
           </div>
           <div>
             <label className="field-label">Cover image</label>
