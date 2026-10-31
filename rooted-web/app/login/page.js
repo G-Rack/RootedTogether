@@ -75,6 +75,7 @@ function LoginPageInner() {
               fontSize: 15,
               fontWeight: tab === 'login' ? 700 : 600,
               color: tab === 'login' ? 'var(--brown)' : 'var(--text-soft)',
+              paddingTop: 10,
               paddingBottom: 14,
               borderBottom: tab === 'login' ? '2px solid var(--brown)' : 'none',
             }}
@@ -89,6 +90,7 @@ function LoginPageInner() {
               fontSize: 15,
               fontWeight: tab === 'signup' ? 700 : 600,
               color: tab === 'signup' ? 'var(--brown)' : 'var(--text-soft)',
+              paddingTop: 10,
               paddingBottom: 14,
               borderBottom: tab === 'signup' ? '2px solid var(--brown)' : 'none',
             }}
@@ -224,7 +226,7 @@ function LoginForm({ router }) {
       <button
         type="button"
         onClick={() => setMode('forgot')}
-        style={{ background: 'none', border: 'none', fontSize: 12.5, fontWeight: 600, color: 'var(--brown)', alignSelf: 'flex-end', padding: 0 }}
+        style={{ background: 'none', border: 'none', fontSize: 12.5, fontWeight: 600, color: 'var(--brown)', alignSelf: 'flex-end', padding: '8px 0' }}
       >
         Forgot password?
       </button>

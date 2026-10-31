@@ -16,7 +16,7 @@ export default function PasswordField({ value, onChange, placeholder, required, 
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        style={{ paddingRight: 40 }}
+        style={{ paddingRight: 44 }}
       />
       <button
         type="button"
@@ -24,12 +24,12 @@ export default function PasswordField({ value, onChange, placeholder, required, 
         aria-label={visible ? 'Hide password' : 'Show password'}
         style={{
           position: 'absolute',
-          right: 10,
+          right: 4,
           top: '50%',
           transform: 'translateY(-50%)',
           background: 'none',
           border: 'none',
-          padding: 4,
+          padding: 10,
           display: 'flex',
           color: 'var(--text-soft)',
         }}

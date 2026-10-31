@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import OfferingCard from '@/components/OfferingCard';
 import CreatorCard from '@/components/CreatorCard';
 import StoreBadges from '@/components/StoreBadges';
+import TestimonialForm from '@/components/TestimonialForm';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchMarketStats } from '@/lib/reviews';
 import { ONBOARDING_URL } from '@/lib/config';
@@ -68,7 +69,7 @@ const CATEGORIES = [
   },
 ];
 
-const TESTIMONIALS = [
+const FALLBACK_TESTIMONIALS = [
   { quote: '"Zee’s routine gave my mornings a shape they never had. I finally feel steady."', name: 'Maria Chen', who: 'Seeker' },
   { quote: '"Booking a call with Pastor Grant took two minutes. The conversation changed my week."', name: 'David Okafor', who: 'Assistant' },
   { quote: '"I built my first course in an afternoon and it’s still reaching people I’ll never meet in person."', name: 'Daniel Reyes', who: 'Spiritual Leader' },
@@ -84,6 +85,23 @@ function HomePageInner() {
   const [filter, setFilter] = useState(TYPE_FILTERS.includes(searchParams.get('type')) ? searchParams.get('type') : 'all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('newest');
+  const [testimonials, setTestimonials] = useState(FALLBACK_TESTIMONIALS);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from('testimonials')
+      .select('quote, name, role_label')
+      .eq('status', 'approved')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(9)
+      .then(({ data }) => {
+        if (!active || !data || data.length === 0) return;
+        setTestimonials(data.map((t) => ({ quote: `\u201c${t.quote}\u201d`, name: t.name, who: t.role_label })));
+      });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -344,13 +362,14 @@ function HomePageInner() {
           What people are saying
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-          {TESTIMONIALS.map((t, i) => (
+          {testimonials.map((t, i) => (
             <div key={i} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, fontStyle: 'italic' }}>{t.quote}</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>— {t.name}, {t.who}</div>
+              <div className="muted" style={{ fontSize: 12.5 }}>— {t.name}{t.who ? `, ${t.who}` : ''}</div>
             </div>
           ))}
         </div>
+        <TestimonialForm />
       </div>
 
       {/* Final CTA */}

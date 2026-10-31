@@ -314,7 +314,7 @@ export default function CreatorStorefrontClient() {
         ) : null}
 
         <div style={{ paddingBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, borderBottom: '1px solid rgba(107,66,38,0.1)', marginBottom: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, borderBottom: '1px solid rgba(107,66,38,0.1)', marginBottom: 24, overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             {TYPE_TABS.map((t) => {
               const count = t === 'all' ? offerings.length : offerings.filter((o) => o.type === t).length;
               return (
@@ -327,7 +327,10 @@ export default function CreatorStorefrontClient() {
                     fontSize: 14.5,
                     fontWeight: tab === t ? 700 : 400,
                     color: tab === t ? 'var(--brown)' : 'var(--text-soft)',
+                    paddingTop: 8,
                     paddingBottom: 12,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
                     borderBottom: tab === t ? '2px solid var(--brown)' : 'none',
                   }}
                 >

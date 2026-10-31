@@ -40,8 +40,8 @@ export default function Footer() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Company</div>
           <a href="#" style={{ fontSize: 13.5 }}>Get the App</a>
-          <a href="#" style={{ fontSize: 13.5 }}>About</a>
-          <a href="#" style={{ fontSize: 13.5 }}>Contact</a>
+          <Link href="/#how-it-works" style={{ fontSize: 13.5 }}>About</Link>
+          <a href="mailto:admin@rootedtogether.club" style={{ fontSize: 13.5 }}>Contact</a>
           <Link href="/privacy" style={{ fontSize: 13.5 }}>Privacy Policy</Link>
           <Link href="/terms" style={{ fontSize: 13.5 }}>Terms of Service</Link>
         </div>
