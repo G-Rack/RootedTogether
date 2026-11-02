@@ -377,7 +377,7 @@ export default function CreatorStorefrontClient() {
           )}
         </div>
 
-        {(
+        {creatorIsPro && (
           <div style={{ paddingBottom: 64 }}>
             <div className="serif" style={{ fontSize: 19, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
               Additional Services

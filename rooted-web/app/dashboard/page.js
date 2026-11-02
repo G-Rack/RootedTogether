@@ -8,6 +8,7 @@ import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import FoundingPledgeCard from '@/components/FoundingPledgeCard';
 import ProUpgradeBanner from '@/components/ProUpgradeBanner';
 import ProBadge from '@/components/ProBadge';
+import { PRO_UPGRADE_URL } from '@/lib/config';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -266,6 +267,13 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
+      {!isPro && requests.length === 0 && (
+        <div style={{ marginTop: 20 }}>
+          <ProUpgradeBanner title="Daily Prayers, Meditation & Special Requests are part of Creator Pro" />
+        </div>
+      )}
+
+      {(isPro || requests.length > 0) && (
       <div className="card" style={{ overflow: 'hidden', marginTop: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
           <span style={{ fontSize: 14.5, fontWeight: 700 }}>Personal Requests</span>
@@ -288,6 +296,12 @@ export default function DashboardOverviewPage() {
             Daily Prayers, Meditation &amp; Special Requests from your storefront
           </span>
         </div>
+
+        {!isPro && (
+          <div style={{ padding: '12px 20px', fontSize: 12.5, lineHeight: 1.55, background: 'var(--cream-dark)', borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+            These services are now part of Creator Pro, so new requests are paused on your storefront. You can still finish the requests below. <ProUpgradeInline />
+          </div>
+        )}
 
         {requests.length === 0 && (
           <div className="muted" style={{ padding: 20, fontSize: 13.5 }}>
@@ -344,7 +358,16 @@ export default function DashboardOverviewPage() {
           </div>
         ))}
       </div>
+      )}
     </div>
+  );
+}
+
+function ProUpgradeInline() {
+  return PRO_UPGRADE_URL ? (
+    <a href={PRO_UPGRADE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade for $39</a>
+  ) : (
+    <span style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade coming soon</span>
   );
 }
 

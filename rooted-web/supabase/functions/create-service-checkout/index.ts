@@ -23,10 +23,7 @@ const PACKAGES: Record<string, Record<string, { name: string; cents: number }>> 
   },
 };
 
-// Same platform cut as offerings (create-checkout-session).
-const TAKE_RATE = 0.10;
-
-// Creator Pro members pay no Rooted Together fee; the application fee is set
+// Only Creator Pro creators can offer these services. No Rooted Together fee; the application fee is set
 // equal to Stripe's estimated card fee (2.9% + 30 cents), so the creator bears
 // the card fee. Same rule as create-checkout-session.
 function proFeeCents(priceCents: number): number {
@@ -121,19 +118,21 @@ Deno.serve(async (req: Request) => {
     : [];
   const amountCents = pkg.cents;
 
-  // Standard fee, unless the creator is a Creator Pro member. A failed lookup
-  // falls back to the standard fee.
-  let feeCents = Math.round(amountCents * TAKE_RATE);
-  try {
-    const { data: proRow } = await supabase
-      .from("creator_pro")
-      .select("auth_user_id")
-      .eq("auth_user_id", creatorAuthId)
-      .maybeSingle();
-    if (proRow) feeCents = proFeeCents(amountCents);
-  } catch (e) {
-    console.error("Pro lookup failed, using standard fee:", e);
+  // Daily Prayers, Meditation and Special Requests are part of Creator Pro.
+  // Fail closed: a creator who isn't Pro (or a failed lookup) can't take requests.
+  const { data: proRow, error: proError } = await supabase
+    .from("creator_pro")
+    .select("auth_user_id")
+    .eq("auth_user_id", creatorAuthId)
+    .maybeSingle();
+  if (proError) {
+    console.error("Pro lookup failed:", proError);
+    return jsonResponse({ error: "Something went wrong — please try again." }, 500);
   }
+  if (!proRow) return jsonResponse({ error: "This creator doesn't offer this service." }, 403);
+
+  // Pro creators pay no Rooted Together fee, only Stripe's card fee.
+  const feeCents = proFeeCents(amountCents);
 
   const { data: row, error: insertError } = await supabase
     .from("service_requests")

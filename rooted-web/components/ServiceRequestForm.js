@@ -97,6 +97,7 @@ export default function ServiceRequestForm({ serviceKey }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  const [creatorIsPro, setCreatorIsPro] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [forWhom, setForWhom] = useState('myself');
@@ -127,6 +128,10 @@ export default function ServiceRequestForm({ serviceKey }) {
         return;
       }
       setStorefront(sf);
+      // Daily Prayers, Meditation and Special Requests are part of Creator Pro.
+      const { data: proRow } = await supabase.from('creator_pro').select('auth_user_id').eq('auth_user_id', sf.auth_user_id).maybeSingle();
+      if (!active) return;
+      setCreatorIsPro(!!proRow);
       const { data: prof } = await supabase.from('creator_public_profiles').select('*').eq('auth_user_id', sf.auth_user_id).maybeSingle();
       if (!active) return;
       setProfile(prof || null);
@@ -239,6 +244,17 @@ export default function ServiceRequestForm({ serviceKey }) {
         <div className="serif" style={{ fontSize: 22, fontWeight: 700, color: 'var(--brown)' }}>
           We couldn&rsquo;t find that storefront.
         </div>
+      </div>
+    );
+  }
+
+  if (!creatorIsPro) {
+    return (
+      <div className="container" style={{ paddingBlock: '96px', textAlign: 'center' }}>
+        <div className="serif" style={{ fontSize: 22, fontWeight: 700, color: 'var(--brown)' }}>
+          This creator doesn&rsquo;t offer this service.
+        </div>
+        <a href={`/creator/${handle}`} className="btn btn-outline btn-small" style={{ marginTop: 20 }}>Back to their storefront</a>
       </div>
     );
   }
