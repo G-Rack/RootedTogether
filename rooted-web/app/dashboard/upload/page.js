@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { coverUrl, uploadCover, uploadContentFile } from '@/lib/storage';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchLessons, deleteLesson } from '@/lib/lessons';
+import CoverImage from '@/components/CoverImage';
 import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/CourseLessonsEditor';
 
 const TYPES = ['course', 'ebook', 'routine', 'call'];
@@ -337,14 +338,17 @@ function UploadPageInner() {
                 cursor: 'pointer',
               }}
             >
-              {cover && (
-                <div
-                  style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, background: `center / cover no-repeat url(${cover})` }}
-                />
-              )}
               <UploadIcon />
               {uploadingCover ? 'Uploading…' : cover ? 'Change image' : 'Upload image'}
             </button>
+            {cover && (
+              <div style={{ marginTop: 10 }}>
+                <CoverImage src={cover} radius={10} />
+              </div>
+            )}
+            <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+              Best size: 1600 × 900 px (a wide 16:9 picture). Any shape works — it’s shown whole, never cropped.
+            </div>
           </div>
         </div>
 

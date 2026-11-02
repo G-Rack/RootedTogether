@@ -11,6 +11,7 @@ import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
 import CourseLessonsViewer from '@/components/CourseLessonsViewer';
+import CoverImage from '@/components/CoverImage';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 
 // Files live on another domain (Supabase Storage), where a plain <a download>
@@ -408,7 +409,9 @@ export default function OfferingDetailClient() {
           )}
 
           {cover && !isCall && (
-            <div style={{ marginTop: 22, borderRadius: 16, overflow: 'hidden', height: 280, background: `center / cover no-repeat url(${cover})` }} />
+            <div style={{ marginTop: 22 }}>
+              <CoverImage src={cover} alt={offering.title} maxHeight={380} radius={16} />
+            </div>
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginTop: 24, paddingBottom: 16, borderBottom: '1px solid rgba(107,66,38,0.1)' }}>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { coverUrl } from '@/lib/storage';
+import CoverImage from '@/components/CoverImage';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ProBadge from '@/components/ProBadge';
@@ -15,12 +16,7 @@ export default function OfferingCard({ offering, creatorName, stats, isPro = fal
       className="card"
       style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
-      <div
-        style={{
-          height: 150,
-          background: cover ? `center / cover no-repeat url(${cover})` : 'linear-gradient(135deg, var(--brown-pale), var(--brown-light))',
-        }}
-      />
+      <CoverImage src={cover} alt={offering.title} />
       <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <span className="badge" style={{ alignSelf: 'flex-start' }}>
           {(OFFERING_TYPE_LABELS[offering.type] || offering.type).toUpperCase()}
