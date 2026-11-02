@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { fetchPayoutsEnabled, isPaidOffering, setPendingPublish } from '@/lib/payouts';
 
 const COLUMNS = '1.7fr 0.8fr 0.65fr 0.8fr 0.5fr 2.6fr';
 
@@ -17,6 +19,7 @@ const TYPE_DOT = {
 
 export default function MyOfferingsPage() {
   const { session } = useSession();
+  const router = useRouter();
   const [offerings, setOfferings] = useState([]);
   const [sales, setSales] = useState({});
   const [loading, setLoading] = useState(true);
@@ -51,9 +54,16 @@ export default function MyOfferingsPage() {
 
   const togglePublish = async (offering) => {
     const nextStatus = offering.status === 'published' ? 'draft' : 'published';
+    // Paid items need Stripe payouts connected before they can go live.
+    if (nextStatus === 'published' && isPaidOffering(offering) && !(await fetchPayoutsEnabled(session.user.id))) {
+      setPendingPublish(offering);
+      router.push('/dashboard/payouts');
+      return;
+    }
     const { error } = await supabase.from('offerings').update({ status: nextStatus }).eq('id', offering.id);
     if (!error) {
       setOfferings((prev) => prev.map((o) => (o.id === offering.id ? { ...o, status: nextStatus } : o)));
+      if (nextStatus === 'published') router.push(`/dashboard/promote?id=${offering.id}`);
     }
   };
 
@@ -125,6 +135,9 @@ export default function MyOfferingsPage() {
             const actions = (
               <>
                 <Link href={`/dashboard/upload?id=${o.id}`} className="btn btn-outline btn-xs">Edit</Link>
+                {o.status === 'published' && (
+                  <Link href={`/dashboard/promote?id=${o.id}`} className="btn btn-primary btn-xs">Promote</Link>
+                )}
                 <button onClick={() => togglePublish(o)} className="btn btn-outline btn-xs">
                   {o.status === 'published' ? 'Unpublish' : 'Publish'}
                 </button>

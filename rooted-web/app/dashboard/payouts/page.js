@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { FUNCTIONS_URL } from '@/lib/config';
+import { getPendingPublish, clearPendingPublish } from '@/lib/payouts';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -23,6 +24,11 @@ const PACKAGE_SALE_LABELS = { single: 'Single', week: '7-day', month: '30-day' }
 export default function PayoutsPage() {
   const { session, profile } = useSession();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  // An item the creator tried to publish before connecting Stripe (see lib/payouts.js).
+  const [pending, setPending] = useState(() => (typeof window === 'undefined' ? null : getPendingPublish()));
+  const [publishingPending, setPublishingPending] = useState(false);
+  const [pendingError, setPendingError] = useState('');
   const [offerings, setOfferings] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -329,6 +335,20 @@ export default function PayoutsPage() {
       .sort((a, b) => b[1] - a[1]);
   }, [purchases, offeringById]);
 
+  const publishPending = async () => {
+    if (!pending) return;
+    setPendingError('');
+    setPublishingPending(true);
+    const { error } = await supabase.from('offerings').update({ status: 'published' }).eq('id', pending.id);
+    setPublishingPending(false);
+    if (error) {
+      setPendingError('Couldn’t publish it just now — you can also publish it from My Offerings.');
+      return;
+    }
+    clearPendingPublish();
+    router.push(`/dashboard/promote?id=${pending.id}`);
+  };
+
   if (loading) return <div className="skeleton" style={{ height: 300 }} />;
 
   return (
@@ -341,6 +361,29 @@ export default function PayoutsPage() {
           ? 'Every sale below is a real purchase. Your payout account is connected, so your earnings are paid out to you through Stripe.'
           : 'Every sale below is a real purchase. Connect a payout account to get your earnings paid out to you.'}
       </div>
+
+      {pending && (
+        stripePayoutsEnabled ? (
+          <div className="success-banner" style={{ marginBottom: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>Payouts are connected.</div>
+              <div style={{ fontSize: 12.5 }}>“{pending.title}” is saved as a draft — publish it now?</div>
+            </div>
+            <button type="button" className="btn btn-primary btn-small" onClick={publishPending} disabled={publishingPending}>
+              {publishingPending ? 'Publishing…' : 'Publish it now'}
+            </button>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: '16px 18px', marginBottom: 22, borderColor: 'var(--brown-pale)' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--brown)' }}>One step before “{pending.title}” goes live</div>
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }}>
+              Paid items need a payout account so you can get paid. Connect Stripe below — it takes a few minutes.
+              We’ve saved your item as a draft and will offer to publish it as soon as you’re connected.
+            </div>
+          </div>
+        )
+      )}
+      {pendingError && <div className="error-banner" style={{ marginBottom: 16 }}>{pendingError}</div>}
 
       <div className="responsive-3col" style={{ '--col-a': '1.3fr', '--col-gap': '16px', marginBottom: 24 }}>
         <div style={{ background: 'var(--brown)', borderRadius: 16, padding: '20px 22px', color: 'var(--white)' }}>

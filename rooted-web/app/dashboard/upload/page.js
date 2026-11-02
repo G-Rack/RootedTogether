@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { coverUrl, uploadCover, uploadContentFile } from '@/lib/storage';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchLessons, deleteLesson } from '@/lib/lessons';
+import { fetchPayoutsEnabled, setPendingPublish } from '@/lib/payouts';
 import CoverImage from '@/components/CoverImage';
 import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/CourseLessonsEditor';
 
@@ -67,9 +68,16 @@ function UploadPageInner() {
   // Course lessons (each a video or a PDF) and the ones removed since the last save.
   const [lessons, setLessons] = useState(() => [newLessonSlot()]);
   const [removedLessons, setRemovedLessons] = useState([]);
+  // null = still checking. Paid items can only be published once Stripe payouts are connected.
+  const [payoutsReady, setPayoutsReady] = useState(null);
 
   const coverInputRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchPayoutsEnabled(session.user.id).then(setPayoutsReady).catch(() => setPayoutsReady(null));
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!editId) return;
@@ -179,6 +187,17 @@ function UploadPageInner() {
       setError('Paid items start at $5. Set the price to $5.00 or more, or leave it at 0 to offer it free.');
       return;
     }
+    // A paid item can't go live until payouts are connected (buyers' checkout would be
+    // refused). Save it as a draft and take the creator to set up Stripe first.
+    let effectiveStatus = status;
+    let needsPayouts = false;
+    if (status === 'published' && priceNum > 0) {
+      const ready = payoutsReady === true || (await fetchPayoutsEnabled(session.user.id));
+      if (!ready) {
+        effectiveStatus = 'draft';
+        needsPayouts = true;
+      }
+    }
     setBusy(true);
 
     const row = {
@@ -191,7 +210,7 @@ function UploadPageInner() {
       cover_path: coverPath,
       calendly_url: type === 'call' ? calendlyUrl : null,
       call_duration_minutes: type === 'call' ? parseInt(callDuration, 10) || null : null,
-      status,
+      status: effectiveStatus,
       updated_at: new Date().toISOString(),
     };
 
@@ -244,7 +263,13 @@ function UploadPageInner() {
     }
 
     setBusy(false);
-    router.push('/dashboard');
+    if (needsPayouts) {
+      setPendingPublish({ id: offeringId, title: title.trim() });
+      router.push('/dashboard/payouts');
+      return;
+    }
+    // Live now: straight to the "promote it" page (Instagram / TikTok tools).
+    router.push(status === 'published' ? `/dashboard/promote?id=${offeringId}` : '/dashboard');
   };
 
   if (loadingExisting) {
@@ -316,6 +341,12 @@ function UploadPageInner() {
               placeholder="9.00"
             />
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Paid items start at $5. Leave it at 0 for a free item.</div>
+            {payoutsReady === false && parseFloat(priceDollars || '0') > 0 && !isFreeForFamily && (
+              <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
+                To publish a paid item you first need to connect Stripe so you can get paid. When you click Publish,
+                we’ll save this as a draft and take you to set it up.
+              </div>
+            )}
           </div>
           <div>
             <label className="field-label">Cover image</label>
