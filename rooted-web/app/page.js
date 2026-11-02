@@ -11,6 +11,7 @@ import TestimonialForm from '@/components/TestimonialForm';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchMarketStats } from '@/lib/reviews';
 import { ONBOARDING_URL } from '@/lib/config';
+import { fetchProIds } from '@/lib/pro';
 
 const TYPE_FILTERS = ['all', 'course', 'ebook', 'routine', 'call'];
 
@@ -81,6 +82,7 @@ function HomePageInner() {
   const [creators, setCreators] = useState([]);
   const [profileByAuthId, setProfileByAuthId] = useState({});
   const [marketStats, setMarketStats] = useState({});
+  const [proIds, setProIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState(TYPE_FILTERS.includes(searchParams.get('type')) ? searchParams.get('type') : 'all');
   const [query, setQuery] = useState('');
@@ -107,7 +109,7 @@ function HomePageInner() {
     let active = true;
 
     async function load() {
-      const [{ data: offeringRows }, { data: storefronts }, stats] = await Promise.all([
+      const [{ data: offeringRows }, { data: storefronts }, stats, pro] = await Promise.all([
         supabase
           .from('offerings')
           .select('*')
@@ -120,13 +122,24 @@ function HomePageInner() {
           .order('created_at', { ascending: false })
           .limit(24),
         fetchMarketStats(),
+        fetchProIds(),
       ]);
 
       if (!active) return;
 
+      // Rooted Pro creators get priority placement, so make sure they are in the list
+      // even if their storefront is older than the newest 24.
+      let allStorefronts = storefronts || [];
+      const missingPro = Array.from(pro).filter((id) => !allStorefronts.some((s) => s.auth_user_id === id));
+      if (missingPro.length > 0) {
+        const { data: extra } = await supabase.from('creator_storefronts').select('*').in('auth_user_id', missingPro);
+        if (extra) allStorefronts = [...allStorefronts, ...extra];
+      }
+      if (!active) return;
+
       const authIds = new Set([
         ...(offeringRows || []).map((o) => o.creator_auth_id),
-        ...(storefronts || []).map((s) => s.auth_user_id),
+        ...allStorefronts.map((s) => s.auth_user_id),
       ]);
 
       let profileMap = {};
@@ -140,7 +153,8 @@ function HomePageInner() {
 
       if (!active) return;
       setOfferings(offeringRows || []);
-      setCreators((storefronts || []).filter((s) => profileMap[s.auth_user_id]));
+      setCreators(allStorefronts.filter((s) => profileMap[s.auth_user_id]));
+      setProIds(pro);
       setProfileByAuthId(profileMap);
       setMarketStats(stats);
       setLoading(false);
@@ -170,11 +184,19 @@ function HomePageInner() {
       if (sort === 'price-high') return b.price_cents - a.price_cents;
       if (sort === 'popular') return (marketStats[b.id]?.purchases_count || 0) - (marketStats[a.id]?.purchases_count || 0);
       if (sort === 'rating') return (marketStats[b.id]?.avg_rating || 0) - (marketStats[a.id]?.avg_rating || 0);
+      // Default order: Rooted Pro creators first, then newest.
+      const proDiff = (proIds.has(b.creator_auth_id) ? 1 : 0) - (proIds.has(a.creator_auth_id) ? 1 : 0);
+      if (proDiff !== 0) return proDiff;
       return new Date(b.created_at) - new Date(a.created_at);
     });
 
     return list;
-  }, [offerings, filter, query, sort, marketStats, profileByAuthId]);
+  }, [offerings, filter, query, sort, marketStats, profileByAuthId, proIds]);
+
+  const orderedCreators = useMemo(
+    () => [...creators].sort((a, b) => (proIds.has(b.auth_user_id) ? 1 : 0) - (proIds.has(a.auth_user_id) ? 1 : 0)),
+    [creators, proIds],
+  );
 
   return (
     <main>
@@ -243,13 +265,14 @@ function HomePageInner() {
 
         {!loading && creators.length > 0 && (
           <div className="grid-cards" style={{ marginBottom: 64 }}>
-            {creators.map((s) => (
+            {orderedCreators.map((s) => (
               <CreatorCard
                 key={s.auth_user_id}
                 creator={profileByAuthId[s.auth_user_id]}
                 handle={s.handle}
                 avatarPath={s.avatar_path}
                 bannerPath={s.banner_path}
+                isPro={proIds.has(s.auth_user_id)}
               />
             ))}
           </div>
@@ -323,6 +346,7 @@ function HomePageInner() {
                 offering={o}
                 creatorName={profileByAuthId[o.creator_auth_id]?.name}
                 stats={marketStats[o.id]}
+                isPro={proIds.has(o.creator_auth_id)}
               />
             ))}
           </div>

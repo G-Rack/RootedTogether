@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { coverUrl } from '@/lib/storage';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
+import ProBadge from '@/components/ProBadge';
 
-export default function OfferingCard({ offering, creatorName, stats }) {
+export default function OfferingCard({ offering, creatorName, stats, isPro = false }) {
   const cover = coverUrl(offering.cover_path);
 
   return (
@@ -27,7 +28,12 @@ export default function OfferingCard({ offering, creatorName, stats }) {
         <div className="serif" style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>
           {offering.title}
         </div>
-        {creatorName && <div className="muted" style={{ fontSize: 13 }}>{creatorName}</div>}
+        {creatorName && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span className="muted" style={{ fontSize: 13 }}>{creatorName}</span>
+            {isPro && <ProBadge small />}
+          </div>
+        )}
         {stats && stats.review_count > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <StarRating value={Number(stats.avg_rating)} size={12} />

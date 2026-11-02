@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { initialsFor, ROLE_LABELS } from '@/lib/roles';
 import { avatarUrl, bannerUrl } from '@/lib/storage';
+import ProBadge from '@/components/ProBadge';
 
-export default function CreatorCard({ creator, handle, avatarPath, bannerPath }) {
+export default function CreatorCard({ creator, handle, avatarPath, bannerPath, isPro = false }) {
   const avatar = avatarUrl(avatarPath);
   const banner = bannerUrl(bannerPath);
 
@@ -35,7 +36,10 @@ export default function CreatorCard({ creator, handle, avatarPath, bannerPath })
           </div>
         )}
         <div>
-          <div style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text)' }}>{creator.name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text)' }}>{creator.name}</span>
+            {isPro && <ProBadge small />}
+          </div>
           <div className="muted" style={{ fontSize: 12.5 }}>{ROLE_LABELS[creator.role] || creator.role}</div>
         </div>
         {creator.story && (

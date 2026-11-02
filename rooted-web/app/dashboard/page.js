@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import FoundingPledgeCard from '@/components/FoundingPledgeCard';
+import ProUpgradeBanner from '@/components/ProUpgradeBanner';
+import ProBadge from '@/components/ProBadge';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -33,7 +35,7 @@ function summarizeRequest(r) {
 }
 
 export default function DashboardOverviewPage() {
-  const { session, profile } = useSession();
+  const { session, profile, isPro } = useSession();
   const [offerings, setOfferings] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [storefront, setStorefront] = useState(null);
@@ -137,6 +139,19 @@ export default function DashboardOverviewPage() {
           <Link href="/dashboard/branding" className="btn btn-outline btn-small">Set up your storefront</Link>
         )}
       </div>
+
+      {isPro ? (
+        <div className="card" style={{ padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <ProBadge />
+          <span className="muted" style={{ fontSize: 13, flex: '1 1 260px' }}>You are on Creator Pro: 0% Rooted Together fee on every sale, priority placement, the Academy and the community.</span>
+          <Link href="/dashboard/academy" className="btn btn-outline btn-xs">Academy</Link>
+          <Link href="/dashboard/community" className="btn btn-outline btn-xs">Community</Link>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 20 }}>
+          <ProUpgradeBanner title="Keep more of every sale with Creator Pro" compact />
+        </div>
+      )}
 
       <FoundingPledgeCard />
 

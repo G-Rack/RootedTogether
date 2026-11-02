@@ -23,3 +23,8 @@ export const USE_OFFICIAL_BADGES = false;
 
 // Creators join (pay the one-time $49) on the onboarding site, then create their account here.
 export const ONBOARDING_URL = 'https://joinrootedtogether.club';
+
+// Creator Pro. Paste the Stripe Payment Link URLs here once they exist (see the
+// setup steps). While they are empty, the upgrade buttons show "Coming soon".
+export const PRO_UPGRADE_URL = ''; // $39, for existing members
+export const PRO_JOIN_URL = ''; // $88, for new creators (the join site has its own copy)

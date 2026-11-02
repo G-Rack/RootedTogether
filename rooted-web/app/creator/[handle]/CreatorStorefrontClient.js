@@ -10,6 +10,7 @@ import OfferingCard from '@/components/OfferingCard';
 import StarRating from '@/components/StarRating';
 import { activeSocials } from '@/lib/socials';
 import { fetchCreatorReviewStats, fetchCreatorReviews } from '@/lib/reviews';
+import ProBadge from '@/components/ProBadge';
 
 const TYPE_TABS = ['all', 'course', 'ebook', 'routine', 'call'];
 
@@ -73,6 +74,7 @@ export default function CreatorStorefrontClient() {
   const [reviews, setReviews] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [creatorIsPro, setCreatorIsPro] = useState(false);
   const [tab, setTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -92,7 +94,8 @@ export default function CreatorStorefrontClient() {
 
       const isSelf = session?.user?.id === sf.auth_user_id;
 
-      const [{ data: prof }, offeringsRes, familyRes, statsRes, followRes, reviewStatsRes, reviewsRes] = await Promise.all([
+      const [{ data: proRow }, { data: prof }, offeringsRes, familyRes, statsRes, followRes, reviewStatsRes, reviewsRes] = await Promise.all([
+        supabase.from('creator_pro').select('auth_user_id').eq('auth_user_id', sf.auth_user_id).maybeSingle(),
         supabase.from('creator_public_profiles').select('*').eq('auth_user_id', sf.auth_user_id).maybeSingle(),
         isSelf
           ? supabase.from('offerings').select('*').eq('creator_auth_id', sf.auth_user_id).order('sort_order')
@@ -113,6 +116,7 @@ export default function CreatorStorefrontClient() {
 
       if (!active) return;
       setProfile(prof || null);
+      setCreatorIsPro(!!proRow);
       setOfferings(offeringsRes.data || []);
       setIsFamily(!!familyRes.data);
       setStats(statsRes.data?.[0] || { offerings_count: 0, students_count: 0 });
@@ -219,6 +223,7 @@ export default function CreatorStorefrontClient() {
                     <path d="M12 2l2.4 2.1 3.1-.6.9 3 2.6 1.7-1 3 1 3-2.6 1.7-.9 3-3.1-.6L12 22l-2.4-2.1-3.1.6-.9-3-2.6-1.7 1-3-1-3 2.6-1.7.9-3 3.1.6z" />
                   </svg>
                 </span>
+                {creatorIsPro && <ProBadge />}
               </div>
               <div className="muted" style={{ fontSize: 13.5 }}>{ROLE_LABELS[profile.role] || profile.role}</div>
               {reviewStats.review_count > 0 && (

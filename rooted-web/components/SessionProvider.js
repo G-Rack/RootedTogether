@@ -9,6 +9,7 @@ const SessionContext = createContext({
   session: null,
   profile: null,
   isCreator: false,
+  isPro: false,
   avatarPath: null,
   pictureUrl: null,
   loading: true,
@@ -31,6 +32,8 @@ export default function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
+  // Creator Pro: true once the person has paid for Pro (recorded in creator_pro by the server).
+  const [isPro, setIsPro] = useState(false);
   // The creator's website profile picture (creator_storefronts.avatar_path) —
   // loaded here, alongside the profile row, so the header and dashboard
   // sidebar can both show the real photo instead of just initials, without
@@ -49,6 +52,7 @@ export default function SessionProvider({ children }) {
     if (!userId) {
       setProfile(null);
       setIsCreator(false);
+      setIsPro(false);
       setAvatarPath(null);
       setPictureUrl(null);
       return;
@@ -61,6 +65,16 @@ export default function SessionProvider({ children }) {
     setProfile(profileRow || null);
     setIsCreator(!!creatorFlag);
     setAvatarPath(storefront?.avatar_path || null);
+
+    // Creator Pro: first let the database claim any Pro purchase made with this
+    // person's email (covers buying Pro before creating the account), then read the result.
+    try {
+      await supabase.rpc('sync_my_pro');
+      const { data: proRow } = await supabase.from('creator_pro').select('auth_user_id').eq('auth_user_id', userId).maybeSingle();
+      setIsPro(!!proRow);
+    } catch {
+      setIsPro(false);
+    }
 
     const table = ['seeker', 'assistant'].includes(profileRow?.role) ? ROLE_TABLES[profileRow.role] : null;
     if (table) {
@@ -118,7 +132,7 @@ export default function SessionProvider({ children }) {
   }, [session, loadProfile]);
 
   return (
-    <SessionContext.Provider value={{ session, profile, isCreator, avatarPath, pictureUrl, loading, refreshProfile, signOut }}>
+    <SessionContext.Provider value={{ session, profile, isCreator, isPro, avatarPath, pictureUrl, loading, refreshProfile, signOut }}>
       {children}
     </SessionContext.Provider>
   );

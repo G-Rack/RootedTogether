@@ -13,6 +13,14 @@ import Stripe from "https://esm.sh/stripe@17?target=deno";
 // number and redeploy this function — no schema change needed.
 const TAKE_RATE = 0.10;
 
+// Creator Pro members pay no Rooted Together fee. Stripe's card fee still has
+// to come from somewhere, so the application fee is set equal to our estimate of
+// Stripe's fee (2.9% + 30 cents): the platform nets about zero and the creator
+// bears the card fee. Never more than the price itself.
+function proFeeCents(priceCents: number): number {
+  return Math.min(priceCents, Math.round(priceCents * 0.029) + 30);
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -104,7 +112,19 @@ Deno.serve(async (req: Request) => {
   }
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
-  const applicationFeeAmount = Math.round(offering.price_cents * TAKE_RATE);
+  // Standard fee, unless the creator is a Creator Pro member. If the lookup
+  // itself fails we fall back to the standard fee, never to a free ride.
+  let applicationFeeAmount = Math.round(offering.price_cents * TAKE_RATE);
+  try {
+    const { data: proRow } = await supabase
+      .from("creator_pro")
+      .select("auth_user_id")
+      .eq("auth_user_id", offering.creator_auth_id)
+      .maybeSingle();
+    if (proRow) applicationFeeAmount = proFeeCents(offering.price_cents);
+  } catch (e) {
+    console.error("Pro lookup failed, using standard fee:", e);
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({

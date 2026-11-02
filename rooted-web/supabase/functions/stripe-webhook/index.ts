@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@17?target=deno";
+import { membershipEmail } from "./email.ts";
 
 // Stripe calls this directly — there's no Supabase user session involved,
 // so this function must be deployed with verify_jwt = false. The ONLY
@@ -18,12 +19,31 @@ import Stripe from "https://esm.sh/stripe@17?target=deno";
 //
 // Handles:
 //   - checkout.session.completed: writes the real offering_purchases row.
+//     Sessions that come from a Payment Link (no offering metadata) are the
+//     $49 creator membership: they are recorded in creator_memberships and
+//     the buyer is emailed their one-time sign-up link (best effort).
+//     Payment Links listed in MEMBERSHIP_PRO_PAYMENT_LINK_IDS ($88 Creator
+//     Pro) are recorded as a membership AND as a Creator Pro purchase.
+//     Payment Links listed in MEMBERSHIP_UPGRADE_PAYMENT_LINK_IDS ($39
+//     upgrade for existing members) are recorded as a Creator Pro purchase
+//     only. Pro is granted to the matching account by email right away, or
+//     claimed later (sync_my_pro) if that person signs up afterwards.
+//     Sessions with service_request_id metadata are paid prayer/meditation
+//     requests: the request is flipped from pending_payment to new.
+//     Both record Stripe's processing fee (stripe_fee_cents) so referral
+//     cuts can be worked out on NET sales.
+//   - checkout.session.expired: removes an unpaid pending service request.
 //   - account.updated (v1 event): syncs profiles.stripe_payouts_enabled.
 //   - v2.core.account* (thin v2 events, what Accounts v2 sends): looks the
 //     account up and syncs profiles.stripe_payouts_enabled.
 
 const STRIPE_API = "https://api.stripe.com";
 const STRIPE_V2_VERSION = "2026-09-30.preview";
+const MEMBERSHIP_MIN_CENTS = 4900;
+
+function envList(name: string): string[] {
+  return (Deno.env.get(name) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed.", { status: 405 });
@@ -64,6 +84,65 @@ Deno.serve(async (req: Request) => {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+
+    // Paid service request (daily prayer / guided meditation), pay-first flow.
+    // create-service-checkout saved the request as 'pending_payment'; once the
+    // payment really succeeds it becomes 'new' and shows up for the creator.
+    // The status filter makes a Stripe redelivery a harmless no-op.
+    const serviceRequestId = session.metadata?.service_request_id;
+    if (serviceRequestId) {
+      if (session.payment_status !== "paid") {
+        console.log("Service request session not paid yet, ignoring:", session.id, session.payment_status);
+        return new Response("ok", { status: 200 });
+      }
+      const servicePaymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
+      const serviceFees = servicePaymentIntentId
+        ? await fetchFees(stripe, servicePaymentIntentId)
+        : { applicationFee: 0, stripeFee: 0 };
+      const { error: serviceError } = await supabase
+        .from("service_requests")
+        .update({
+          status: "new",
+          paid_at: new Date().toISOString(),
+          stripe_payment_intent_id: servicePaymentIntentId,
+          amount_cents: session.amount_total ?? undefined,
+          platform_fee_cents: serviceFees.applicationFee,
+          stripe_fee_cents: serviceFees.stripeFee,
+        })
+        .eq("id", serviceRequestId)
+        .eq("status", "pending_payment");
+      if (serviceError) {
+        console.error("Failed to mark service request paid:", serviceError);
+        // Non-2xx so Stripe retries delivery instead of silently dropping a paid request.
+        return new Response("Failed to record service request.", { status: 500 });
+      }
+      console.log("Service request paid:", serviceRequestId);
+      return new Response("ok", { status: 200 });
+    }
+
+    // Payment Link purchase (no marketplace metadata) = creator membership,
+    // Creator Pro ($88), or the Pro upgrade ($39) for existing members.
+    if (session.payment_link && !session.metadata?.offering_id) {
+      const linkId = typeof session.payment_link === "string" ? session.payment_link : session.payment_link?.id;
+      const isUpgrade = !!linkId && envList("MEMBERSHIP_UPGRADE_PAYMENT_LINK_IDS").includes(linkId);
+      const isProFull = !!linkId && envList("MEMBERSHIP_PRO_PAYMENT_LINK_IDS").includes(linkId);
+
+      let result: "ok" | "retry";
+      if (isUpgrade) {
+        result = await recordProPurchase(supabase, session, "upgrade");
+      } else if (isProFull) {
+        result = await recordMembership(supabase, session, true);
+        if (result === "ok") result = await recordProPurchase(supabase, session, "full");
+      } else {
+        result = await recordMembership(supabase, session, false);
+      }
+      if (result === "retry") {
+        // Non-2xx so Stripe retries delivery instead of silently dropping a paid membership.
+        return new Response("Failed to record membership.", { status: 500 });
+      }
+      return new Response("ok", { status: 200 });
+    }
+
     const offeringId = session.metadata?.offering_id;
     const buyerAuthId = session.metadata?.buyer_auth_id;
     if (!offeringId || !buyerAuthId) {
@@ -73,7 +152,9 @@ Deno.serve(async (req: Request) => {
 
     const amountTotal = session.amount_total ?? 0;
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
-    const applicationFeeAmount = paymentIntentId ? await fetchApplicationFee(stripe, paymentIntentId) : 0;
+    const fees = paymentIntentId
+      ? await fetchFees(stripe, paymentIntentId)
+      : { applicationFee: 0, stripeFee: 0 };
 
     // Stripe can and does retry webhook delivery, so this must be safe to
     // run twice for the same session without creating a duplicate purchase.
@@ -96,7 +177,8 @@ Deno.serve(async (req: Request) => {
         offering_id: offeringId,
         buyer_auth_id: buyerAuthId,
         price_paid_cents: amountTotal,
-        platform_fee_cents: applicationFeeAmount,
+        platform_fee_cents: fees.applicationFee,
+        stripe_fee_cents: fees.stripeFee,
         stripe_checkout_session_id: session.id,
         stripe_payment_intent_id: paymentIntentId,
       });
@@ -109,6 +191,19 @@ Deno.serve(async (req: Request) => {
       } else {
         console.log("Purchase recorded for session", session.id);
       }
+    }
+  }
+
+  // An abandoned prayer/meditation checkout: drop the unpaid pending request.
+  if (event.type === "checkout.session.expired") {
+    const expired = event.data.object as Stripe.Checkout.Session;
+    const expiredRequestId = expired.metadata?.service_request_id;
+    if (expiredRequestId) {
+      await supabase
+        .from("service_requests")
+        .delete()
+        .eq("id", expiredRequestId)
+        .eq("status", "pending_payment");
     }
   }
 
@@ -154,12 +249,162 @@ Deno.serve(async (req: Request) => {
   return new Response("ok", { status: 200 });
 });
 
-async function fetchApplicationFee(stripe: Stripe, paymentIntentId: string): Promise<number> {
+// The platform's cut (application fee) and Stripe's own processing fee for a
+// payment. Both default to 0 if Stripe can't be reached, so a lookup problem
+// never blocks recording a paid purchase.
+async function fetchFees(
+  stripe: Stripe,
+  paymentIntentId: string,
+): Promise<{ applicationFee: number; stripeFee: number }> {
   try {
-    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-    return typeof pi.application_fee_amount === "number" ? pi.application_fee_amount : 0;
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge.balance_transaction"],
+    });
+    const applicationFee = typeof pi.application_fee_amount === "number" ? pi.application_fee_amount : 0;
+    let stripeFee = 0;
+    const charge = pi.latest_charge as Stripe.Charge | null;
+    const bt = charge && typeof charge !== "string" ? charge.balance_transaction : null;
+    if (bt && typeof bt !== "string") {
+      const processing = (bt.fee_details || []).filter((d) => d.type === "stripe_fee");
+      stripeFee = processing.length > 0
+        ? processing.reduce((sum, d) => sum + d.amount, 0)
+        : 0;
+    }
+    return { applicationFee, stripeFee };
   } catch (e) {
     console.error("Couldn't retrieve payment intent for fee lookup:", e);
-    return 0;
+    return { applicationFee: 0, stripeFee: 0 };
   }
+}
+
+// Records a Creator Pro purchase ($88 full, or $39 upgrade) and grants Pro to
+// the account with that email if it exists. If it doesn't exist yet, the purchase
+// stays unclaimed and the buyer is granted Pro the first time they sign in
+// (sync_my_pro). Safe to run twice for the same session.
+async function recordProPurchase(
+  supabase: ReturnType<typeof createClient>,
+  session: Stripe.Checkout.Session,
+  kind: "full" | "upgrade",
+): Promise<"ok" | "retry"> {
+  if (session.payment_status !== "paid") {
+    console.log("Pro session not paid yet, ignoring:", session.id, session.payment_status);
+    return "ok";
+  }
+  if (String(session.currency).toLowerCase() !== "usd" || (session.amount_total ?? 0) <= 0) {
+    console.log("Pro purchase has unexpected amount/currency, ignoring:", session.id, session.amount_total);
+    return "ok";
+  }
+  const email = (session.customer_details?.email || session.customer_email || "").trim();
+  if (!email) {
+    console.error("Pro payment has no email, cannot record:", session.id);
+    return "ok";
+  }
+  const linkId = typeof session.payment_link === "string" ? session.payment_link : session.payment_link?.id;
+
+  const { error } = await supabase.from("creator_pro_purchases").insert({
+    stripe_session_id: session.id,
+    email,
+    kind,
+    amount_total: session.amount_total ?? null,
+    currency: String(session.currency ?? "usd").toLowerCase(),
+    payment_link_id: linkId ?? null,
+  });
+  if (error && error.code === "23505") {
+    console.log("Pro purchase already recorded for session", session.id);
+  } else if (error) {
+    console.error("Failed to record Pro purchase:", error);
+    return "retry";
+  } else {
+    console.log("Pro purchase recorded:", kind, session.id);
+  }
+
+  // Grant now if the account exists. Failure here is retried by Stripe.
+  const { data: granted, error: grantError } = await supabase.rpc("grant_pro_by_email", { p_email: email });
+  if (grantError) {
+    console.error("grant_pro_by_email failed:", grantError);
+    return "retry";
+  }
+  console.log(granted ? "Pro granted to existing account for session" : "No account yet; Pro will be claimed on sign-up", session.id);
+  return "ok";
+}
+
+// Records a paid creator-membership Payment Link purchase. Returns "ok" (recorded or already
+// there, or deliberately ignored) or "retry" (database failure, ask Stripe to redeliver).
+// skipLinkCheck is true for links already identified as the Pro link by the caller.
+async function recordMembership(
+  supabase: ReturnType<typeof createClient>,
+  session: Stripe.Checkout.Session,
+  skipLinkCheck: boolean,
+): Promise<"ok" | "retry"> {
+  if (session.payment_status !== "paid") {
+    console.log("Membership session not paid yet, ignoring:", session.id, session.payment_status);
+    return "ok";
+  }
+  const linkId = typeof session.payment_link === "string" ? session.payment_link : session.payment_link?.id;
+  const allowed = envList("MEMBERSHIP_PAYMENT_LINK_IDS");
+  if (!skipLinkCheck && allowed.length && (!linkId || !allowed.includes(linkId))) {
+    console.log("Payment link is not a membership link, ignoring:", linkId);
+    return "ok";
+  }
+  if ((session.amount_total ?? 0) < MEMBERSHIP_MIN_CENTS || String(session.currency).toLowerCase() !== "usd") {
+    console.log("Payment link purchase is not a $49+ membership, ignoring:", session.id, session.amount_total);
+    return "ok";
+  }
+  const email = (session.customer_details?.email || session.customer_email || "").trim();
+  if (!email) {
+    console.error("Membership payment has no email, cannot record:", session.id);
+    return "ok";
+  }
+
+  const { error } = await supabase.from("creator_memberships").insert({
+    stripe_session_id: session.id,
+    stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
+    payment_link_id: linkId ?? null,
+    email,
+    amount_total: session.amount_total ?? null,
+    currency: String(session.currency ?? "usd").toLowerCase(),
+    client_reference_id: session.client_reference_id ?? null,
+  });
+  if (error && error.code === "23505") {
+    console.log("Membership already recorded for session", session.id);
+    return "ok";
+  }
+  if (error) {
+    console.error("Failed to record membership:", error);
+    return "retry";
+  }
+  console.log("Membership recorded for session", session.id);
+
+  // Best effort: email the one-time sign-up link as a backup to the redirect, in case the
+  // buyer closes the tab after paying. Never fails the webhook.
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+  if (resendKey) {
+    try {
+      const site = Deno.env.get("SIGNUP_SITE_URL") ?? "https://rootedtogether.club";
+      const link = `${site}/login?tab=signup&session_id=${encodeURIComponent(session.id)}`;
+      const { subject, text, html } = membershipEmail(link);
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Rooted Together <admin@rootedtogether.club>",
+          to: [email],
+          subject,
+          text,
+          html,
+        }),
+      });
+      if (!res.ok) console.error("Membership email failed:", res.status, await res.text());
+      else {
+        await supabase.from("creator_memberships")
+          .update({ last_emailed_at: new Date().toISOString() })
+          .eq("stripe_session_id", session.id);
+      }
+    } catch (e) {
+      console.error("Membership email error:", e);
+    }
+  } else {
+    console.log("RESEND_API_KEY not set - skipping membership email.");
+  }
+  return "ok";
 }

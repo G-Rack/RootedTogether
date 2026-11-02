@@ -26,6 +26,13 @@ const PACKAGES: Record<string, Record<string, { name: string; cents: number }>> 
 // Same platform cut as offerings (create-checkout-session).
 const TAKE_RATE = 0.10;
 
+// Creator Pro members pay no Rooted Together fee; the application fee is set
+// equal to Stripe's estimated card fee (2.9% + 30 cents), so the creator bears
+// the card fee. Same rule as create-checkout-session.
+function proFeeCents(priceCents: number): number {
+  return Math.min(priceCents, Math.round(priceCents * 0.029) + 30);
+}
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -113,7 +120,20 @@ Deno.serve(async (req: Request) => {
     ? p.focusAreas.filter((x: unknown) => typeof x === "string").slice(0, 12).map((x: string) => x.slice(0, 60))
     : [];
   const amountCents = pkg.cents;
-  const feeCents = Math.round(amountCents * TAKE_RATE);
+
+  // Standard fee, unless the creator is a Creator Pro member. A failed lookup
+  // falls back to the standard fee.
+  let feeCents = Math.round(amountCents * TAKE_RATE);
+  try {
+    const { data: proRow } = await supabase
+      .from("creator_pro")
+      .select("auth_user_id")
+      .eq("auth_user_id", creatorAuthId)
+      .maybeSingle();
+    if (proRow) feeCents = proFeeCents(amountCents);
+  } catch (e) {
+    console.error("Pro lookup failed, using standard fee:", e);
+  }
 
   const { data: row, error: insertError } = await supabase
     .from("service_requests")

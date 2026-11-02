@@ -78,6 +78,26 @@ const NAV = [
     ),
   },
   {
+    href: '/dashboard/academy',
+    label: 'Academy',
+    pro: true,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c3 2 9 2 12 0v-5" />
+      </svg>
+    ),
+  },
+  {
+    href: '/dashboard/community',
+    label: 'Community',
+    pro: true,
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+      </svg>
+    ),
+  },
+  {
     href: '/dashboard/settings',
     label: 'Settings',
     icon: (
@@ -123,7 +143,7 @@ export default function DashboardLayout({ children }) {
     );
   }
 
-  const activeLabel = NAV.find((item) => item.href === pathname)?.label || 'Dashboard';
+  const activeLabel = NAV.find((item) => item.href === pathname || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/')))?.label || 'Dashboard';
 
   return (
     <div className="dashboard-shell" style={{ display: 'flex', minHeight: 'calc(100vh - 76px)' }}>
@@ -194,7 +214,7 @@ export default function DashboardLayout({ children }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 12px' }}>
           {NAV.map((item) => {
-            const active = pathname === item.href;
+            const active = item.href === '/dashboard' ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.href}
@@ -213,6 +233,9 @@ export default function DashboardLayout({ children }) {
               >
                 {item.icon}
                 {item.label}
+                {item.pro && (
+                  <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.6, padding: '2px 6px', borderRadius: 999, background: '#C8923F', color: '#2E1B10' }}>PRO</span>
+                )}
               </Link>
             );
           })}
