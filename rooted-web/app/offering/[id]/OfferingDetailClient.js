@@ -10,6 +10,7 @@ import { FUNCTIONS_URL } from '@/lib/config';
 import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
+import CourseLessonsViewer from '@/components/CourseLessonsViewer';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 
 // Files live on another domain (Supabase Storage), where a plain <a download>
@@ -60,6 +61,8 @@ export default function OfferingDetailClient() {
   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [tab, setTab] = useState('description');
+  // How many lessons a course has (set by the lesson list once it loads).
+  const [courseLessonCount, setCourseLessonCount] = useState(0);
   // Free weekly call for Spiritual Family members (30-minute calls):
   // { is_member, claimed, booked, resets_on } from the free_call_status RPC.
   const [freeCall, setFreeCall] = useState(null);
@@ -491,12 +494,22 @@ export default function OfferingDetailClient() {
             </div>
           )}
 
+          {offering.type === 'course' && (
+            <CourseLessonsViewer
+              offeringId={offering.id}
+              owned={alreadyOwned || session?.user?.id === offering.creator_auth_id}
+              onLoaded={setCourseLessonCount}
+            />
+          )}
+
           {!isCall && alreadyOwned && (
             <div className="success-banner" style={{ marginTop: 28 }}>
               {contentUrl ? (
                 <>
                   You own this. <a href={contentUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>Open it here →</a>
                 </>
+              ) : courseLessonCount > 0 ? (
+                'You own this — your lessons are listed above.'
               ) : (
                 'You own this — the creator hasn’t attached content yet.'
               )}

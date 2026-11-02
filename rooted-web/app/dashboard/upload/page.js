@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { coverUrl, uploadCover, uploadContentFile } from '@/lib/storage';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { fetchLessons, deleteLesson } from '@/lib/lessons';
+import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/CourseLessonsEditor';
 
 const TYPES = ['course', 'ebook', 'routine', 'call'];
 // Smallest price a paid item can have. Free items (price 0) are still allowed.
@@ -61,6 +63,9 @@ function UploadPageInner() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
+  // Course lessons (each a video or a PDF) and the ones removed since the last save.
+  const [lessons, setLessons] = useState(() => [newLessonSlot()]);
+  const [removedLessons, setRemovedLessons] = useState([]);
 
   const coverInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -69,9 +74,10 @@ function UploadPageInner() {
     if (!editId) return;
     let active = true;
     async function load() {
-      const [{ data: o }, { data: content }] = await Promise.all([
+      const [{ data: o }, { data: content }, lessonRows] = await Promise.all([
         supabase.from('offerings').select('*').eq('id', editId).maybeSingle(),
         supabase.from('offering_content').select('content_url').eq('offering_id', editId).maybeSingle(),
+        fetchLessons(editId).catch(() => []),
       ]);
       if (!active || !o) return;
       setType(o.type);
@@ -82,6 +88,7 @@ function UploadPageInner() {
       setCalendlyUrl(o.calendly_url || '');
       setCallDuration(o.call_duration_minutes ? String(o.call_duration_minutes) : '30');
       setIsFreeForFamily(o.is_free_for_family);
+      if (lessonRows.length > 0) setLessons(lessonRows.map(lessonFromRow));
       setContentUrl(content?.content_url || '');
       if (content?.content_url) {
         try {
@@ -126,11 +133,41 @@ function UploadPageInner() {
     }
   };
 
+  const lessonsUploading = type === 'course' && lessons.some((l) => l.status === 'uploading');
+
   const save = async (status) => {
     setError('');
     if (!title.trim()) {
       setError('Give it a title first.');
       return;
+    }
+    if (type === 'course') {
+      if (lessons.some((l) => l.status === 'uploading')) {
+        setError('A lesson is still uploading — wait for it to finish (or cancel it) before saving.');
+        return;
+      }
+      if (status === 'published') {
+        const n = lessons.findIndex((l) => l.status === 'empty' || !l.id);
+        if (n !== -1) {
+          setError(`Lesson ${n + 1} needs a ${lessons[n].kind === 'video' ? 'video' : 'PDF'} before you can publish.`);
+          return;
+        }
+        const t = lessons.findIndex((l) => !l.title.trim());
+        if (t !== -1) {
+          setError(`Give Lesson ${t + 1} a title before publishing.`);
+          return;
+        }
+        const p = lessons.findIndex((l) => l.status === 'processing');
+        if (p !== -1) {
+          setError(`Lesson ${p + 1} is still processing. Give it a minute or two, then publish.`);
+          return;
+        }
+        const bad = lessons.findIndex((l) => l.status === 'errored');
+        if (bad !== -1) {
+          setError(`Lesson ${bad + 1} failed to process — replace its video and try again.`);
+          return;
+        }
+      }
     }
     const priceNum = isFreeForFamily ? 0 : parseFloat(priceDollars || '0');
     if (!isFreeForFamily && (Number.isNaN(priceNum) || priceNum < 0)) {
@@ -175,7 +212,29 @@ function UploadPageInner() {
       offeringId = inserted.id;
     }
 
-    if (type !== 'call' && contentUrl.trim()) {
+    if (type === 'course') {
+      // Attach the lessons to this course in their current order. Slots with no
+      // file yet (only possible when saving a draft) are left out.
+      const filled = lessons.filter((l) => l.id);
+      const results = await Promise.all(
+        filled.map((l, i) =>
+          supabase
+            .from('offering_lessons')
+            .update({ offering_id: offeringId, sort_order: i, title: l.title.trim() })
+            .eq('id', l.id)
+        )
+      );
+      if (results.some((r) => r.error)) {
+        setBusy(false);
+        setError('The course saved, but some lessons couldn’t be attached — please try saving again.');
+        return;
+      }
+      // Lessons the creator removed: delete them (and their Mux videos / PDFs).
+      await Promise.all(removedLessons.map((id) => deleteLesson(session, id).catch(() => {})));
+      setRemovedLessons([]);
+    }
+
+    if (type !== 'call' && type !== 'course' && contentUrl.trim()) {
       await supabase.from('offering_content').upsert({
         offering_id: offeringId,
         content_url: contentUrl.trim(),
@@ -311,6 +370,22 @@ function UploadPageInner() {
               />
             </div>
           </div>
+        ) : type === 'course' ? (
+          <>
+            {contentUrl && !lessons.some((l) => l.id) && (
+              <div className="muted" style={{ fontSize: 12.5 }}>
+                This course currently has one file attached ({contentFileName || 'uploaded file'}). Buyers keep access to it;
+                add lessons below to turn it into a multi-lesson course.
+              </div>
+            )}
+            <CourseLessonsEditor
+              session={session}
+              lessons={lessons}
+              setLessons={setLessons}
+              removed={removedLessons}
+              setRemoved={setRemovedLessons}
+            />
+          </>
         ) : (
           <div>
             <label className="field-label">File</label>
@@ -394,10 +469,10 @@ function UploadPageInner() {
         </div>
 
         <div style={{ display: 'flex', gap: 10, paddingTop: 6 }}>
-          <button type="button" disabled={busy} onClick={() => save('draft')} className="btn btn-outline">
+          <button type="button" disabled={busy || lessonsUploading} onClick={() => save('draft')} className="btn btn-outline">
             Save as Draft
           </button>
-          <button type="button" disabled={busy} onClick={() => save('published')} className="btn btn-primary">
+          <button type="button" disabled={busy || lessonsUploading} onClick={() => save('published')} className="btn btn-primary">
             {busy ? 'Publishing…' : 'Publish to Marketplace'}
           </button>
         </div>
