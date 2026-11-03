@@ -9,6 +9,7 @@ import FoundingPledgeCard from '@/components/FoundingPledgeCard';
 import ProUpgradeBanner from '@/components/ProUpgradeBanner';
 import ProBadge from '@/components/ProBadge';
 import { PRO_UPGRADE_URL, BILLING_PORTAL_URL } from '@/lib/config';
+import { proUpgradeUrlFor } from '@/lib/proLinks';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -367,8 +368,10 @@ export default function DashboardOverviewPage() {
 }
 
 function ProUpgradeInline() {
-  return PRO_UPGRADE_URL ? (
-    <a href={PRO_UPGRADE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade for $39 a year</a>
+  const { session } = useSession();
+  const upgradeUrl = proUpgradeUrlFor(session);
+  return upgradeUrl ? (
+    <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade for $39 a year</a>
   ) : (
     <span style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade coming soon</span>
   );

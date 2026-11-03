@@ -339,6 +339,25 @@ async function recordProPurchase(
     console.log("Pro purchase recorded:", kind, session.id);
   }
 
+  // The upgrade buttons in the dashboard pass the logged-in account's id as client_reference_id,
+  // so Pro lands on the account that clicked, even if they typed a different email at checkout.
+  const refId = (session.client_reference_id ?? "").trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refId)) {
+    const { data: refGranted, error: refError } = await supabase.rpc("grant_pro_to_user", {
+      p_user_id: refId,
+      p_session_id: session.id,
+    });
+    if (refError) {
+      console.error("grant_pro_to_user failed:", refError);
+      return "retry";
+    }
+    if (refGranted) {
+      console.log("Pro granted to the account that bought it for session", session.id);
+      return "ok";
+    }
+    console.log("client_reference_id is not a known account, falling back to email:", session.id);
+  }
+
   // Grant now if the account exists. Failure here is retried by Stripe.
   const { data: granted, error: grantError } = await supabase.rpc("grant_pro_by_email", { p_email: email });
   if (grantError) {

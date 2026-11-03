@@ -1,9 +1,13 @@
 'use client';
 
 import { PRO_UPGRADE_URL } from '@/lib/config';
+import { proUpgradeUrlFor } from '@/lib/proLinks';
+import { useSession } from '@/components/SessionProvider';
 
 // Shown to creators who are not on Creator Pro yet, wherever a Pro feature is previewed.
 export default function ProUpgradeBanner({ title = 'This is part of Creator Pro', compact = false }) {
+  const { session } = useSession();
+  const upgradeUrl = proUpgradeUrlFor(session);
   return (
     <div
       className="card"
@@ -24,8 +28,8 @@ export default function ProUpgradeBanner({ title = 'This is part of Creator Pro'
           Upgrade for $39 a year and you get a 5% Rooted Together fee (instead of 10%) on every sale, the Rooted Pro badge with priority placement, Daily Prayers, Meditation and Special Requests, the Creator Academy and the private Pro community.
         </div>
       </div>
-      {PRO_UPGRADE_URL ? (
-        <a href={PRO_UPGRADE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-small">Upgrade for $39 a year</a>
+      {upgradeUrl ? (
+        <a href={upgradeUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-small">Upgrade for $39 a year</a>
       ) : (
         <span className="btn btn-outline btn-small" style={{ opacity: 0.6, cursor: 'default' }}>Upgrade coming soon</span>
       )}
