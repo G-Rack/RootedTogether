@@ -15,7 +15,7 @@ export default function Footer() {
           gap: 32,
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="footer-brand" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span className="serif" style={{ fontSize: 19, fontWeight: 700, color: 'var(--brown)' }}>Rooted Together</span>
           <div className="muted" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 260 }}>
             A faith-based mentorship community — on the app, and now in the marketplace.

@@ -106,6 +106,18 @@ function LoginPageInner() {
         >
           {tab === 'login' ? <LoginForm router={router} /> : <SignupForm router={router} onWide={setWide} />}
         </div>
+
+        {/* Brand + app downloads. The footer's own copy is hidden on this page so it appears once. */}
+        <style>{'.footer-brand{display:none !important;}'}</style>
+        <div style={{ marginTop: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+          <span className="serif" style={{ fontSize: 19, fontWeight: 700, color: 'var(--brown)' }}>Rooted Together</span>
+          <div className="muted" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 260 }}>
+            A faith-based mentorship community — on the app, and now in the marketplace.
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <StoreBadges align="center" showLabel={false} />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -413,17 +425,6 @@ function JoinFirst({ gate }) {
             </form>
           )}
         </div>
-      </section>
-
-      {/* Get the app */}
-      <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, textAlign: 'center' }}>
-        <div>
-          <h2 className="serif" style={{ margin: 0, fontSize: 24, lineHeight: 1.25 }}>Get the free app</h2>
-          <p style={{ margin: '8px auto 0', maxWidth: 520, fontSize: 15, lineHeight: 1.6, color: muted }}>
-            Followers and seekers do not need a creator account. Download Rooted Together for iPhone and Android.
-          </p>
-        </div>
-        <StoreBadges align="center" showLabel={false} />
       </section>
     </div>
   );
