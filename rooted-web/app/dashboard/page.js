@@ -144,7 +144,7 @@ export default function DashboardOverviewPage() {
       {isPro ? (
         <div className="card" style={{ padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <ProBadge />
-          <span className="muted" style={{ fontSize: 13, flex: '1 1 260px' }}>You are on Creator Pro: 0% Rooted Together fee on every sale, priority placement, the Academy and the community.</span>
+          <span className="muted" style={{ fontSize: 13, flex: '1 1 260px' }}>You are on Creator Pro: priority placement, Daily Prayers and Meditation, the Academy and the community.</span>
           <Link href="/dashboard/academy" className="btn btn-outline btn-xs">Academy</Link>
           <Link href="/dashboard/community" className="btn btn-outline btn-xs">Community</Link>
         </div>

@@ -9,16 +9,45 @@ import Stripe from "https://esm.sh/stripe@17?target=deno";
 // RLS only allows when price_paid_cents is actually 0 (see the
 // add_stripe_connect_and_checkout migration).
 //
-// The platform's cut of every sale. Easy to change later: edit this one
-// number and redeploy this function — no schema change needed.
-const TAKE_RATE = 0.10;
+// Fee schedule (US cents). Stripe charges us its card fee on every sale, so each
+// creator tier adds an estimate of it on top of our own cut:
+//   Creator            10% + Stripe's card fee
+//   Creator Pro (paid)  5% + Stripe's card fee
+//   Founding creator   10% + Stripe's card fee. Founding creators are the people who
+//                      sign up through the private /chosen invitation page. They get
+//                      Creator Pro free, but keep the standard 10% rate, not the Pro 5%.
+// Never more than the price itself. To change a rate, edit it here and redeploy.
+const STANDARD_RATE = 0.10;
+const PRO_RATE = 0.05;
 
-// Creator Pro members pay no Rooted Together fee. Stripe's card fee still has
-// to come from somewhere, so the application fee is set equal to our estimate of
-// Stripe's fee (2.9% + 30 cents): the platform nets about zero and the creator
-// bears the card fee. Never more than the price itself.
-function proFeeCents(priceCents: number): number {
-  return Math.min(priceCents, Math.round(priceCents * 0.029) + 30);
+function stripeFeeEstimate(priceCents: number): number {
+  return Math.round(priceCents * 0.029) + 30;
+}
+
+function platformFeeCents(priceCents: number, isPro: boolean, isFounding: boolean): number {
+  const rate = isPro && !isFounding ? PRO_RATE : STANDARD_RATE;
+  return Math.min(priceCents, Math.round(priceCents * rate) + stripeFeeEstimate(priceCents));
+}
+
+// True for creators who signed up through the /chosen invitation page (recorded in
+// invitation_signups). If the lookup fails we answer "founding", which is the higher
+// standard fee, never a discount.
+async function isFoundingCreator(supabase: any, creatorAuthId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("invitation_signups")
+      .select("auth_user_id")
+      .eq("auth_user_id", creatorAuthId)
+      .limit(1);
+    if (error) {
+      console.error("Founding lookup failed, using standard fee:", error);
+      return true;
+    }
+    return Array.isArray(data) && data.length > 0;
+  } catch (e) {
+    console.error("Founding lookup failed, using standard fee:", e);
+    return true;
+  }
 }
 
 const CORS_HEADERS = {
@@ -112,19 +141,23 @@ Deno.serve(async (req: Request) => {
   }
   const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
-  // Standard fee, unless the creator is a Creator Pro member. If the lookup
-  // itself fails we fall back to the standard fee, never to a free ride.
-  let applicationFeeAmount = Math.round(offering.price_cents * TAKE_RATE);
+  // Creator 10% + Stripe's card fee; paid Creator Pro 5% + Stripe's card fee;
+  // founding creators (invited via /chosen) 10% + card fee even though they have
+  // Pro for free (see platformFeeCents above). If the Pro lookup itself fails we
+  // fall back to the standard fee, never to a discount.
+  let isPro = false;
   try {
     const { data: proRow } = await supabase
       .from("creator_pro")
       .select("auth_user_id")
       .eq("auth_user_id", offering.creator_auth_id)
       .maybeSingle();
-    if (proRow) applicationFeeAmount = proFeeCents(offering.price_cents);
+    isPro = !!proRow;
   } catch (e) {
     console.error("Pro lookup failed, using standard fee:", e);
   }
+  const isFounding = await isFoundingCreator(supabase, offering.creator_auth_id);
+  const applicationFeeAmount = platformFeeCents(offering.price_cents, isPro, isFounding);
 
   try {
     const session = await stripe.checkout.sessions.create({

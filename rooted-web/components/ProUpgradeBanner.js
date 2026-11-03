@@ -21,7 +21,7 @@ export default function ProUpgradeBanner({ title = 'This is part of Creator Pro'
       <div style={{ minWidth: 0, flex: '1 1 280px' }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{title}</div>
         <div className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginTop: 3 }}>
-          Upgrade for $39, the difference from your membership, and you get 0% Rooted Together fee on every sale, the Rooted Pro badge with priority placement, Daily Prayers, Meditation and Special Requests, the Creator Academy and the private Pro community.
+          Upgrade for $39, the difference from your membership, and you get a 5% Rooted Together fee (instead of 10%) on every sale, the Rooted Pro badge with priority placement, Daily Prayers, Meditation and Special Requests, the Creator Academy and the private Pro community.
         </div>
       </div>
       {PRO_UPGRADE_URL ? (
