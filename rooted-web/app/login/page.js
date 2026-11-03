@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL, PRO_JOIN_URL } from '@/lib/config';
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
-import StoreBadges from '@/components/StoreBadges';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
@@ -416,22 +415,6 @@ function JoinFirst({ gate }) {
             </form>
           )}
         </div>
-      </section>
-
-      {/* Get the app */}
-      <section
-        style={{
-          width: '100%', maxWidth: 760, margin: '0 auto', background: '#F1E4D3', borderRadius: 22,
-          padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, textAlign: 'center',
-        }}
-      >
-        <div>
-          <h2 className="serif" style={{ margin: 0, fontSize: 24, lineHeight: 1.25 }}>Get the free app</h2>
-          <p style={{ margin: '8px auto 0', maxWidth: 520, fontSize: 15, lineHeight: 1.6, color: muted }}>
-            Followers and seekers do not need a creator account. Download Rooted Together for iPhone and Android, and sign in with the same details you use here.
-          </p>
-        </div>
-        <StoreBadges align="center" showLabel={false} />
       </section>
     </div>
   );

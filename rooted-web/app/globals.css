@@ -343,7 +343,7 @@ input[type='file'] {
 
 /* Join-first (creator sign-up gate): same page, full width, pill tabs, no brand panel. */
 .login-shell-wide { background: var(--cream); }
-.login-shell-wide .login-brand { display: none; }
+.login-shell-wide .login-brand { display: none !important; }
 .login-shell-wide .login-form-panel {
   width: 100%;
   max-width: 1200px;
