@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL } from '@/lib/config';
+import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL, PRO_JOIN_URL } from '@/lib/config';
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
+import StoreBadges from '@/components/StoreBadges';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
@@ -30,9 +31,11 @@ function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState(searchParams.get('tab') === 'signup' ? 'signup' : 'login');
+  // The join-first screen needs the whole page width, so it asks the shell to go wide.
+  const [wide, setWide] = useState(false);
 
   return (
-    <div className="login-shell" style={{ width: '100%', minHeight: 'calc(100vh - 76px)' }}>
+    <div className={`login-shell${tab === 'signup' && wide ? ' login-shell-wide' : ''}`} style={{ width: '100%', minHeight: 'calc(100vh - 76px)' }}>
       {/* Brand panel */}
       <div
         className="login-brand"
@@ -66,8 +69,11 @@ function LoginPageInner() {
           padding: '0 64px',
         }}
       >
-        <div style={{ display: 'flex', gap: 24, marginBottom: 28, borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+        <div className="login-tabs" role="tablist" aria-label="Account" style={{ display: 'flex', gap: 24, marginBottom: 28, borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
           <button
+            className={`login-tab${tab === 'login' ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'login'}
             onClick={() => setTab('login')}
             style={{
               background: 'none',
@@ -83,6 +89,9 @@ function LoginPageInner() {
             Log In
           </button>
           <button
+            className={`login-tab${tab === 'signup' ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'signup'}
             onClick={() => setTab('signup')}
             style={{
               background: 'none',
@@ -99,7 +108,7 @@ function LoginPageInner() {
           </button>
         </div>
 
-        {tab === 'login' ? <LoginForm router={router} /> : <SignupForm router={router} />}
+        {tab === 'login' ? <LoginForm router={router} /> : <SignupForm router={router} onWide={setWide} />}
       </div>
     </div>
   );
@@ -237,6 +246,25 @@ function LoginForm({ router }) {
   );
 }
 
+const CREATOR_FEATURES = [
+  'Your own storefront and link, on the web and in the app',
+  'Sell courses, ebooks, routines and bookings',
+  'Get paid straight to your bank through Stripe',
+  null,
+  'No subscription for your storefront',
+];
+
+function PlanCheck({ color, children }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: 15.5, lineHeight: 1.5 }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none', marginTop: 4 }}>
+        <path d="M5 12l4 4 10-10" />
+      </svg>
+      <span>{children}</span>
+    </div>
+  );
+}
+
 // Shown on the Sign Up tab when there is no confirmed, unused payment.
 function JoinFirst({ gate }) {
   const [email, setEmail] = useState('');
@@ -270,42 +298,141 @@ function JoinFirst({ gate }) {
       ? 'Each membership creates one account. If you already created yours, log in instead.'
       : gate === 'error'
         ? 'Something went wrong on our side. Please refresh this page, or use the box below to get a fresh link by email.'
-        : 'Creator accounts open once you have joined with the one-time $49 membership. After you pay, you will land right back here to set up your account.';
+        : 'Choose how you want to start. Pay once on our secure checkout, and you will land right back here to set up your account. We also email you a sign-up link.';
+
+  const deep = '#2E1B10';
+  const gold = '#C8923F';
+  const tan = '#E8CDA8';
+  const muted = '#6F5846';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--brown)', marginBottom: 6 }}>{heading}</div>
-        <div className="muted" style={{ fontSize: 13, lineHeight: 1.55 }}>{intro}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 40, color: deep }}>
+      <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brown)' }}>Creator accounts</div>
+        <h1 className="serif" style={{ margin: '14px 0 0', fontSize: 'clamp(32px, 5vw, 52px)', lineHeight: 1.08, letterSpacing: '-0.015em', fontWeight: 700, textWrap: 'balance' }}>
+          {heading}
+        </h1>
+        <p style={{ margin: '18px 0 0', fontSize: 18, lineHeight: 1.65, color: muted }}>{intro}</p>
       </div>
+
       {gate !== 'claimed' && (
-        <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>
-          Join for $49
-        </a>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 24, alignItems: 'stretch' }}>
+          {/* Creator membership */}
+          <section style={{ display: 'flex', flexDirection: 'column', background: '#F1E4D3', borderRadius: 28, padding: 'clamp(24px, 4vw, 36px)' }}>
+            <span style={{ alignSelf: 'flex-start', padding: '5px 14px', borderRadius: 999, background: '#FBF6EF', color: 'var(--brown)', fontSize: 12, fontWeight: 700 }}>
+              Creator membership
+            </span>
+            <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <b className="serif" style={{ fontSize: 64, lineHeight: 1, color: 'var(--brown)' }}>$49</b>
+              <span style={{ fontSize: 15, color: muted }}>one-time payment</span>
+            </div>
+            <hr style={{ border: 0, height: 1, background: '#EADBC8', margin: '24px 0' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+              {CREATOR_FEATURES.map((f, i) => (
+                <PlanCheck key={i} color="var(--brown)">
+                  {f ?? <><b>10% Rooted Together fee</b> on each sale, plus Stripe&rsquo;s card fee</>}
+                </PlanCheck>
+              ))}
+            </div>
+            <a
+              href={ONBOARDING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginTop: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 54, borderRadius: 999, background: 'var(--brown)', color: '#fff', fontSize: 16.5, fontWeight: 600, textDecoration: 'none' }}
+            >
+              Join for $49
+            </a>
+          </section>
+
+          {/* Creator Pro */}
+          <section style={{ display: 'flex', flexDirection: 'column', background: deep, color: '#FBF6EF', borderRadius: 28, padding: 'clamp(24px, 4vw, 36px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ padding: '5px 14px', borderRadius: 999, background: gold, color: deep, fontSize: 12, fontWeight: 700 }}>Creator Pro</span>
+              <span style={{ fontSize: 13.5, color: tan }}>Everything in the membership, and more</span>
+            </div>
+            <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <b className="serif" style={{ fontSize: 64, lineHeight: 1 }}>$88</b>
+              <span style={{ fontSize: 15, color: tan }}>first year, then $39 a year</span>
+            </div>
+            <hr style={{ border: 0, height: 1, background: 'rgba(232,205,168,0.28)', margin: '24px 0' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+              <PlanCheck color={gold}><b>Everything in the $49 membership,</b> plus a year of Pro</PlanCheck>
+              <PlanCheck color={gold}><b>5% Rooted Together fee</b> on each sale, half the standard rate, plus Stripe&rsquo;s card fee</PlanCheck>
+              <PlanCheck color={gold}><b>Rooted Pro badge</b> and priority placement in your category</PlanCheck>
+              <PlanCheck color={gold}><b>Creator Academy:</b> selling more, social content and storefront training</PlanCheck>
+              <PlanCheck color={gold}>Templates, swipe files and a 30-day launch plan</PlanCheck>
+            </div>
+            <a
+              href={PRO_JOIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ marginTop: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 54, borderRadius: 999, background: gold, color: deep, fontSize: 16.5, fontWeight: 700, textDecoration: 'none' }}
+            >
+              Get Creator Pro for $88
+            </a>
+            <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 13, lineHeight: 1.5, color: tan }}>
+              Pro renews at $39 a year. Cancel any time in your dashboard.
+            </p>
+          </section>
+        </div>
       )}
-      <div style={{ borderTop: '1px solid rgba(107,66,38,0.1)', paddingTop: 16 }}>
-        {sent ? (
-          <div className="success-banner" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-            If that email has an unused membership, a sign-up link is on its way. Check your inbox and spam. Still stuck? Write to admin@rootedtogether.club.
-          </div>
-        ) : (
-          <form onSubmit={resend} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--brown)' }}>Already paid?</div>
-            <div className="muted" style={{ fontSize: 12.5 }}>Enter the email you paid with and we will send your sign-up link.</div>
-            <input
-              className="input-field"
-              type="email"
-              required
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <button type="submit" disabled={busy} className="btn btn-outline">
-              {busy ? 'Sending…' : 'Email me my link'}
-            </button>
-          </form>
-        )}
-      </div>
+
+      {/* Already paid */}
+      <section
+        style={{
+          width: '100%', maxWidth: 760, margin: '0 auto', background: '#fff', border: '1px solid #EADBC8', borderRadius: 22,
+          padding: '28px 32px', display: 'flex', flexWrap: 'wrap', gap: '20px 32px', alignItems: 'center', justifyContent: 'space-between',
+        }}
+      >
+        <div style={{ flex: '1 1 260px' }}>
+          <h2 className="serif" style={{ margin: 0, fontSize: 22, lineHeight: 1.25 }}>Already paid?</h2>
+          <p style={{ margin: '6px 0 0', fontSize: 14.5, lineHeight: 1.55, color: muted }}>
+            Enter the email you paid with and we will send your sign-up link again.
+          </p>
+        </div>
+        <div style={{ flex: '1 1 320px' }}>
+          {sent ? (
+            <div className="success-banner" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+              If that email has an unused membership, a sign-up link is on its way. Check your inbox and spam. Still stuck? Write to admin@rootedtogether.club.
+            </div>
+          ) : (
+            <form onSubmit={resend} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <label htmlFor="paid-email" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
+                Email you paid with
+              </label>
+              <input
+                id="paid-email"
+                className="input-field"
+                type="email"
+                required
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ flex: '1 1 180px', minWidth: 0 }}
+              />
+              <button type="submit" disabled={busy} className="btn btn-outline">
+                {busy ? 'Sending…' : 'Email me my link'}
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+
+      {/* Get the app */}
+      <section
+        style={{
+          width: '100%', maxWidth: 760, margin: '0 auto', background: '#F1E4D3', borderRadius: 22,
+          padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, textAlign: 'center',
+        }}
+      >
+        <div>
+          <h2 className="serif" style={{ margin: 0, fontSize: 24, lineHeight: 1.25 }}>Get the free app</h2>
+          <p style={{ margin: '8px auto 0', maxWidth: 520, fontSize: 15, lineHeight: 1.6, color: muted }}>
+            Followers and seekers do not need a creator account. Download Rooted Together for iPhone and Android, and sign in with the same details you use here.
+          </p>
+        </div>
+        <StoreBadges align="center" showLabel={false} />
+      </section>
     </div>
   );
 }
@@ -348,7 +475,7 @@ function RolePicker({ onPick }) {
 // etc.) is filled in afterwards on /complete-profile, once the person is
 // signed in. The only thing this form adds beyond the original signup is the
 // role picker, so the right table/profile gets created from the start.
-function SignupForm({ router }) {
+function SignupForm({ router, onWide }) {
   const searchParams = useSearchParams();
   const [role, setRole] = useState(null);
   const [name, setName] = useState('');
@@ -420,6 +547,14 @@ function SignupForm({ router }) {
       cancelled = true;
     };
   }, [sessionId, inviteToken]);
+
+  // Tell the page shell when to use the full-width join-first layout.
+  useEffect(() => {
+    if (onWide) onWide(gate === 'needs_payment' || gate === 'claimed' || gate === 'error');
+    return () => {
+      if (onWide) onWide(false);
+    };
+  }, [gate, onWide]);
 
   const pickRole = (key) => {
     setRole(key);
