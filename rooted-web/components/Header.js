@@ -24,7 +24,7 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === '/';
-  // On /login the page itself already offers Log In and Sign Up, so a signed-out visitor gets no buttons up here.
+  // On /login the page itself already offers Log In and Sign Up, so a signed-out visitor only gets a "Back to Join" button up here.
   const hideAuthButtons = pathname === '/login' && !session;
   // Creators have a storefront avatar (public bucket); Seekers/Assistants
   // have a profile picture from /complete-profile instead (private bucket,
@@ -113,6 +113,13 @@ export default function Header() {
             </>
           )}
         </div>
+
+        {/* On /login a signed-out visitor gets one button back to the join site (shown on phones too). */}
+        {hideAuthButtons && (
+          <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-small">
+            Back to Join
+          </a>
+        )}
 
         {/* Mobile: a single hamburger toggles a dropdown with everything
             the desktop row shows split across nav links + auth actions. */}
