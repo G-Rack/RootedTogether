@@ -26,5 +26,8 @@ export const ONBOARDING_URL = 'https://joinrootedtogether.club';
 
 // Creator Pro. Paste the Stripe Payment Link URLs here once they exist (see the
 // setup steps). While they are empty, the upgrade buttons show "Coming soon".
-export const PRO_UPGRADE_URL = 'https://buy.stripe.com/aFaeVe7LWbtv0XV9KO0gw03'; // $39, for existing members
-export const PRO_JOIN_URL = 'https://buy.stripe.com/aFaeVe4zK2WZ0XV0ae0gw02'; // $88, for new creators (the join site has its own copy)
+export const PRO_UPGRADE_URL = 'https://buy.stripe.com/4gMeVeaY8cxzgWTg9c0gw04'; // $39 a year, for existing members
+// Stripe's customer portal: paying Creator Pro members log in with their email to see receipts,
+// update their card or cancel. Invited creators (free Pro) have no billing, so it finds nothing for them.
+export const BILLING_PORTAL_URL = 'https://billing.stripe.com/p/login/00w14o9U45573639KO0gw00';
+export const PRO_JOIN_URL = 'https://buy.stripe.com/5kQ00k8Q0fJLayv4qu0gw05'; // $88 first year ($49 once + $39 a year), for new creators (the join site has its own copy)

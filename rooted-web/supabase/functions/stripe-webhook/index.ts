@@ -121,7 +121,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Payment Link purchase (no marketplace metadata) = creator membership,
-    // Creator Pro ($88), or the Pro upgrade ($39) for existing members.
+    // annual Creator Pro ($39 a year, $88 the first year with the membership), or the Pro upgrade ($39 a year) for existing members.
     if (session.payment_link && !session.metadata?.offering_id) {
       const linkId = typeof session.payment_link === "string" ? session.payment_link : session.payment_link?.id;
       const isUpgrade = !!linkId && envList("MEMBERSHIP_UPGRADE_PAYMENT_LINK_IDS").includes(linkId);
@@ -246,6 +246,24 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Annual Creator Pro: when the subscription ends (cancelled, or a renewal never got paid),
+  // take Creator Pro away. Renewals that succeed need nothing: Pro just carries on. Pro that
+  // came from an invitation or was granted by hand is never touched.
+  if (
+    event.type === "customer.subscription.deleted" ||
+    (event.type === "customer.subscription.updated" &&
+      ["canceled", "unpaid", "incomplete_expired"].includes((event.data.object as any)?.status))
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    const { error: endError } = await supabase.rpc("end_pro_subscription", { p_subscription_id: subscription.id });
+    if (endError) {
+      console.error("Failed to end Creator Pro for subscription:", subscription.id, endError);
+      // Non-2xx so Stripe retries instead of leaving Pro on for a cancelled member.
+      return new Response("Failed to end Creator Pro.", { status: 500 });
+    }
+    console.log("Creator Pro subscription ended:", subscription.id);
+  }
+
   return new Response("ok", { status: 200 });
 });
 
@@ -308,6 +326,9 @@ async function recordProPurchase(
     amount_total: session.amount_total ?? null,
     currency: String(session.currency ?? "usd").toLowerCase(),
     payment_link_id: linkId ?? null,
+    // Annual Creator Pro is a subscription; remember it so we can end Pro when it ends.
+    stripe_subscription_id: typeof session.subscription === "string" ? session.subscription : null,
+    stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
   });
   if (error && error.code === "23505") {
     console.log("Pro purchase already recorded for session", session.id);

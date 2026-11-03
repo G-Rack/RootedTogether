@@ -8,7 +8,7 @@ import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import FoundingPledgeCard from '@/components/FoundingPledgeCard';
 import ProUpgradeBanner from '@/components/ProUpgradeBanner';
 import ProBadge from '@/components/ProBadge';
-import { PRO_UPGRADE_URL } from '@/lib/config';
+import { PRO_UPGRADE_URL, BILLING_PORTAL_URL } from '@/lib/config';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -147,6 +147,9 @@ export default function DashboardOverviewPage() {
           <span className="muted" style={{ fontSize: 13, flex: '1 1 260px' }}>You are on Creator Pro: priority placement, Daily Prayers and Meditation, the Academy and the community.</span>
           <Link href="/dashboard/academy" className="btn btn-outline btn-xs">Academy</Link>
           <Link href="/dashboard/community" className="btn btn-outline btn-xs">Community</Link>
+          {BILLING_PORTAL_URL && (
+            <a href={BILLING_PORTAL_URL} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-xs" title="Receipts, card and cancellation for paid Creator Pro">Manage billing</a>
+          )}
         </div>
       ) : (
         <div style={{ marginBottom: 20 }}>
@@ -365,7 +368,7 @@ export default function DashboardOverviewPage() {
 
 function ProUpgradeInline() {
   return PRO_UPGRADE_URL ? (
-    <a href={PRO_UPGRADE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade for $39</a>
+    <a href={PRO_UPGRADE_URL} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade for $39 a year</a>
   ) : (
     <span style={{ fontWeight: 700, color: 'var(--brown)' }}>Upgrade coming soon</span>
   );
