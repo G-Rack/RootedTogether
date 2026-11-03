@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL, PRO_JOIN_URL } from '@/lib/config';
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
+import StoreBadges from '@/components/StoreBadges';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
@@ -34,29 +35,7 @@ function LoginPageInner() {
   const [wide, setWide] = useState(false);
 
   return (
-    <div className={`login-shell${tab === 'signup' && wide ? ' login-shell-wide' : ''}`} style={{ width: '100%', minHeight: 'calc(100vh - 76px)' }}>
-      {/* Brand panel */}
-      <div
-        className="login-brand"
-        style={{
-          background: 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '0 72px',
-          color: 'var(--white)',
-        }}
-      >
-        <div className="serif" style={{ fontSize: 26, fontWeight: 700, marginBottom: 18 }}>Rooted Together</div>
-        <div className="serif" style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.3, maxWidth: 420 }}>
-          One account for the app and the marketplace.
-        </div>
-        <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, maxWidth: 400, marginTop: 16 }}>
-          Sign in with the same details you use on the Rooted Together app — whether you&rsquo;re a Seeker, a
-          Spiritual Assistant, Mother, Pastor, Leader, or a Church or Ministry.
-        </div>
-      </div>
-
+    <div className="login-shell login-shell-wide" style={{ width: '100%', minHeight: 'calc(100vh - 76px)' }}>
       {/* Form panel */}
       <div
         className="login-form-panel"
@@ -107,7 +86,26 @@ function LoginPageInner() {
           </button>
         </div>
 
-        {tab === 'login' ? <LoginForm router={router} /> : <SignupForm router={router} onWide={setWide} />}
+        {tab === 'login' && (
+          <div style={{ textAlign: 'center', maxWidth: 520, margin: '0 auto 28px' }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brown)' }}>Welcome back</div>
+            <h1 className="serif" style={{ margin: '12px 0 0', fontSize: 'clamp(30px, 4.4vw, 44px)', lineHeight: 1.1, letterSpacing: '-0.015em', fontWeight: 700, textWrap: 'balance' }}>
+              Log in to Rooted Together
+            </h1>
+            <p style={{ margin: '14px 0 0', fontSize: 16, lineHeight: 1.6, color: '#6F5846' }}>
+              One account for the app and the marketplace. Use the same details you use in the app.
+            </p>
+          </div>
+        )}
+        <div
+          style={
+            tab === 'signup' && wide
+              ? undefined
+              : { width: '100%', maxWidth: 520, margin: '0 auto', background: '#fff', border: '1px solid #EADBC8', borderRadius: 28, padding: 'clamp(24px, 5vw, 40px)' }
+          }
+        >
+          {tab === 'login' ? <LoginForm router={router} /> : <SignupForm router={router} onWide={setWide} />}
+        </div>
       </div>
     </div>
   );
@@ -415,6 +413,17 @@ function JoinFirst({ gate }) {
             </form>
           )}
         </div>
+      </section>
+
+      {/* Get the app */}
+      <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, textAlign: 'center' }}>
+        <div>
+          <h2 className="serif" style={{ margin: 0, fontSize: 24, lineHeight: 1.25 }}>Get the free app</h2>
+          <p style={{ margin: '8px auto 0', maxWidth: 520, fontSize: 15, lineHeight: 1.6, color: muted }}>
+            Followers and seekers do not need a creator account. Download Rooted Together for iPhone and Android.
+          </p>
+        </div>
+        <StoreBadges align="center" showLabel={false} />
       </section>
     </div>
   );
