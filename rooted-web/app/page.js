@@ -214,7 +214,7 @@ function HomePageInner() {
             Faith-filled mentorship, gathered in one marketplace
           </div>
           <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.88)', maxWidth: 560, lineHeight: 1.6 }}>
-            Spiritual Mothers, Pastors, and Leaders share courses, ebooks, daily routines, and 1:1 guidance with the
+            Spiritual Mothers, Pastors, and Leaders share courses, ebooks, audiobooks, printables, daily routines, and 1:1 guidance with the
             seekers and assistants walking alongside them — sold, gifted, and booked right here.
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
@@ -368,7 +368,7 @@ function HomePageInner() {
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--brown-light)', letterSpacing: 0.4, textTransform: 'uppercase' }}>
                 For Seekers &amp; Assistants
               </div>
-              <Step n={1}>Browse Mothers, Pastors, and Leaders and discover their courses, ebooks, routines, and calls.</Step>
+              <Step n={1}>Browse Mothers, Pastors, and Leaders and discover their courses, ebooks, audiobooks, printables, routines, and calls.</Step>
               <Step n={2}>Purchase or book with the same account you use on the Rooted Together app.</Step>
               <Step n={3}>Grow through what you buy — plus whatever your own Spiritual Family shares for free.</Step>
             </div>
@@ -377,7 +377,7 @@ function HomePageInner() {
                 For Mothers, Pastors &amp; Leaders
               </div>
               <Step n={1}>Build your storefront — banner, photo, and the story of your ministry.</Step>
-              <Step n={2}>Upload courses, ebooks, and routines, and open your calendar for 1:1 calls.</Step>
+              <Step n={2}>Upload courses, ebooks, audiobooks, printables, templates, and routines, and open your calendar for 1:1 calls.</Step>
               <Step n={3}>Sell to the marketplace, and give anything free to your own Spiritual Family.</Step>
             </div>
           </div>

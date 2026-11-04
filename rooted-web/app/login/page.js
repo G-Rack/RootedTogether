@@ -257,7 +257,7 @@ function LoginForm({ router }) {
 
 const CREATOR_FEATURES = [
   'Your own storefront and link, on the web and in the app',
-  'Sell courses, ebooks, routines and bookings',
+  'Sell courses, ebooks, audiobooks, printables, routines and bookings',
   'Get paid straight to your bank through Stripe',
   null,
   'No subscription for your storefront',

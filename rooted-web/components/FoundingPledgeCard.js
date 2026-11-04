@@ -57,7 +57,7 @@ export default function FoundingPledgeCard() {
       key: 'offerings',
       done: offeringsCount >= 2,
       title: 'Publish at least 2 offerings',
-      detail: `${Math.min(offeringsCount, 2)} of 2 published. A course, ebook, routine or 1:1 calls, paid or free.`,
+      detail: `${Math.min(offeringsCount, 2)} of 2 published. A course, ebook, audiobook, printable, template, routine or 1:1 call, paid or free.`,
       href: '/dashboard/upload',
       cta: 'Upload an offering',
     },
