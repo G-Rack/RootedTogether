@@ -8,6 +8,7 @@ import { useSession } from '@/components/SessionProvider';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { FUNCTIONS_URL } from '@/lib/config';
 import { getPendingPublish, clearPendingPublish } from '@/lib/payouts';
+import { isDemoSalesAccount, buildDemoPurchases, SampleDataLabel } from '@/lib/demoSales';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -70,7 +71,7 @@ export default function PayoutsPage() {
     async function load() {
       const { data: offeringRows } = await supabase
         .from('offerings')
-        .select('id, title, type')
+        .select('id, title, type, price_cents')
         .eq('creator_auth_id', session.user.id);
       const ids = (offeringRows || []).map((o) => o.id);
       let purchaseRows = [];
@@ -81,6 +82,9 @@ export default function PayoutsPage() {
           .in('offering_id', ids)
           .order('purchased_at', { ascending: false });
         purchaseRows = data || [];
+      }
+      if (isDemoSalesAccount(session.user.id)) {
+        purchaseRows = [...purchaseRows, ...buildDemoPurchases(offeringRows)];
       }
 
       // Paid prayer / meditation requests count as sales too. They're shaped
@@ -360,8 +364,13 @@ export default function PayoutsPage() {
       <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
         Payouts &amp; Sales
       </div>
+      {isDemoSalesAccount(session?.user?.id) && (
+        <div style={{ marginBottom: 8 }}><SampleDataLabel /></div>
+      )}
       <div className="muted" style={{ fontSize: 13.5, marginBottom: 22 }}>
-        {stripePayoutsEnabled
+        {isDemoSalesAccount(session?.user?.id)
+          ? 'These are sample sales shown for demonstration. They are not real purchases.'
+          : stripePayoutsEnabled
           ? 'Every sale below is a real purchase. Your payout account is connected, so your earnings are paid out to you through Stripe.'
           : 'Every sale below is a real purchase. Connect a payout account to get your earnings paid out to you.'}
       </div>

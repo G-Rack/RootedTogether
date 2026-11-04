@@ -11,6 +11,7 @@ import ProBadge from '@/components/ProBadge';
 import StorefrontLinkCard from '@/components/StorefrontLinkCard';
 import { PRO_UPGRADE_URL, BILLING_PORTAL_URL } from '@/lib/config';
 import { proUpgradeUrlFor } from '@/lib/proLinks';
+import { isDemoSalesAccount, buildDemoPurchases, SampleDataLabel } from '@/lib/demoSales';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -80,6 +81,9 @@ export default function DashboardOverviewPage() {
       if (ids.length > 0) {
         const { data } = await supabase.from('offering_purchases').select('*').in('offering_id', ids);
         purchaseRows = data || [];
+      }
+      if (isDemoSalesAccount(session.user.id)) {
+        purchaseRows = [...purchaseRows, ...buildDemoPurchases(offeringRows)];
       }
 
       if (!active) return;
@@ -167,6 +171,9 @@ export default function DashboardOverviewPage() {
 
       <FoundingPledgeCard />
 
+      {isDemoSalesAccount(session?.user?.id) && (
+        <div style={{ marginBottom: 10 }}><SampleDataLabel /></div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
         <StatCard label="Total earnings" value={formatPrice(totalEarnings)} />
         <StatCard label="This month" value={formatPrice(thisMonthEarnings)} />
