@@ -11,7 +11,7 @@ const playfair = Playfair_Display({ subsets: ['latin'], weight: ['500', '600', '
 const SITE_URL = 'https://rootedtogether.club';
 const SITE_TITLE = 'Rooted Together — Marketplace';
 const SITE_DESCRIPTION =
-  'Courses, ebooks, printables, audio, templates, routines, and 1:1 calls from Rooted Together Mothers, Pastors, and Spiritual Leaders.';
+  'Courses, ebooks, printables, audiobooks, templates, routines, and 1:1 calls from Rooted Together Mothers, Pastors, and Spiritual Leaders.';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),

@@ -775,3 +775,8 @@ input[type="checkbox"] { accent-color: var(--brown); }
   .home-nav-link { min-height: 40px; }
   .home-promo { display: none; }
 }
+
+/* Audiobook upload: moving bar while a chapter uploads */
+@keyframes rt-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.rt-indeterminate { animation: rt-slide 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .rt-indeterminate { animation: none; width: 100% !important; opacity: 0.5; } }

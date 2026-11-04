@@ -28,7 +28,7 @@ export const OFFERING_TYPE_LABELS = {
   routine: 'Daily Routine',
   call: '1:1 Call',
   printable: 'Printable',
-  audio: 'Audio',
+  audio: 'Audiobook',
   template: 'Template',
   bundle: 'Bundle',
 };

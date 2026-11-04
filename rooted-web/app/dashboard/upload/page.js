@@ -11,6 +11,7 @@ import { fetchLessons, deleteLesson } from '@/lib/lessons';
 import { fetchPayoutsEnabled, setPendingPublish } from '@/lib/payouts';
 import CoverImage from '@/components/CoverImage';
 import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/CourseLessonsEditor';
+import AudiobookTracksEditor, { trackFromRow } from '@/components/AudiobookTracksEditor';
 
 const TYPES = OFFERING_TYPE_KEYS;
 // Smallest price a paid item can have. Free items (price 0) are still allowed.
@@ -38,8 +39,8 @@ const EXAMPLE_TEXT = {
     description: 'Twelve printable pages with a prayer prompt, a scripture to hold, and space to write what you notice each week.',
   },
   audio: {
-    title: 'Evening Surrender: A Guided Prayer',
-    description: 'A 15-minute guided prayer to slow down, release the day, and rest. Best listened to with headphones.',
+    title: 'The Quiet Hour: A Prayer Audiobook',
+    description: 'Seven short chapters of guided prayer to slow down, release the day, and rest. Best listened to with headphones.',
   },
   template: {
     title: 'Small Group Leader Kit',
@@ -85,6 +86,9 @@ function UploadPageInner() {
   // Course lessons (each a video or a PDF) and the ones removed since the last save.
   const [lessons, setLessons] = useState(() => [newLessonSlot()]);
   const [removedLessons, setRemovedLessons] = useState([]);
+  // Audiobook chapters (audio tracks) and the ones removed since the last save.
+  const [tracks, setTracks] = useState([]);
+  const [removedTracks, setRemovedTracks] = useState([]);
   // null = still checking. Paid items can only be published once Stripe payouts are connected.
   const [payoutsReady, setPayoutsReady] = useState(null);
 
@@ -114,7 +118,8 @@ function UploadPageInner() {
       setCalendlyUrl(o.calendly_url || '');
       setCallDuration(o.call_duration_minutes ? String(o.call_duration_minutes) : '30');
       setIsFreeForFamily(o.is_free_for_family);
-      if (lessonRows.length > 0) setLessons(lessonRows.map(lessonFromRow));
+      if (o.type === 'audio') setTracks(lessonRows.filter((l) => l.kind === 'audio').map(trackFromRow));
+      else if (lessonRows.length > 0) setLessons(lessonRows.map(lessonFromRow));
       setContentUrl(content?.content_url || '');
       if (content?.content_url) {
         try {
@@ -159,13 +164,31 @@ function UploadPageInner() {
     }
   };
 
-  const lessonsUploading = type === 'course' && lessons.some((l) => l.status === 'uploading');
+  const lessonsUploading = (type === 'course' && lessons.some((l) => l.status === 'uploading'))
+    || (type === 'audio' && tracks.some((t) => t.status === 'uploading'));
 
   const save = async (status) => {
     setError('');
     if (!title.trim()) {
       setError('Give it a title first.');
       return;
+    }
+    if (type === 'audio') {
+      if (tracks.some((t) => t.status === 'uploading')) {
+        setError('A chapter is still uploading — wait for it to finish before saving.');
+        return;
+      }
+      if (status === 'published') {
+        if (tracks.length === 0 && !contentUrl) {
+          setError('Add at least one audio chapter before you publish.');
+          return;
+        }
+        const t = tracks.findIndex((x) => !x.title.trim());
+        if (t !== -1) {
+          setError(`Give chapter ${t + 1} a title before publishing.`);
+          return;
+        }
+      }
     }
     if (type === 'course') {
       if (lessons.some((l) => l.status === 'uploading')) {
@@ -269,6 +292,27 @@ function UploadPageInner() {
       // Lessons the creator removed: delete them (and their Mux videos / PDFs).
       await Promise.all(removedLessons.map((id) => deleteLesson(session, id).catch(() => {})));
       setRemovedLessons([]);
+    }
+
+    if (type === 'audio') {
+      // Attach the chapters to this audiobook in their current order.
+      const filledTracks = tracks.filter((t) => t.id);
+      const trackResults = await Promise.all(
+        filledTracks.map((t, i) =>
+          supabase
+            .from('offering_lessons')
+            .update({ offering_id: offeringId, sort_order: i, title: t.title.trim() })
+            .eq('id', t.id)
+        )
+      );
+      if (trackResults.some((r) => r.error)) {
+        setBusy(false);
+        setError('The audiobook saved, but some chapters couldn’t be attached — please try saving again.');
+        return;
+      }
+      // Chapters the creator removed: delete them and their audio files.
+      await Promise.all(removedTracks.map((id) => deleteLesson(session, id).catch(() => {})));
+      setRemovedTracks([]);
     }
 
     if (type !== 'call' && type !== 'course' && contentUrl.trim()) {
@@ -422,6 +466,21 @@ function UploadPageInner() {
               />
             </div>
           </div>
+        ) : type === 'audio' ? (
+          <>
+            {contentUrl && tracks.length === 0 && (
+              <div className="muted" style={{ fontSize: 12.5 }}>
+                This audio currently has one file attached ({contentFileName || 'uploaded file'}). Buyers keep access to it;
+                add chapters below to turn it into an audiobook.
+              </div>
+            )}
+            <AudiobookTracksEditor
+              session={session}
+              tracks={tracks}
+              setTracks={setTracks}
+              setRemoved={setRemovedTracks}
+            />
+          </>
         ) : type === 'course' ? (
           <>
             {contentUrl && !lessons.some((l) => l.id) && (

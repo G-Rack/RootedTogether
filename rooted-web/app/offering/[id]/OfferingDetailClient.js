@@ -11,6 +11,7 @@ import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
 import CourseLessonsViewer from '@/components/CourseLessonsViewer';
+import AudiobookPlayer from '@/components/AudiobookPlayer';
 import CoverImage from '@/components/CoverImage';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 
@@ -277,7 +278,9 @@ export default function OfferingDetailClient() {
         startDownload(downloadUrlFor(contentRow.content_url));
         setNotice('Your download has started.');
       } else {
-        setNotice('Added to your library — the creator has not attached a file yet.');
+        setNotice(courseLessonCount > 0
+          ? (offering.type === 'audio' ? 'Added to your library — press play below to start listening.' : 'Added to your library — your lessons are below.')
+          : 'Added to your library — the creator has not attached a file yet.');
       }
       return;
     }
@@ -505,6 +508,14 @@ export default function OfferingDetailClient() {
             />
           )}
 
+          {offering.type === 'audio' && (
+            <AudiobookPlayer
+              offeringId={offering.id}
+              owned={alreadyOwned || session?.user?.id === offering.creator_auth_id}
+              onLoaded={setCourseLessonCount}
+            />
+          )}
+
           {!isCall && alreadyOwned && (
             <div className="success-banner" style={{ marginTop: 28 }}>
               {contentUrl ? (
@@ -512,7 +523,7 @@ export default function OfferingDetailClient() {
                   You own this. <a href={contentUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>Open it here →</a>
                 </>
               ) : courseLessonCount > 0 ? (
-                'You own this — your lessons are listed above.'
+                offering.type === 'audio' ? 'You own this — press play above to start listening.' : 'You own this — your lessons are listed above.'
               ) : (
                 'You own this — the creator hasn’t attached content yet.'
               )}
@@ -559,7 +570,9 @@ export default function OfferingDetailClient() {
               Finishing up your purchase…
             </div>
           ) : alreadyOwned ? (
-            !isCall && contentUrl ? (
+            offering.type === 'audio' && courseLessonCount > 0 && !contentUrl ? (
+              <a href="#audiobook-player" className="btn btn-primary">Listen now</a>
+            ) : !isCall && contentUrl ? (
               isFreeItem ? (
                 <a href={downloadUrlFor(contentUrl)} rel="noreferrer" className="btn btn-primary">
                   Download
@@ -748,7 +761,7 @@ function FeatureList({ isCall, offering }) {
       ]
     : [
         'Instant access after purchase',
-        offering.type === 'course' ? 'Self-paced — go at your own speed' : 'Yours to keep, no expiration',
+        offering.type === 'course' ? 'Self-paced — go at your own speed' : offering.type === 'audio' ? 'Listen anywhere, at your own pace' : 'Yours to keep, no expiration',
       ];
 
   return (

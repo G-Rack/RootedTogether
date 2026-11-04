@@ -73,9 +73,10 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  if (lesson.kind === "pdf" && lesson.file_path) {
-    const { error: removeError } = await supabase.storage.from("course-files").remove([lesson.file_path]);
-    if (removeError) console.error("Couldn't remove PDF (continuing):", removeError);
+  if ((lesson.kind === "pdf" || lesson.kind === "audio") && lesson.file_path) {
+    const bucket = lesson.kind === "audio" ? "audiobook-files" : "course-files";
+    const { error: removeError } = await supabase.storage.from(bucket).remove([lesson.file_path]);
+    if (removeError) console.error(`Couldn't remove ${lesson.kind} file (continuing):`, removeError);
   }
 
   const { error } = await supabase.from("offering_lessons").delete().eq("id", lessonId);

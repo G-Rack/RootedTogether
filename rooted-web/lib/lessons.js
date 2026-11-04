@@ -125,3 +125,109 @@ export function formatDuration(seconds) {
   if (h) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+
+// ---------- Audiobooks ----------
+// An audiobook is an offering whose "lessons" are audio tracks (kind = 'audio').
+// Files live in the private "audiobook-files" bucket; buyers listen through
+// short-lived signed links, so the files can't be shared by direct address.
+
+export const MAX_TRACKS = 60;
+export const MAX_AUDIO_BYTES = 250 * 1024 * 1024; // matches the bucket limit
+
+const AUDIO_MIME = {
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  wav: 'audio/wav',
+};
+
+export function audioMimeFor(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  return AUDIO_MIME[ext] || null;
+}
+
+// "01 - Chapter one_final.mp3" -> "Chapter one final"
+export function titleFromFileName(name) {
+  return name
+    .replace(/\.[^.]+$/, '')
+    .replace(/^\s*(chapter|track|ch)?\s*\d{1,3}\s*[-_.:)]\s*/i, '')
+    .replace(/[_]+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+// Reads the track length in the browser so we can show it to listeners.
+export function readAudioDuration(file) {
+  return new Promise((resolve) => {
+    let url;
+    try {
+      url = URL.createObjectURL(file);
+    } catch {
+      resolve(null);
+      return;
+    }
+    const audio = new Audio();
+    const done = (value) => {
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    const timer = setTimeout(() => done(null), 8000);
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => {
+      clearTimeout(timer);
+      done(Number.isFinite(audio.duration) ? Math.round(audio.duration) : null);
+    };
+    audio.onerror = () => { clearTimeout(timer); done(null); };
+    audio.src = url;
+  });
+}
+
+// One audiobook track: upload to the private bucket, then record the row.
+export async function uploadAudioTrack(session, file, { title, sortOrder }) {
+  const uid = session.user.id;
+  const contentType = audioMimeFor(file);
+  if (!contentType) throw new Error('Please choose an MP3, M4A, WAV or AAC file.');
+  const safe = file.name.replace(/[^a-zA-Z0-9.-]+/g, '_');
+  const path = `${uid}/${crypto.randomUUID()}-${safe}`;
+  const duration = await readAudioDuration(file);
+  const { error: uploadError } = await supabase.storage
+    .from('audiobook-files')
+    .upload(path, file, { contentType, upsert: false });
+  if (uploadError) throw uploadError;
+  const { data, error } = await supabase
+    .from('offering_lessons')
+    .insert({
+      creator_auth_id: uid,
+      kind: 'audio',
+      status: 'ready',
+      title: (title || '').trim().slice(0, 200),
+      sort_order: sortOrder,
+      file_path: path,
+      file_name: file.name,
+      duration_seconds: duration,
+    })
+    .select()
+    .single();
+  if (error) {
+    await supabase.storage.from('audiobook-files').remove([path]);
+    throw error;
+  }
+  return data;
+}
+
+// Link good for a long listening session (6 hours) — owner and buyers only.
+export async function audioSignedUrl(path) {
+  const { data, error } = await supabase.storage.from('audiobook-files').createSignedUrl(path, 60 * 60 * 6);
+  if (error || !data?.signedUrl) throw error || new Error('No link');
+  return data.signedUrl;
+}
+
+export function formatTotalDuration(seconds) {
+  const total = Math.round(Number(seconds) || 0);
+  if (!total) return '';
+  const h = Math.floor(total / 3600);
+  const m = Math.round((total % 3600) / 60);
+  if (h && m) return `${h} hr ${m} min`;
+  if (h) return `${h} hr`;
+  return `${Math.max(1, m)} min`;
+}

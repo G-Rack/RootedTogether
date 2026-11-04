@@ -38,7 +38,7 @@ export default function Footer() {
           <Link href="/?type=course" style={{ fontSize: 13.5 }}>Courses</Link>
           <Link href="/?type=ebook" style={{ fontSize: 13.5 }}>Ebooks</Link>
           <Link href="/?type=printable" style={{ fontSize: 13.5 }}>Printables</Link>
-          <Link href="/?type=audio" style={{ fontSize: 13.5 }}>Audio</Link>
+          <Link href="/?type=audio" style={{ fontSize: 13.5 }}>Audiobooks</Link>
           <Link href="/?type=template" style={{ fontSize: 13.5 }}>Templates</Link>
           <Link href="/?type=routine" style={{ fontSize: 13.5 }}>Daily Routines</Link>
           <Link href="/?type=call" style={{ fontSize: 13.5 }}>1:1 Calls</Link>
