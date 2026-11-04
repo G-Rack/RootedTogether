@@ -20,7 +20,7 @@ const NAV_LINKS = [
 ];
 
 export default function Header() {
-  const { session, profile, isCreator, avatarPath, pictureUrl, signOut } = useSession();
+  const { session, profile, isCreator, avatarPath, pictureUrl, loading, signOut } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === '/';
@@ -45,6 +45,9 @@ export default function Header() {
     await signOut();
     router.push('/');
   };
+
+  // The signed-in home page has its own sidebar (logo, menu and log out), so no top bar there.
+  if (isHome && (session || loading)) return null;
 
   return (
     <div style={{ position: 'relative', background: 'var(--white)', borderBottom: '1px solid rgba(107,66,38,0.1)' }}>

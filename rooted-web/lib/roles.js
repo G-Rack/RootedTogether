@@ -27,4 +27,8 @@ export const OFFERING_TYPE_LABELS = {
   ebook: 'Ebook',
   routine: 'Daily Routine',
   call: '1:1 Call',
+  printable: 'Printable',
+  audio: 'Audio',
+  template: 'Template',
+  bundle: 'Bundle',
 };

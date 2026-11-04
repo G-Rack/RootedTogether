@@ -11,8 +11,9 @@ import StarRating from '@/components/StarRating';
 import { activeSocials } from '@/lib/socials';
 import { fetchCreatorReviewStats, fetchCreatorReviews } from '@/lib/reviews';
 import ProBadge from '@/components/ProBadge';
+import { OFFERING_TYPE_KEYS } from '@/lib/offeringTypes';
 
-const TYPE_TABS = ['all', 'course', 'ebook', 'routine', 'call'];
+const TYPE_TABS = ['all', ...OFFERING_TYPE_KEYS];
 
 // Each service links to its own dedicated request page
 // (/creator/[handle]/prayer, /meditation, /request) where a visitor picks
@@ -322,6 +323,8 @@ export default function CreatorStorefrontClient() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, borderBottom: '1px solid rgba(107,66,38,0.1)', marginBottom: 24, overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
             {TYPE_TABS.map((t) => {
               const count = t === 'all' ? offerings.length : offerings.filter((o) => o.type === t).length;
+              // Only show types this creator actually sells.
+              if (t !== 'all' && count === 0) return null;
               return (
                 <button
                   key={t}

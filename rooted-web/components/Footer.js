@@ -1,8 +1,17 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useSession } from '@/components/SessionProvider';
 import StoreBadges from '@/components/StoreBadges';
 import { ONBOARDING_URL } from '@/lib/config';
 
 export default function Footer() {
+  const pathname = usePathname();
+  const { session, loading } = useSession();
+  // The signed-in home page carries its own small footer line.
+  if (pathname === '/' && (session || loading)) return null;
+
   return (
     <div className="section-x footer-wrap" style={{ paddingBlock: '48px 40px', background: 'var(--white)', borderTop: '1px solid rgba(107,66,38,0.1)' }}>
       <div
@@ -28,8 +37,12 @@ export default function Footer() {
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Marketplace</div>
           <Link href="/?type=course" style={{ fontSize: 13.5 }}>Courses</Link>
           <Link href="/?type=ebook" style={{ fontSize: 13.5 }}>Ebooks</Link>
+          <Link href="/?type=printable" style={{ fontSize: 13.5 }}>Printables</Link>
+          <Link href="/?type=audio" style={{ fontSize: 13.5 }}>Audio</Link>
+          <Link href="/?type=template" style={{ fontSize: 13.5 }}>Templates</Link>
           <Link href="/?type=routine" style={{ fontSize: 13.5 }}>Daily Routines</Link>
           <Link href="/?type=call" style={{ fontSize: 13.5 }}>1:1 Calls</Link>
+          <Link href="/?type=bundle" style={{ fontSize: 13.5 }}>Bundles</Link>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>For Creators</div>

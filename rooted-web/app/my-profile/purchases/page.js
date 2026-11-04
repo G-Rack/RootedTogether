@@ -10,6 +10,10 @@ const TYPE_DOT = {
   course: 'var(--brown)',
   ebook: 'var(--brown-light)',
   routine: 'var(--brown-pale)',
+  printable: '#C8923F',
+  audio: '#8C6A4A',
+  template: '#6B4226',
+  bundle: '#2E1B10',
   call: 'var(--text-soft)',
 };
 

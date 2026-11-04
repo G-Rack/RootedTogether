@@ -9,11 +9,15 @@ import CreatorCard from '@/components/CreatorCard';
 import StoreBadges from '@/components/StoreBadges';
 import TestimonialForm from '@/components/TestimonialForm';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { OFFERING_TYPES, OFFERING_TYPE_KEYS } from '@/lib/offeringTypes';
+import { useSession } from '@/components/SessionProvider';
+import SignedInHome from '@/components/SignedInHome';
+import TypeIcon from '@/components/TypeIcon';
 import { fetchMarketStats } from '@/lib/reviews';
 import { ONBOARDING_URL } from '@/lib/config';
 import { fetchProIds } from '@/lib/pro';
 
-const TYPE_FILTERS = ['all', 'course', 'ebook', 'routine', 'call'];
+const TYPE_FILTERS = ['all', ...OFFERING_TYPE_KEYS];
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -23,52 +27,16 @@ const SORT_OPTIONS = [
   { value: 'price-high', label: 'Price: high to low' },
 ];
 
-const CATEGORIES = [
-  {
-    type: 'course',
-    title: 'Courses',
-    body: 'Multi-part video and written teaching series from Leaders, Mothers, and Pastors.',
-    icon: (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6B4226" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
-        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
-      </svg>
-    ),
-  },
-  {
-    type: 'ebook',
-    title: 'Ebooks',
-    body: 'Devotionals, testimonies, and study guides — read on your own time.',
-    icon: (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6B4226" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-      </svg>
-    ),
-  },
-  {
-    type: 'routine',
-    title: 'Daily Routines',
-    body: 'Prayer, journaling, and practice plans you can follow day to day.',
-    icon: (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6B4226" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 6v6l4 2" />
-      </svg>
-    ),
-  },
-  {
-    type: 'call',
-    title: '1:1 Calls',
-    body: 'Book real time with a Mother, Pastor, or Leader — scheduled by the minute.',
-    icon: (
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6B4226" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="10" width="16" height="10" rx="2" />
-        <path d="M8 10V7a4 4 0 018 0v3" />
-      </svg>
-    ),
-  },
-];
+const CATEGORIES = OFFERING_TYPES.map((t) => ({
+  type: t.key,
+  title: t.plural,
+  body: t.blurb,
+  icon: (
+    <span style={{ color: '#6B4226', display: 'flex' }}>
+      <TypeIcon name={t.key} size={26} />
+    </span>
+  ),
+}));
 
 const FALLBACK_TESTIMONIALS = [
   { quote: '"Zee’s routine gave my mornings a shape they never had. I finally feel steady."', name: 'Maria Chen', who: 'Seeker' },
@@ -78,6 +46,7 @@ const FALLBACK_TESTIMONIALS = [
 
 function HomePageInner() {
   const searchParams = useSearchParams();
+  const { session, loading: sessionLoading } = useSession();
   const [offerings, setOfferings] = useState([]);
   const [creators, setCreators] = useState([]);
   const [profileByAuthId, setProfileByAuthId] = useState({});
@@ -88,6 +57,12 @@ function HomePageInner() {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('newest');
   const [testimonials, setTestimonials] = useState(FALLBACK_TESTIMONIALS);
+
+  // Sidebar and pills both go through here so the address bar follows the filter.
+  const selectType = (t) => {
+    setFilter(t);
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', t === 'all' ? '/' : `/?type=${t}`);
+  };
 
   useEffect(() => {
     let active = true;
@@ -197,6 +172,35 @@ function HomePageInner() {
     () => [...creators].sort((a, b) => (proIds.has(b.auth_user_id) ? 1 : 0) - (proIds.has(a.auth_user_id) ? 1 : 0)),
     [creators, proIds],
   );
+
+  // Wait for the session so a signed-in person never sees the visitor page flash by.
+  if (sessionLoading) {
+    return (
+      <div className="container" style={{ paddingBlock: '48px' }}>
+        <div className="skeleton" style={{ height: 240 }} />
+      </div>
+    );
+  }
+
+  // Signed in: the sidebar marketplace. Visitors keep the page below.
+  if (session) {
+    return (
+      <SignedInHome
+        loading={loading}
+        filter={filter}
+        onFilter={selectType}
+        query={query}
+        setQuery={setQuery}
+        sort={sort}
+        setSort={setSort}
+        offerings={filteredOfferings}
+        creators={creators}
+        profileByAuthId={profileByAuthId}
+        marketStats={marketStats}
+        proIds={proIds}
+      />
+    );
+  }
 
   return (
     <main>

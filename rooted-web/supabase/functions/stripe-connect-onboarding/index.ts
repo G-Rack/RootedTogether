@@ -40,8 +40,9 @@ const STRIPE_API = "https://api.stripe.com";
 const STRIPE_V2_VERSION = "2026-09-30.preview";
 
 // Smallest balance a creator can pay out. Payouts cost the platform a fee
-// (we're the fees_collector), so tiny ones aren't worth it. Change freely.
-const MIN_PAYOUT_CENTS = 1000;
+// (we're the fees_collector), so tiny ones aren't worth it. Raised from $10 to
+// $25 to cut the number of payouts. Change freely.
+const MIN_PAYOUT_CENTS = 2500;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

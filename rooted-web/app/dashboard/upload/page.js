@@ -6,12 +6,13 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { coverUrl, uploadCover, uploadContentFile } from '@/lib/storage';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { OFFERING_TYPE_KEYS, OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 import { fetchLessons, deleteLesson } from '@/lib/lessons';
 import { fetchPayoutsEnabled, setPendingPublish } from '@/lib/payouts';
 import CoverImage from '@/components/CoverImage';
 import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/CourseLessonsEditor';
 
-const TYPES = ['course', 'ebook', 'routine', 'call'];
+const TYPES = OFFERING_TYPE_KEYS;
 // Smallest price a paid item can have. Free items (price 0) are still allowed.
 const MIN_PRICE_DOLLARS = 5;
 
@@ -31,6 +32,22 @@ const EXAMPLE_TEXT = {
   call: {
     title: '30-Minute Guidance Call',
     description: 'One-on-one time to talk through what’s on your heart and receive personal prayer and guidance.',
+  },
+  printable: {
+    title: 'A Season of Prayer Journal',
+    description: 'Twelve printable pages with a prayer prompt, a scripture to hold, and space to write what you notice each week.',
+  },
+  audio: {
+    title: 'Evening Surrender: A Guided Prayer',
+    description: 'A 15-minute guided prayer to slow down, release the day, and rest. Best listened to with headphones.',
+  },
+  template: {
+    title: 'Small Group Leader Kit',
+    description: 'An editable planner and session outlines for leading a small group through a study, ready to fill in and reuse.',
+  },
+  bundle: {
+    title: 'The Morning Rhythm Bundle',
+    description: 'A prayer journal, a guided audio, and a one-page planner from me, together in one download.',
   },
 };
 
@@ -427,7 +444,7 @@ function UploadPageInner() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.doc,.docx,.zip,.mp3,.mp4,.epub"
+              accept={OFFERING_TYPE_BY_KEY[type]?.accept || '.pdf,.doc,.docx,.zip,.mp3,.mp4,.epub'}
               style={{ display: 'none' }}
               onChange={(e) => handleContentFile(e.target.files?.[0])}
             />
@@ -455,7 +472,7 @@ function UploadPageInner() {
             >
               <UploadIcon size={22} />
               <div style={{ fontSize: 13, color: 'var(--text-soft)' }}>
-                {uploadingFile ? 'Uploading…' : contentFileName ? contentFileName : 'Drag a PDF here, or click to upload'}
+                {uploadingFile ? 'Uploading…' : contentFileName ? contentFileName : `Drag ${OFFERING_TYPE_BY_KEY[type]?.fileHint || 'a PDF'} here, or click to upload`}
               </div>
               {contentFileName && !uploadingFile && (
                 <div className="muted" style={{ fontSize: 11.5 }}>Click to replace</div>

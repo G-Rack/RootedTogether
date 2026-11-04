@@ -1,12 +1,17 @@
+import { Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
+// Same typefaces as the onboarding site, exposed as CSS variables (see globals.css).
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const playfair = Playfair_Display({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-playfair', display: 'swap' });
+
 const SITE_URL = 'https://rootedtogether.club';
 const SITE_TITLE = 'Rooted Together — Marketplace';
 const SITE_DESCRIPTION =
-  'Courses, ebooks, routines, and 1:1 calls from Rooted Together Mothers, Pastors, and Spiritual Leaders.';
+  'Courses, ebooks, printables, audio, templates, routines, and 1:1 calls from Rooted Together Mothers, Pastors, and Spiritual Leaders.';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -37,7 +42,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
         <SessionProvider>
           <Header />
