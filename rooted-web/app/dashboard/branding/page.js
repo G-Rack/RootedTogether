@@ -271,9 +271,9 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
         </div>
 
         <div>
-          <label className="field-label">Contact &amp; social links</label>
+          <label className="field-label">How people can reach you</label>
           <div className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>
-            Add any you like. Only the ones you fill in appear on your public storefront.
+            Add your Instagram and TikTok. Only the ones you fill in appear on your storefront. People can also message you in the Rooted Together app, which is always on.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {SOCIALS.map((so) => (
@@ -286,7 +286,7 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
                 </span>
                 <input
                   className="input-field"
-                  type={so.key === 'contact_email' ? 'email' : 'text'}
+                  type="text"
                   aria-label={so.label}
                   value={links[so.key]}
                   onChange={(e) => setLinks((prev) => ({ ...prev, [so.key]: e.target.value }))}

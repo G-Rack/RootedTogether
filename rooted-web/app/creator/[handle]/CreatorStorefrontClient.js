@@ -436,27 +436,32 @@ export default function CreatorStorefrontClient() {
               {aboutText || 'This creator hasn’t written their story yet.'}
             </div>
           </div>
-          {socials.length > 0 && (
-            <div style={{ padding: 22, borderRadius: 22, background: '#fff', border: '1px solid #EADBC8', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brown)' }}>Connect with {firstName}</div>
-              {socials.map((so) => (
-                <a
-                  key={so.key}
-                  href={so.href}
-                  target={so.key === 'contact_email' ? undefined : '_blank'}
-                  rel="noreferrer"
-                  style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, minHeight: 44 }}
-                >
-                  <span style={{ width: 34, height: 34, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {so.icon}
-                  </span>
-                  <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                    {so.key === 'whatsapp' || so.key === 'contact_email' ? `${so.label}: ${so.text}` : `${so.label} →`}
-                  </span>
-                </a>
-              ))}
+          <div style={{ padding: 22, borderRadius: 22, background: '#fff', border: '1px solid #EADBC8', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brown)', marginBottom: 8 }}>Connect with {firstName}</div>
+            {socials.map((so) => (
+              <a
+                key={so.key}
+                href={so.href}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: 14.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, minHeight: 48 }}
+              >
+                <span style={{ width: 36, height: 36, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {so.icon}
+                </span>
+                <span style={{ minWidth: 0 }}>{so.label} →</span>
+              </a>
+            ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 48 }}>
+              <span style={{ width: 36, height: 36, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={16}><path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></Icon>
+              </span>
+              <span style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.35 }}>
+                Message in the Rooted Together app
+                <span className="muted" style={{ display: 'block', fontSize: 12.5, fontWeight: 500 }}>Get the app to send {firstName} a message.</span>
+              </span>
             </div>
-          )}
+          </div>
         </div>
       </section>
 
