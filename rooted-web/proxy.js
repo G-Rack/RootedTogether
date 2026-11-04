@@ -23,7 +23,7 @@ export async function proxy(request) {
   if (OPEN.some((re) => re.test(pathname))) return NextResponse.next();
 
   // The owner: has the cookie the secret code gave them.
-  const secret = process.env.SITE_ACCESS_CODE;
+  const secret = (process.env.SITE_ACCESS_CODE || '').trim();
   const cookie = request.cookies.get(GATE_COOKIE)?.value;
   if (secret && cookie && safeEqual(cookie, await accessToken(secret))) return NextResponse.next();
 

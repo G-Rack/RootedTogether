@@ -7,7 +7,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function POST(request) {
   let body = {};
   try { body = await request.json(); } catch { /* an empty or broken body counts as a wrong code */ }
-  const secret = process.env.SITE_ACCESS_CODE;
+  const secret = (process.env.SITE_ACCESS_CODE || '').trim();
   const given = String(body?.code || '').trim();
   const ok = !!secret && !!given && safeEqual(await accessToken(given), await accessToken(secret));
   if (!ok) {
