@@ -171,11 +171,15 @@ export default function DashboardLayout({ children }) {
           flexShrink: 0,
           background: 'var(--white)',
           borderRight: '1px solid rgba(107,66,38,0.1)',
+          borderTop: '4px solid #C8923F',
           display: 'flex',
           flexDirection: 'column',
-          padding: '24px 0',
+          padding: '20px 0 24px',
         }}
       >
+        <div style={{ padding: '0 22px 14px' }}>
+          <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 999, background: '#2E1B10', color: '#C8923F', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em' }}>CREATOR DASHBOARD</span>
+        </div>
         <div
           style={{
             padding: '0 22px 20px',
@@ -242,8 +246,12 @@ export default function DashboardLayout({ children }) {
         </div>
 
         <div style={{ marginTop: 'auto', padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <Link href="/" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-soft)' }}>
-            ← Back to marketplace
+          <Link
+            href="/"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 999, border: '1.5px solid var(--brown)', fontSize: 13.5, fontWeight: 700, color: 'var(--brown)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+            Switch to the shop
           </Link>
           <button
             onClick={() => handleLogout(signOut, router)}

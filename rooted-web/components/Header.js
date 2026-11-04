@@ -16,7 +16,6 @@ import { ONBOARDING_URL } from '@/lib/config';
 const NAV_LINKS = [
   { href: '/', label: 'Marketplace' },
   { href: '#how-it-works', label: 'How It Works' },
-  { href: ONBOARDING_URL, label: 'For Creators' },
 ];
 
 export default function Header() {
@@ -24,7 +23,7 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const isHome = pathname === '/';
-  // On /login the page itself already offers Log In and Sign Up, so a signed-out visitor only gets a "Back to Join" button up here.
+  // On /login the page itself already offers Log In and Sign Up, so a signed-out visitor only gets a "Back to the marketplace" button up here.
   const hideAuthButtons = pathname === '/login' && !session;
   // Creators have a storefront avatar (public bucket); Seekers/Assistants
   // have a profile picture from /complete-profile instead (private bucket,
@@ -81,8 +80,13 @@ export default function Header() {
               <Link href="/login" style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 Log In
               </Link>
-              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-small">
-                Become a Creator
+              <Link href="/login?tab=signup" className="btn btn-primary btn-small">
+                Create free account
+              </Link>
+              <span aria-hidden="true" style={{ width: 1, height: 28, background: '#E8CDA8' }} />
+              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--brown)' }}>
+                Sell on Rooted Together
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
               </a>
             </>
           )}
@@ -117,11 +121,11 @@ export default function Header() {
           )}
         </div>
 
-        {/* On /login a signed-out visitor gets one button back to the join site (shown on phones too). */}
+        {/* On /login a signed-out visitor gets one button back to the marketplace (shown on phones too). */}
         {hideAuthButtons && (
-          <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-small">
-            Back to Join
-          </a>
+          <Link href="/" className="btn btn-outline btn-small">
+            Back to the marketplace
+          </Link>
         )}
 
         {/* Mobile: a single hamburger toggles a dropdown with everything
@@ -168,9 +172,10 @@ export default function Header() {
 
           {!session ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+              <Link href="/login?tab=signup" onClick={() => setMenuOpen(false)} className="btn btn-primary">Create free account</Link>
               <Link href="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline">Log In</Link>
-              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} className="btn btn-primary">
-                Become a Creator
+              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, marginTop: 4, fontSize: 14.5, fontWeight: 600, color: 'var(--brown)' }}>
+                Sell on Rooted Together ↗
               </a>
             </div>
           ) : (

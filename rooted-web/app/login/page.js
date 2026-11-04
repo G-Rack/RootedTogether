@@ -8,6 +8,9 @@ import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
 import StoreBadges from '@/components/StoreBadges';
 import DateOfBirthField from '@/components/DateOfBirthField';
+import SignupChooser from '@/components/SignupChooser';
+import BuyerSignupForm from '@/components/BuyerSignupForm';
+import { safeNext } from '@/lib/buyerAccount';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
 // The signup flow's role keys match what the submit-signup Edge Function
@@ -33,6 +36,16 @@ function LoginPageInner() {
   const [tab, setTab] = useState(searchParams.get('tab') === 'signup' ? 'signup' : 'login');
   // The join-first screen needs the whole page width, so it asks the shell to go wide.
   const [wide, setWide] = useState(false);
+  // Sign Up starts with a choice: buyer (free) or creator (membership). Someone
+  // arriving from a payment link or an invitation is already a creator.
+  const forcedCreator = Boolean(searchParams.get('session_id') || searchParams.get('invite'));
+  const pathParam = searchParams.get('path');
+  const [signupPath, setSignupPath] = useState(
+    forcedCreator || pathParam === 'creator' ? 'creator' : pathParam === 'buyer' ? 'buyer' : null,
+  );
+  const next = safeNext(searchParams.get('next'));
+  const showChooser = tab === 'signup' && !signupPath;
+  const useWideLayout = tab === 'signup' && (showChooser || (signupPath === 'creator' && wide));
 
   return (
     <div className="login-shell login-shell-wide" style={{ width: '100%', minHeight: 'calc(100vh - 76px)' }}>
@@ -70,7 +83,7 @@ function LoginPageInner() {
             className={`login-tab${tab === 'signup' ? ' is-active' : ''}`}
             role="tab"
             aria-selected={tab === 'signup'}
-            onClick={() => setTab('signup')}
+            onClick={() => { setTab('signup'); if (!forcedCreator && !pathParam) setSignupPath(null); }}
             style={{
               background: 'none',
               border: 'none',
@@ -97,15 +110,37 @@ function LoginPageInner() {
             </p>
           </div>
         )}
-        <div
-          style={
-            tab === 'signup' && wide
-              ? undefined
-              : { width: '100%', maxWidth: 520, margin: '0 auto', background: '#fff', border: '1px solid #EADBC8', borderRadius: 28, padding: 'clamp(24px, 5vw, 40px)' }
-          }
-        >
-          {tab === 'login' ? <LoginForm router={router} /> : <SignupForm router={router} onWide={setWide} />}
-        </div>
+        {tab === 'signup' && signupPath && !forcedCreator && (
+          <div style={{ width: '100%', maxWidth: signupPath === 'creator' && wide ? 1000 : 520, margin: '0 auto 14px' }}>
+            <button
+              type="button"
+              onClick={() => setSignupPath(null)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6F5846' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+              Choose another way
+            </button>
+          </div>
+        )}
+        {showChooser ? (
+          <SignupChooser onBuyer={() => setSignupPath('buyer')} onCreator={() => setSignupPath('creator')} />
+        ) : (
+          <div
+            style={
+              useWideLayout
+                ? undefined
+                : { width: '100%', maxWidth: 520, margin: '0 auto', background: '#fff', border: '1px solid #EADBC8', borderRadius: 28, padding: 'clamp(24px, 5vw, 40px)' }
+            }
+          >
+            {tab === 'login' ? (
+              <LoginForm router={router} next={next} />
+            ) : signupPath === 'buyer' ? (
+              <BuyerSignup router={router} next={next} referralCode={searchParams.get('ref') || ''} />
+            ) : (
+              <SignupForm router={router} onWide={setWide} />
+            )}
+          </div>
+        )}
 
         {/* Brand + app downloads. The footer's own copy is hidden on this page so it appears once. */}
         <style>{'.footer-brand{display:none !important;}'}</style>
@@ -123,7 +158,20 @@ function LoginPageInner() {
   );
 }
 
-function LoginForm({ router }) {
+function BuyerSignup({ router, next, referralCode }) {
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brown)' }}>Free account</div>
+      <h1 className="serif" style={{ margin: '10px 0 0', fontSize: 'clamp(28px, 4vw, 36px)', lineHeight: 1.1, letterSpacing: '-0.015em', fontWeight: 700 }}>Create your account</h1>
+      <p className="muted" style={{ margin: '10px 0 22px', fontSize: 15.5, lineHeight: 1.55 }}>
+        Free, with no membership fee. You only pay for what you choose to buy.
+      </p>
+      <BuyerSignupForm referralCode={referralCode} submitLabel="Create account" onDone={() => router.push(next || '/')} />
+    </div>
+  );
+}
+
+function LoginForm({ router, next }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -150,7 +198,7 @@ function LoginForm({ router }) {
     // of the public homepage.
     const { data: isCreator } = await supabase.rpc('is_valid_creator', { check_auth_id: data.user.id });
     setBusy(false);
-    router.push(isCreator ? '/dashboard' : '/');
+    router.push(next || (isCreator ? '/dashboard' : '/'));
   };
 
   const submitForgot = async (e) => {

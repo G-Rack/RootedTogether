@@ -59,12 +59,13 @@ export default function MarketSidebar({ filter, onFilter, open, onClose, session
 
         <div style={{ flex: 1 }} />
 
-        <div className="home-promo" style={{ borderRadius: 20, background: 'rgba(251,246,239,.08)', padding: 16 }}>
+        <div className="home-promo" style={{ borderRadius: 20, background: 'rgba(251,246,239,.08)', padding: 16, border: isCreator ? '1.5px solid #C8923F' : undefined }}>
           {isCreator ? (
             <>
-              <div className="serif" style={{ fontWeight: 700, fontSize: 17, color: '#FBF6EF' }}>Your creator dashboard</div>
-              <p style={{ margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.5 }}>Manage your offerings, payouts and storefront.</p>
-              <Link href="/dashboard" className="home-promo-btn">Open dashboard</Link>
+              <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, background: '#C8923F', color: '#2E1B10', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em' }}>CREATOR</span>
+              <div className="serif" style={{ marginTop: 8, fontWeight: 700, fontSize: 17, color: '#FBF6EF' }}>Your creator dashboard</div>
+              <p style={{ margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.5 }}>Manage your offerings, payouts and storefront. You are in the shop right now.</p>
+              <Link href="/dashboard" className="home-promo-btn">Open creator dashboard</Link>
             </>
           ) : (
             <>

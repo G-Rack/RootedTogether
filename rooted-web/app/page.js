@@ -2,47 +2,15 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import OfferingCard from '@/components/OfferingCard';
-import CreatorCard from '@/components/CreatorCard';
-import StoreBadges from '@/components/StoreBadges';
-import TestimonialForm from '@/components/TestimonialForm';
-import { OFFERING_TYPE_LABELS } from '@/lib/roles';
-import { OFFERING_TYPES, OFFERING_TYPE_KEYS } from '@/lib/offeringTypes';
+import { OFFERING_TYPE_KEYS } from '@/lib/offeringTypes';
 import { useSession } from '@/components/SessionProvider';
 import SignedInHome from '@/components/SignedInHome';
-import TypeIcon from '@/components/TypeIcon';
+import SignedOutHome from '@/components/SignedOutHome';
 import { fetchMarketStats } from '@/lib/reviews';
-import { ONBOARDING_URL } from '@/lib/config';
 import { fetchProIds } from '@/lib/pro';
 
 const TYPE_FILTERS = ['all', ...OFFERING_TYPE_KEYS];
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'popular', label: 'Most popular' },
-  { value: 'rating', label: 'Top rated' },
-  { value: 'price-low', label: 'Price: low to high' },
-  { value: 'price-high', label: 'Price: high to low' },
-];
-
-const CATEGORIES = OFFERING_TYPES.map((t) => ({
-  type: t.key,
-  title: t.plural,
-  body: t.blurb,
-  icon: (
-    <span style={{ color: '#6B4226', display: 'flex' }}>
-      <TypeIcon name={t.key} size={26} />
-    </span>
-  ),
-}));
-
-const FALLBACK_TESTIMONIALS = [
-  { quote: '"Zee’s routine gave my mornings a shape they never had. I finally feel steady."', name: 'Maria Chen', who: 'Seeker' },
-  { quote: '"Booking a call with Pastor Grant took two minutes. The conversation changed my week."', name: 'David Okafor', who: 'Assistant' },
-  { quote: '"I built my first course in an afternoon and it’s still reaching people I’ll never meet in person."', name: 'Daniel Reyes', who: 'Spiritual Leader' },
-];
 
 function HomePageInner() {
   const searchParams = useSearchParams();
@@ -56,7 +24,7 @@ function HomePageInner() {
   const [filter, setFilter] = useState(TYPE_FILTERS.includes(searchParams.get('type')) ? searchParams.get('type') : 'all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('newest');
-  const [testimonials, setTestimonials] = useState(FALLBACK_TESTIMONIALS);
+  const [testimonials, setTestimonials] = useState([]);
 
   // Sidebar and pills both go through here so the address bar follows the filter.
   const selectType = (t) => {
@@ -203,243 +171,22 @@ function HomePageInner() {
   }
 
   return (
-    <main>
-      {/* Hero */}
-      <div style={{ background: 'linear-gradient(160deg, var(--brown) 0%, var(--brown-light) 100%)', color: 'var(--white)' }}>
-        <div className="container" style={{ paddingBlock: '72px 64px', display: 'grid', gridTemplateColumns: '1fr', gap: 22 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.14)', borderRadius: 999, padding: '7px 14px', alignSelf: 'flex-start' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.3 }}>ONE ACCOUNT, APP + WEB</span>
-          </div>
-          <div className="serif" style={{ fontSize: 'clamp(28px, 6vw, 44px)', fontWeight: 700, lineHeight: 1.18, maxWidth: 640 }}>
-            Faith-filled mentorship, gathered in one marketplace
-          </div>
-          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.88)', maxWidth: 560, lineHeight: 1.6 }}>
-            Spiritual Mothers, Pastors, and Leaders share courses, ebooks, audiobooks, printables, daily routines, and 1:1 guidance with the
-            seekers and assistants walking alongside them — sold, gifted, and booked right here.
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
-            <a href="#offerings" className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
-              Explore the Marketplace
-            </a>
-            <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn" style={{ border: '1px solid rgba(255,255,255,0.5)', color: 'var(--white)' }}>
-              Become a Creator
-            </a>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <StoreBadges tone="onDark" />
-          </div>
-          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)' }}>
-            Already on the Rooted Together app? Your login works here too.
-          </div>
-        </div>
-      </div>
-
-      <div className="container" style={{ paddingBlock: '56px 0' }}>
-        {/* Browse by offering */}
-        <div className="serif" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brown)', marginBottom: 28 }}>
-          Browse by offering
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginBottom: 60 }}>
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.type}
-              onClick={() => setFilter(c.type)}
-              className="card"
-              style={{ padding: '26px 22px', display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left', border: filter === c.type ? '1.5px solid var(--brown)' : undefined }}
-            >
-              {c.icon}
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{c.title}</div>
-              <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>{c.body}</div>
-            </button>
-          ))}
-        </div>
-
-        {/* Creators */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 22 }}>
-          <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)' }}>
-            Meet the Mothers, Pastors &amp; Leaders
-          </div>
-        </div>
-
-        {loading && <div className="skeleton" style={{ height: 140, marginBottom: 64 }} />}
-
-        {!loading && creators.length === 0 && (
-          <div className="muted" style={{ marginBottom: 64 }}>No storefronts yet — check back soon.</div>
-        )}
-
-        {!loading && creators.length > 0 && (
-          <div className="grid-cards" style={{ marginBottom: 64 }}>
-            {orderedCreators.map((s) => (
-              <CreatorCard
-                key={s.auth_user_id}
-                creator={profileByAuthId[s.auth_user_id]}
-                handle={s.handle}
-                avatarPath={s.avatar_path}
-                bannerPath={s.banner_path}
-                isPro={proIds.has(s.auth_user_id)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Offerings */}
-        <div id="offerings" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18 }}>
-          <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)' }}>
-            Explore offerings
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-          {TYPE_FILTERS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setFilter(t)}
-              className={filter === t ? 'btn btn-primary btn-small' : 'btn btn-outline btn-small'}
-            >
-              {t === 'all' ? 'All' : OFFERING_TYPE_LABELS[t]}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', gap: 12, marginBottom: 26, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ width: 320, maxWidth: '100%' }}>
-            <input
-              className="input-field"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search offerings or creators…"
-            />
-          </div>
-          <div style={{ width: 200, maxWidth: '100%' }}>
-            <select
-              className="input-field"
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          {query && (
-            <span className="muted" style={{ fontSize: 12.5 }}>
-              {filteredOfferings.length} {filteredOfferings.length === 1 ? 'result' : 'results'} for &ldquo;{query}&rdquo;
-            </span>
-          )}
-        </div>
-
-        {loading && (
-          <div className="grid-cards" style={{ marginBottom: 60 }}>
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton" style={{ height: 240 }} />
-            ))}
-          </div>
-        )}
-
-        {!loading && filteredOfferings.length === 0 && (
-          <div className="muted" style={{ marginBottom: 60 }}>
-            {query ? 'Nothing matches your search.' : 'Nothing published in this category yet.'}
-          </div>
-        )}
-
-        {!loading && filteredOfferings.length > 0 && (
-          <div className="grid-cards" style={{ marginBottom: 60 }}>
-            {filteredOfferings.map((o) => (
-              <OfferingCard
-                key={o.id}
-                offering={o}
-                creatorName={profileByAuthId[o.creator_auth_id]?.name}
-                stats={marketStats[o.id]}
-                isPro={proIds.has(o.creator_auth_id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* How it works */}
-      <div id="how-it-works" className="section-x" style={{ paddingBlock: '56px', background: 'var(--cream-dark)' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-          <div className="serif" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brown)', marginBottom: 32, textAlign: 'center' }}>
-            How Rooted Together works
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 48 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--brown-light)', letterSpacing: 0.4, textTransform: 'uppercase' }}>
-                For Seekers &amp; Assistants
-              </div>
-              <Step n={1}>Browse Mothers, Pastors, and Leaders and discover their courses, ebooks, audiobooks, printables, routines, and calls.</Step>
-              <Step n={2}>Purchase or book with the same account you use on the Rooted Together app.</Step>
-              <Step n={3}>Grow through what you buy — plus whatever your own Spiritual Family shares for free.</Step>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--brown-light)', letterSpacing: 0.4, textTransform: 'uppercase' }}>
-                For Mothers, Pastors &amp; Leaders
-              </div>
-              <Step n={1}>Build your storefront — banner, photo, and the story of your ministry.</Step>
-              <Step n={2}>Upload courses, ebooks, audiobooks, printables, templates, and routines, and open your calendar for 1:1 calls.</Step>
-              <Step n={3}>Sell to the marketplace, and give anything free to your own Spiritual Family.</Step>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Testimonials */}
-      <div className="container" style={{ paddingBlock: '56px' }}>
-        <div className="serif" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brown)', marginBottom: 28, textAlign: 'center' }}>
-          What people are saying
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-          {testimonials.map((t, i) => (
-            <div key={i} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6, fontStyle: 'italic' }}>{t.quote}</div>
-              <div className="muted" style={{ fontSize: 12.5 }}>— {t.name}{t.who ? `, ${t.who}` : ''}</div>
-            </div>
-          ))}
-        </div>
-        <TestimonialForm />
-      </div>
-
-      {/* Final CTA */}
-      <div className="section-x" style={{ background: 'var(--brown)', paddingBlock: '56px', textAlign: 'center' }}>
-        <div className="serif" style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 700, color: 'var(--white)', marginBottom: 10 }}>
-          Ready to grow — or to share what God&rsquo;s given you?
-        </div>
-        <div style={{ fontSize: 14.5, color: 'rgba(255,255,255,0.85)', marginBottom: 26 }}>
-          Open your own storefront with a one-time $49 membership.
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="btn" style={{ background: 'var(--white)', color: 'var(--brown)' }}>
-            Become a Creator
-          </a>
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function Step({ n, children }) {
-  return (
-    <div style={{ display: 'flex', gap: 14 }}>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 999,
-          background: 'var(--brown)',
-          color: 'var(--white)',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 13,
-          fontWeight: 700,
-        }}
-      >
-        {n}
-      </div>
-      <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.5, paddingTop: 4 }}>{children}</div>
-    </div>
+    <SignedOutHome
+      loading={loading}
+      filter={filter}
+      onFilter={selectType}
+      query={query}
+      setQuery={setQuery}
+      sort={sort}
+      setSort={setSort}
+      offerings={filteredOfferings}
+      allOfferings={offerings}
+      creators={orderedCreators}
+      profileByAuthId={profileByAuthId}
+      marketStats={marketStats}
+      proIds={proIds}
+      testimonials={testimonials}
+    />
   );
 }
 

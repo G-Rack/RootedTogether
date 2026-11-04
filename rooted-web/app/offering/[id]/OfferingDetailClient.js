@@ -13,6 +13,7 @@ import ShareButtons from '@/components/ShareButtons';
 import CourseLessonsViewer from '@/components/CourseLessonsViewer';
 import AudiobookPlayer from '@/components/AudiobookPlayer';
 import CoverImage from '@/components/CoverImage';
+import AuthGateModal from '@/components/AuthGateModal';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 
 // Files live on another domain (Supabase Storage), where a plain <a download>
@@ -60,6 +61,8 @@ export default function OfferingDetailClient() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [buying, setBuying] = useState(false);
+  // "Almost there": signed-out visitors make a free account here instead of being sent away.
+  const [gateOpen, setGateOpen] = useState(false);
   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [tab, setTab] = useState('description');
@@ -245,7 +248,7 @@ export default function OfferingDetailClient() {
 
   const handleBuy = async () => {
     if (!session) {
-      router.push('/login');
+      setGateOpen(true);
       return;
     }
     setError('');
@@ -361,6 +364,17 @@ export default function OfferingDetailClient() {
 
   return (
     <div className="container" style={{ paddingBlock: '28px 64px' }}>
+      <AuthGateModal
+        open={gateOpen}
+        onClose={() => setGateOpen(false)}
+        onSignedIn={() => {
+          setGateOpen(false);
+          setError('');
+          setNotice(`You’re signed in. Tap ${isCall ? '“Reserve & Pay”' : isFreeItem ? '“Download”' : '“Buy Now”'} to finish.`);
+        }}
+        offeringTitle={offering.title}
+        priceLabel={isFreeItem ? 'Free' : formatPrice(offering.price_cents)}
+      />
       <div className="muted" style={{ fontSize: 13, marginBottom: 20 }}>
         <Link href="/">Marketplace</Link>
         {storefront && (
@@ -611,7 +625,7 @@ export default function OfferingDetailClient() {
               : freeForYou
                 ? 'No payment needed — this one’s free for you.'
                 : isFreeItem
-                  ? (session ? 'Free — no payment needed.' : 'Free — log in to download.')
+                  ? (session ? 'Free — no payment needed.' : 'Free — a free account saves it to your library.')
                   : 'Secure checkout powered by Stripe.'}
           </div>
 
