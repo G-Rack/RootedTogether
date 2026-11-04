@@ -6,7 +6,7 @@
 // shows a "Sample data" label.
 //
 // To switch off after recording, set DEMO_SALES_ENABLED to false and ship.
-export const DEMO_SALES_ENABLED = true;
+export const DEMO_SALES_ENABLED = false;
 
 const DEMO_ACCOUNT_ID = 'c69eae27-7162-4c6f-b2df-fb5f5cfd5c7a'; // sara-test
 const DEMO_SALE_COUNT = 15;
