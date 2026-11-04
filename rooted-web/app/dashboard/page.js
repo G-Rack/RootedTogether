@@ -147,7 +147,7 @@ export default function DashboardOverviewPage() {
         )}
       </div>
 
-      {storefront && <StorefrontLinkCard handle={storefront.handle} name={profile?.full_name} />}
+      {storefront && <StorefrontLinkCard storefront={storefront} name={profile?.full_name} role={profile?.role} offerings={offerings} />}
 
       {isPro ? (
         <div className="card" style={{ padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
