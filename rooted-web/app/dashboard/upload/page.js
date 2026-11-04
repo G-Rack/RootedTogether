@@ -11,7 +11,7 @@ import { fetchLessons, deleteLesson } from '@/lib/lessons';
 import { fetchPayoutsEnabled, setPendingPublish } from '@/lib/payouts';
 import CoverImage from '@/components/CoverImage';
 import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/CourseLessonsEditor';
-import AudiobookTracksEditor, { trackFromRow } from '@/components/AudiobookTracksEditor';
+import AudiobookTracksEditor, { newTrackSlot, trackFromRow } from '@/components/AudiobookTracksEditor';
 
 const TYPES = OFFERING_TYPE_KEYS;
 // Smallest price a paid item can have. Free items (price 0) are still allowed.
@@ -87,7 +87,7 @@ function UploadPageInner() {
   const [lessons, setLessons] = useState(() => [newLessonSlot()]);
   const [removedLessons, setRemovedLessons] = useState([]);
   // Audiobook chapters (audio tracks) and the ones removed since the last save.
-  const [tracks, setTracks] = useState([]);
+  const [tracks, setTracks] = useState(() => [newTrackSlot()]);
   const [removedTracks, setRemovedTracks] = useState([]);
   // null = still checking. Paid items can only be published once Stripe payouts are connected.
   const [payoutsReady, setPayoutsReady] = useState(null);
@@ -118,7 +118,10 @@ function UploadPageInner() {
       setCalendlyUrl(o.calendly_url || '');
       setCallDuration(o.call_duration_minutes ? String(o.call_duration_minutes) : '30');
       setIsFreeForFamily(o.is_free_for_family);
-      if (o.type === 'audio') setTracks(lessonRows.filter((l) => l.kind === 'audio').map(trackFromRow));
+      if (o.type === 'audio') {
+        const audioRows = lessonRows.filter((l) => l.kind === 'audio');
+        if (audioRows.length > 0) setTracks(audioRows.map(trackFromRow));
+      }
       else if (lessonRows.length > 0) setLessons(lessonRows.map(lessonFromRow));
       setContentUrl(content?.content_url || '');
       if (content?.content_url) {
@@ -179,14 +182,22 @@ function UploadPageInner() {
         return;
       }
       if (status === 'published') {
-        if (tracks.length === 0 && !contentUrl) {
-          setError('Add at least one audio chapter before you publish.');
+        const hasAudio = tracks.some((x) => x.id);
+        if (!hasAudio && !contentUrl) {
+          setError('Add at least one chapter with an audio file before you publish.');
           return;
         }
-        const t = tracks.findIndex((x) => !x.title.trim());
-        if (t !== -1) {
-          setError(`Give chapter ${t + 1} a title before publishing.`);
-          return;
+        if (hasAudio) {
+          const n = tracks.findIndex((x) => !x.id);
+          if (n !== -1) {
+            setError(`Chapter ${n + 1} needs an audio file before you can publish (or lower the number of chapters).`);
+            return;
+          }
+          const t = tracks.findIndex((x) => !x.title.trim());
+          if (t !== -1) {
+            setError(`Give chapter ${t + 1} a title before publishing.`);
+            return;
+          }
         }
       }
     }
@@ -468,7 +479,7 @@ function UploadPageInner() {
           </div>
         ) : type === 'audio' ? (
           <>
-            {contentUrl && tracks.length === 0 && (
+            {contentUrl && !tracks.some((t) => t.id) && (
               <div className="muted" style={{ fontSize: 12.5 }}>
                 This audio currently has one file attached ({contentFileName || 'uploaded file'}). Buyers keep access to it;
                 add chapters below to turn it into an audiobook.
