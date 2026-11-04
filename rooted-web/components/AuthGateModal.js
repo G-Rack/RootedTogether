@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import BuyerSignupForm from '@/components/BuyerSignupForm';
 import PasswordField from '@/components/PasswordField';
 import { signInWithEmail } from '@/lib/buyerAccount';
+import SocialAuthButtons from '@/components/SocialAuthButtons';
 
 // "Almost there": shown when a signed-out visitor taps Buy or Download on an
 // offering. They can make a free account, or log in, without leaving the page.
@@ -79,7 +80,7 @@ export default function AuthGateModal({ open, onClose, onSignedIn, offeringTitle
         </p>
 
         {mode === 'signup' ? (
-          <BuyerSignupForm onDone={onSignedIn} />
+          <BuyerSignupForm onDone={onSignedIn} next={returnPath()} />
         ) : (
           <LoginInline onDone={onSignedIn} />
         )}
@@ -102,6 +103,12 @@ export default function AuthGateModal({ open, onClose, onSignedIn, offeringTitle
   );
 }
 
+// Where Google / Apple should bring the person back to: this same page.
+function returnPath() {
+  if (typeof window === 'undefined') return '';
+  return `${window.location.pathname}${window.location.search}`;
+}
+
 function LoginInline({ onDone }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -122,6 +129,8 @@ function LoginInline({ onDone }) {
   };
 
   return (
+    <>
+    <SocialAuthButtons next={returnPath()} />
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {error && <div className="error-banner" role="alert">{error}</div>}
       <div>
@@ -136,5 +145,6 @@ function LoginInline({ onDone }) {
         {busy ? 'Logging in…' : 'Log in'}
       </button>
     </form>
+    </>
   );
 }

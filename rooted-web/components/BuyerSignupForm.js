@@ -4,11 +4,12 @@ import { useState } from 'react';
 import PasswordField from '@/components/PasswordField';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import { createBuyerAccount } from '@/lib/buyerAccount';
+import SocialAuthButtons from '@/components/SocialAuthButtons';
 
 // The short, free sign-up for people who are here to buy. Used on the sign-up
 // page and inside the "Almost there" window on an offering. Calls onDone(true)
 // when the account exists and the person is signed in.
-export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel = 'Create account' }) {
+export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel = 'Create account', next = '' }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState('');
@@ -38,6 +39,8 @@ export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel
   };
 
   return (
+    <>
+    <SocialAuthButtons next={next} referralCode={referralCode} />
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {error && <div className="error-banner" role="alert">{error}</div>}
       <div>
@@ -73,5 +76,6 @@ export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel
         <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>Privacy Policy</a>.
       </p>
     </form>
+    </>
   );
 }

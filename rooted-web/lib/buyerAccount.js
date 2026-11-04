@@ -53,3 +53,18 @@ export async function signInWithEmail({ email, password }) {
   }
   return { ok: true };
 }
+
+// Google / Apple sign-in. The browser leaves for the provider and comes back to
+// /finish-account, which completes the free buyer account if it is a new person.
+export async function signInWithProvider(provider, { next, referralCode } = {}) {
+  const params = new URLSearchParams();
+  const safe = safeNext(next);
+  if (safe) params.set('next', safe);
+  if (referralCode) params.set('ref', referralCode);
+  const qs = params.toString();
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: `${window.location.origin}/finish-account${qs ? `?${qs}` : ''}` },
+  });
+  return { error: error ? error.message : null };
+}

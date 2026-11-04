@@ -31,3 +31,8 @@ export const PRO_UPGRADE_URL = 'https://buy.stripe.com/4gMeVeaY8cxzgWTg9c0gw04';
 // update their card or cancel. Invited creators (free Pro) have no billing, so it finds nothing for them.
 export const BILLING_PORTAL_URL = 'https://billing.stripe.com/p/login/00w14o9U45573639KO0gw00';
 export const PRO_JOIN_URL = 'https://buy.stripe.com/5kQ00k8Q0fJLayv4qu0gw05'; // $88 first year ($49 once + $39 a year), for new creators (the join site has its own copy)
+
+// "Continue with Google" / "Continue with Apple" on the sign-up and log-in screens.
+// Leave both false until the provider is switched on in Supabase (Authentication >
+// Sign In / Providers). Flip each one to true once it works there; the buttons then appear.
+export const SOCIAL_LOGIN = { google: false, apple: false };

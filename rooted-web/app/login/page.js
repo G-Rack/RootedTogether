@@ -10,6 +10,7 @@ import StoreBadges from '@/components/StoreBadges';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import SignupChooser from '@/components/SignupChooser';
 import BuyerSignupForm from '@/components/BuyerSignupForm';
+import SocialAuthButtons from '@/components/SocialAuthButtons';
 import { safeNext } from '@/lib/buyerAccount';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
@@ -166,7 +167,7 @@ function BuyerSignup({ router, next, referralCode }) {
       <p className="muted" style={{ margin: '10px 0 22px', fontSize: 15.5, lineHeight: 1.55 }}>
         Free, with no membership fee. You only pay for what you choose to buy.
       </p>
-      <BuyerSignupForm referralCode={referralCode} submitLabel="Create account" onDone={() => router.push(next || '/')} />
+      <BuyerSignupForm referralCode={referralCode} next={next || ''} submitLabel="Create account" onDone={() => router.push(next || '/')} />
     </div>
   );
 }
@@ -266,6 +267,8 @@ function LoginForm({ router, next }) {
   }
 
   return (
+    <>
+    <SocialAuthButtons next={next || ''} />
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {error && <div className="error-banner">{error}</div>}
       <div>
@@ -300,6 +303,7 @@ function LoginForm({ router, next }) {
         {busy ? 'Logging in…' : 'Log In'}
       </button>
     </form>
+    </>
   );
 }
 
