@@ -8,6 +8,7 @@ import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import FoundingPledgeCard from '@/components/FoundingPledgeCard';
 import ProUpgradeBanner from '@/components/ProUpgradeBanner';
 import ProBadge from '@/components/ProBadge';
+import StorefrontLinkCard from '@/components/StorefrontLinkCard';
 import { PRO_UPGRADE_URL, BILLING_PORTAL_URL } from '@/lib/config';
 import { proUpgradeUrlFor } from '@/lib/proLinks';
 
@@ -145,6 +146,8 @@ export default function DashboardOverviewPage() {
           <Link href="/dashboard/branding" className="btn btn-outline btn-small">Set up your storefront</Link>
         )}
       </div>
+
+      {storefront && <StorefrontLinkCard handle={storefront.handle} name={profile?.full_name} />}
 
       {isPro ? (
         <div className="card" style={{ padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
