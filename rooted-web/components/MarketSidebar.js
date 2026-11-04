@@ -19,6 +19,7 @@ export default function MarketSidebar({ filter, onFilter, open, onClose, session
     <>
       <div className={`home-scrim${open ? ' open' : ''}`} onClick={onClose} />
       <aside className={`home-sidebar${open ? ' open' : ''}`} aria-label="Marketplace menu">
+        <div className="home-sidebar-inner">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <Link href="/" onClick={() => pick('all')} className="serif rt-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px', fontWeight: 700, fontSize: 21, color: '#FBF6EF' }}>
             <span className="rt-mark">RT</span>
@@ -58,7 +59,7 @@ export default function MarketSidebar({ filter, onFilter, open, onClose, session
 
         <div style={{ flex: 1 }} />
 
-        <div style={{ borderRadius: 20, background: 'rgba(251,246,239,.08)', padding: 16 }}>
+        <div className="home-promo" style={{ borderRadius: 20, background: 'rgba(251,246,239,.08)', padding: 16 }}>
           {isCreator ? (
             <>
               <div className="serif" style={{ fontWeight: 700, fontSize: 17, color: '#FBF6EF' }}>Your creator dashboard</div>
@@ -94,6 +95,7 @@ export default function MarketSidebar({ filter, onFilter, open, onClose, session
           <button type="button" className="home-logout" onClick={onSignOut} aria-label="Log out">
             <TypeIcon name="logout" />
           </button>
+        </div>
         </div>
       </aside>
     </>

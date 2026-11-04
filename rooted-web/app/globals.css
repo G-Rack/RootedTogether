@@ -28,6 +28,8 @@ html, body {
      sideways instead of it staying put. */
   max-width: 100%;
   overflow-x: hidden;
+  /* `clip` stops sideways scroll like `hidden` does, but doesn't turn the page into a scroll container, so position: sticky (the home sidebar) works. */
+  overflow-x: clip;
 }
 
 a { color: var(--brown); text-decoration: none; }
@@ -534,22 +536,27 @@ input[type="checkbox"] { accent-color: var(--brown); }
 .rt-mark-small { width: 30px; height: 30px; font-size: 12px; }
 .rt-brand { white-space: nowrap; }
 
-.home-shell { display: flex; align-items: flex-start; min-height: 100vh; background: var(--cream); }
+.home-shell { display: flex; align-items: stretch; min-height: 100vh; background: var(--cream); }
 .home-main { flex: 1; min-width: 0; box-sizing: border-box; padding: 28px clamp(20px, 3.5vw, 48px) 40px; }
 .home-mobile-bar { display: none; }
 .home-scrim { display: none; }
 .home-pills { display: none; }
 
 .home-sidebar {
+  /* The dark column stretches the full height of the page; its content stays pinned in view. */
   flex: 0 0 256px;
   width: 256px;
+  box-sizing: border-box;
+  background: #2E1B10;
+  color: #E8CDA8;
+}
+.home-sidebar-inner {
   box-sizing: border-box;
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
-  background: #2E1B10;
-  color: #E8CDA8;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
@@ -753,10 +760,18 @@ input[type="checkbox"] { accent-color: var(--brown); }
     transition: transform 0.2s ease, visibility 0.2s;
   }
   .home-sidebar.open { transform: translateX(0); visibility: visible; box-shadow: 2px 0 20px rgba(0, 0, 0, 0.35); }
+  .home-sidebar-inner { position: static; height: 100%; }
   .home-sidebar-close { display: grid; width: 40px; height: 40px; }
   .home-sidebar .rt-brand { font-size: 19px !important; padding: 0 !important; }
   .home-scrim.open { display: block; position: fixed; inset: 0; height: calc(100vh / var(--ui-zoom, 1)); background: rgba(46, 27, 16, 0.5); z-index: 30; }
   .home-pills { display: flex; gap: 8px; margin: 20px -16px 0; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
   .home-pills::-webkit-scrollbar { display: none; }
   .home-main { padding: 20px 16px 32px; }
+}
+
+/* Short laptop windows: tighten the sidebar and drop the promo card so Log out never needs a scroll. */
+@media (min-width: 861px) and (max-height: 820px) {
+  .home-sidebar-inner { gap: 16px; padding-block: 16px; }
+  .home-nav-link { min-height: 40px; }
+  .home-promo { display: none; }
 }
