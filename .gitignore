@@ -1,2 +1,5 @@
 .vercel
 .env*
+
+# Academy video text slides (not part of the website)
+academy-video-cards/
