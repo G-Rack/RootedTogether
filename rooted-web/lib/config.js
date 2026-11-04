@@ -36,3 +36,12 @@ export const PRO_JOIN_URL = 'https://buy.stripe.com/5kQ00k8Q0fJLayv4qu0gw05'; //
 // Leave both false until the provider is switched on in Supabase (Authentication >
 // Sign In / Providers). Flip each one to true once it works there; the buttons then appear.
 export const SOCIAL_LOGIN = { google: false, apple: false };
+
+// The coming-soon lock (see lib/siteGate.js and proxy.js). While this is false, visitors only see
+// the coming-soon page. On launch day change it to true and run `ship`; the whole site opens.
+// You get in before then by tapping the logo five times and typing the secret code, which is
+// the SITE_ACCESS_CODE environment variable in Vercel.
+export const SITE_LAUNCHED = false;
+
+// Shown on the coming-soon page. Leave a link empty to hide its button.
+export const SOCIAL_LINKS = { instagram: '', tiktok: '' };
