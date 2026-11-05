@@ -24,9 +24,3 @@ export async function POST(request) {
   });
   return res;
 }
-
-// TEMPORARY check: says whether a code is set on this deployment and how long it is (never the code itself).
-export async function GET() {
-  const secret = (process.env.SITE_ACCESS_CODE || '').trim();
-  return NextResponse.json({ configured: secret.length > 0, length: secret.length }, { headers: { 'Cache-Control': 'no-store' } });
-}

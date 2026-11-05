@@ -24,14 +24,14 @@ const PACKAGES: Record<string, Record<string, { name: string; cents: number }>> 
 };
 
 // Only Creator Pro creators can offer these services. Fee: 5% + Stripe's card fee
-// (founding creators: 10% + card fee). Same rule as create-checkout-session.
+// (founding creators have Pro free, so the same 5%). Same rule as create-checkout-session.
 // Fee schedule (US cents). Stripe charges us its card fee on every sale, so each
 // creator tier adds an estimate of it on top of our own cut:
 //   Creator            10% + Stripe's card fee
 //   Creator Pro (paid)  5% + Stripe's card fee
-//   Founding creator   10% + Stripe's card fee. Founding creators are the people who
+//   Founding creator    5% + Stripe's card fee. Founding creators are the people who
 //                      sign up through the private /chosen invitation page. They get
-//                      Creator Pro free, but keep the standard 10% rate, not the Pro 5%.
+//                      Creator Pro free, so they pay the same 5% rate as Pro.
 // Never more than the price itself. To change a rate, edit it here and redeploy.
 const STANDARD_RATE = 0.10;
 const PRO_RATE = 0.05;
@@ -40,30 +40,9 @@ function stripeFeeEstimate(priceCents: number): number {
   return Math.round(priceCents * 0.029) + 30;
 }
 
-function platformFeeCents(priceCents: number, isPro: boolean, isFounding: boolean): number {
-  const rate = isPro && !isFounding ? PRO_RATE : STANDARD_RATE;
+function platformFeeCents(priceCents: number, isPro: boolean): number {
+  const rate = isPro ? PRO_RATE : STANDARD_RATE;
   return Math.min(priceCents, Math.round(priceCents * rate) + stripeFeeEstimate(priceCents));
-}
-
-// True for creators who signed up through the /chosen invitation page (recorded in
-// invitation_signups). If the lookup fails we answer "founding", which is the higher
-// standard fee, never a discount.
-async function isFoundingCreator(supabase: any, creatorAuthId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("invitation_signups")
-      .select("auth_user_id")
-      .eq("auth_user_id", creatorAuthId)
-      .limit(1);
-    if (error) {
-      console.error("Founding lookup failed, using standard fee:", error);
-      return true;
-    }
-    return Array.isArray(data) && data.length > 0;
-  } catch (e) {
-    console.error("Founding lookup failed, using standard fee:", e);
-    return true;
-  }
 }
 
 const CORS_HEADERS = {
@@ -167,9 +146,8 @@ Deno.serve(async (req: Request) => {
   }
   if (!proRow) return jsonResponse({ error: "This creator doesn't offer this service." }, 403);
 
-  // Pro creators pay 5% plus Stripe's card fee; founding creators (invited via /chosen) pay 10% plus the card fee.
-  const isFounding = await isFoundingCreator(supabase, creatorAuthId);
-  const feeCents = platformFeeCents(amountCents, true, isFounding);
+  // Pro creators, including founding creators who have Pro free, pay 5% plus Stripe's card fee.
+  const feeCents = platformFeeCents(amountCents, true);
 
   const { data: row, error: insertError } = await supabase
     .from("service_requests")
