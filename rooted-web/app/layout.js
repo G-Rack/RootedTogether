@@ -3,6 +3,8 @@ import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import GoogleTag from '@/components/GoogleTag';
+import ConsentBanner from '@/components/ConsentBanner';
 
 // Same typefaces as the onboarding site, exposed as CSS variables (see globals.css).
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -44,11 +46,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
+        <GoogleTag />
         <SessionProvider>
           <Header />
           {children}
           <Footer />
         </SessionProvider>
+        <ConsentBanner />
       </body>
     </html>
   );

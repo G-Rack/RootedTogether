@@ -15,6 +15,7 @@ import AudiobookPlayer from '@/components/AudiobookPlayer';
 import CoverImage from '@/components/CoverImage';
 import AuthGateModal from '@/components/AuthGateModal';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
+import { trackPurchase } from '@/lib/tracking';
 
 // Files live on another domain (Supabase Storage), where a plain <a download>
 // is ignored by the browser. Storage honours a ?download=<name> parameter that
@@ -173,6 +174,14 @@ export default function OfferingDetailClient() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, offering, session, purchase]);
+
+  // Back from a successful Stripe Checkout: report the sale to Google Ads. The purchase row's id
+  // is the transaction id, so a refresh never counts it twice.
+  useEffect(() => {
+    if (searchParams.get('purchase') !== 'success' || !offering || !purchase?.id) return;
+    const cents = purchase.price_paid_cents ?? offering.price_cents;
+    trackPurchase({ value: (cents || 0) / 100, currency: 'USD', transactionId: purchase.id, kind: 'offering' });
+  }, [searchParams, offering, purchase]);
 
   useEffect(() => {
     if (!offering) return;

@@ -1,3 +1,5 @@
+import CookieChoices from '@/components/CookieChoices';
+
 export const metadata = {
   title: 'Privacy Policy — Rooted Together',
   description:
@@ -5,7 +7,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = 'admin@rootedtogether.club';
-const EFFECTIVE_DATE = 'October 16, 2026';
+const EFFECTIVE_DATE = 'November 5, 2026';
 
 const sections = [
   {
@@ -47,7 +49,7 @@ const sections = [
     title: 'Who we share information with',
     body: [
       'We do not sell your personal information.',
-      'We use trusted service providers who process information on our behalf: Supabase (accounts, database, and file storage), Stripe (payments and creator payouts on our website), Google Play and the Apple App Store (app subscriptions), RevenueCat (subscription management), Vercel (hosting of our website), and email delivery providers. They may only use your information to provide their services to us.',
+      'We use trusted service providers who process information on our behalf: Supabase (accounts, database, and file storage), Stripe (payments and creator payouts on our website), Google Play and the Apple App Store (app subscriptions), RevenueCat (subscription management), Vercel (hosting of our website), Google (measuring how our adverts perform), and email delivery providers. They may only use your information to provide their services to us.',
       'We may disclose information if required by law, to protect the rights and safety of our members, or as part of a business transfer such as a merger. If that happens, we will tell you before your information becomes subject to a different policy.',
     ],
   },
@@ -65,6 +67,15 @@ const sections = [
       `You can ask us to access, correct, export, or delete your information, or to delete your account, by emailing ${CONTACT_EMAIL} from the email address on your account. We will respond within a reasonable time, and within any period required by law.`,
       'You can choose what you share publicly and unfollow or leave communities at any time.',
       'Depending on where you live, you may have additional rights under local law, such as the right to object to or restrict certain processing. Contact us to exercise them.',
+    ],
+  },
+  {
+    title: 'Cookies and advertising',
+    cookies: true,
+    body: [
+      'We advertise on Google, and our websites (rootedtogether.club and joinrootedtogether.club) use the Google tag to measure how those adverts perform. When you arrive from an advert and then create an account, join our email list or make a purchase, the tag tells Google that it happened, together with the purchase amount, so we can see which adverts work and avoid paying for ones that do not. It uses cookies and similar technology and receives details such as your device, browser and the pages you visit. We do not send Google your name, email address or payment details.',
+      'If you are in the European Union, the European Economic Area, the United Kingdom or Switzerland, we ask first and these cookies stay off until you choose Allow. Everywhere else they are on unless your browser sends a Global Privacy Control signal, which we treat as a request to opt out. The website works the same whichever you choose.',
+      'You can change your choice at any time below, clear the cookies in your browser, or manage how Google uses advertising data in your Google account settings.',
     ],
   },
   {
@@ -117,6 +128,7 @@ export default function PrivacyPage() {
                 {p}
               </p>
             ))}
+            {s.cookies && <CookieChoices />}
           </section>
         ))}
       </article>

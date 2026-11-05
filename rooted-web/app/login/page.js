@@ -10,6 +10,8 @@ import StoreBadges from '@/components/StoreBadges';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import SignupChooser from '@/components/SignupChooser';
 import BuyerSignupForm from '@/components/BuyerSignupForm';
+import { trackSignUp } from '@/lib/tracking';
+import { reportPaymentLinkPurchase } from '@/lib/reportPurchase';
 import SocialAuthButtons from '@/components/SocialAuthButtons';
 import { safeNext } from '@/lib/buyerAccount';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
@@ -577,6 +579,8 @@ function SignupForm({ router, onWide }) {
           setEmail(body.email || '');
           setPaidReferral(body.referralCode || '');
           setGate('ok');
+          // A confirmed, unused payment: report the sale to Google Ads (once per payment).
+          reportPaymentLinkPurchase(sessionId);
         } else if (body.reason === 'claimed') {
           setGate('claimed');
         } else if (res.ok || body.reason) {
@@ -676,6 +680,7 @@ function SignupForm({ router, onWide }) {
         setBusy(false);
         return;
       }
+      trackSignUp('creator');
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       setBusy(false);
       if (signInError) {

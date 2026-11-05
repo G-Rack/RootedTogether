@@ -6,6 +6,7 @@ import { useSession } from '@/components/SessionProvider';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import { safeNext } from '@/lib/buyerAccount';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
+import { trackSignUp } from '@/lib/tracking';
 
 // Where Google and Apple sign-in land. Someone who already has an account goes
 // straight on. A new person confirms their name and date of birth, which makes
@@ -68,6 +69,7 @@ function FinishAccountInner() {
       setError(body.error || "Couldn't finish your account right now.");
       return;
     }
+    trackSignUp('social');
     // A full load so the whole site picks up the new account straight away.
     window.location.assign(next || '/');
   };

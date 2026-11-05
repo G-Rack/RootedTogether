@@ -2,6 +2,8 @@
 // while the site is locked, so none of the real site is loaded for them.
 // Tapping the logo five times reveals a small box for the secret code (handled in /api/gate).
 
+import { GOOGLE_TAG_ID, CONSENT_INIT, SIGNUP_LABEL, CONSENT_KEY } from './tracking';
+
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const INSTAGRAM_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1" fill="currentColor" stroke="none"/></svg>';
@@ -9,7 +11,7 @@ const TIKTOK_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="curren
 const IOS_SVG = '<svg width="28" height="32" viewBox="0 0 30 34" fill="none" aria-hidden="true"><rect x="5" y="2" width="20" height="30" rx="4.5" stroke="#fff" stroke-width="2.4"/><path d="M12 6h6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M15 12v10M10.8 18l4.2 4.2 4.2-4.2" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const PLAY_SVG = '<svg width="28" height="32" viewBox="0 0 30 34" fill="none" aria-hidden="true"><path d="M5 3.8v26.4c0 1.4 1.5 2.2 2.7 1.5l20-13.2c1-.7 1-2.2 0-2.9L7.7 2.3C6.5 1.6 5 2.4 5 3.8z" fill="#fff"/></svg>';
 
-export function comingSoonHtml({ blurb, social = {} }) {
+export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy' }) {
   const year = new Date().getFullYear();
   const links = [
     social.instagram && `<a href="${esc(social.instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${INSTAGRAM_SVG}</a>`,
@@ -17,6 +19,15 @@ export function comingSoonHtml({ blurb, social = {} }) {
   ].filter(Boolean);
   const socialRow = links.length
     ? `<div class="social"><span>Follow along</span><div>${links.join('')}</div></div>`
+    : '';
+
+  const googleHead = GOOGLE_TAG_ID
+    ? `<script>${CONSENT_INIT}</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}"></script>
+<script>gtag('js',new Date());gtag('config','${GOOGLE_TAG_ID}',{linker:{domains:['rootedtogether.club','joinrootedtogether.club']}});</script>`
+    : '';
+  const consentBar = GOOGLE_TAG_ID
+    ? `<div id="consent" role="dialog" aria-label="Cookie choices" hidden><p>We use cookies to measure how our adverts perform. You can say no and everything still works. <a href="${esc(privacyHref)}">Privacy Policy</a></p><div><button type="button" id="consentNo" class="c-no">Decline</button><button type="button" id="consentYes" class="c-yes">Allow</button></div></div>`
     : '';
 
   return `<!doctype html>
@@ -33,6 +44,7 @@ export function comingSoonHtml({ blurb, social = {} }) {
 <meta property="og:type" content="website">
 <meta property="og:image" content="/icon.png">
 <meta name="twitter:card" content="summary">
+${googleHead}
 <link rel="icon" href="/icon.png">
 <link rel="apple-touch-icon" href="/apple-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,6 +93,14 @@ h1{margin:12px 0 0;font-size:clamp(34px,7.4vw,54px);line-height:1.1;font-weight:
 @keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
+#consent{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;max-width:720px;margin:0 auto;background:var(--cream);border:1px solid var(--border);border-radius:18px;box-shadow:0 12px 36px rgba(46,27,16,.22);padding:16px 18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;text-align:left}
+#consent[hidden]{display:none}
+#consent p{margin:0;flex:1 1 320px;font-size:14px;line-height:1.55;color:var(--soft)}
+#consent a,footer a{color:var(--brown);text-decoration:underline}
+#consent div{display:flex;gap:8px}
+#consent button{padding:10px 18px;border-radius:999px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.c-no{background:#fff;color:var(--brown);border:1.5px solid var(--border)}
+.c-yes{background:var(--brown);color:#fff;border:1.5px solid var(--brown)}
 @media (max-width:480px){.row{flex-direction:column}.row button{padding:14px}.badge b{font-size:19px}}
 </style>
 </head>
@@ -121,7 +141,8 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     <div class="msg err" id="gateMsg" role="status" aria-live="polite"></div>
   </form>
 
-  <footer>&copy; ${year} Rooted Together, Inc.</footer>
+  <footer>&copy; ${year} Rooted Together, Inc. &middot; <a href="${esc(privacyHref)}">Privacy Policy</a></footer>
+  ${consentBar}
 </main>
 <script>
 (function () {
@@ -150,6 +171,24 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     }).catch(function () { btn.disabled = false; msg.textContent = 'Could not check the code. Try again.'; });
   });
 
+  function track() {
+    if (typeof window.gtag !== 'function') return;
+    window.gtag('event', 'sign_up', { method: 'waitlist' });
+    ${SIGNUP_LABEL ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}' });` : ''}
+  }
+  var bar = document.getElementById('consent');
+  if (bar && window.__rtAskConsent) {
+    bar.hidden = false;
+    var choose = function (granted) {
+      var v = granted ? 'granted' : 'denied';
+      try { window.localStorage.setItem('${CONSENT_KEY}', v); } catch (e) {}
+      window.gtag('consent', 'update', { ad_storage: v, ad_user_data: v, ad_personalization: v, analytics_storage: v });
+      bar.hidden = true;
+    };
+    document.getElementById('consentNo').addEventListener('click', function () { choose(false); });
+    document.getElementById('consentYes').addEventListener('click', function () { choose(true); });
+  }
+
   document.getElementById('notify').addEventListener('submit', function (e) {
     e.preventDefault();
     var btn = document.getElementById('notifyBtn'), msg = document.getElementById('notifyMsg'), email = document.getElementById('email');
@@ -157,7 +196,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     btn.disabled = true;
     post('/api/waitlist', { email: email.value, website: document.getElementById('website').value }).then(function (j) {
       btn.disabled = false;
-      if (j.ok) { msg.className = 'msg ok'; msg.textContent = 'Thank you. We will email you when we open.'; email.value = ''; }
+      if (j.ok) { track(); msg.className = 'msg ok'; msg.textContent = 'Thank you. We will email you when we open.'; email.value = ''; }
       else { msg.className = 'msg err'; msg.textContent = j.error || 'Something went wrong. Please try again.'; }
     }).catch(function () { btn.disabled = false; msg.className = 'msg err'; msg.textContent = 'Something went wrong. Please try again.'; });
   });
