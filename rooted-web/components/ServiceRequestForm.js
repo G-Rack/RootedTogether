@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { avatarUrl } from '@/lib/storage';
 import { initialsFor, ROLE_LABELS } from '@/lib/roles';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
+import { trackPurchase } from '@/lib/tracking';
 
 const PRAYER_TYPES = [
   { id: 'healing', label: 'Healing' },
@@ -114,6 +115,21 @@ export default function ServiceRequestForm({ serviceKey }) {
   useEffect(() => {
     const result = new URLSearchParams(window.location.search).get('payment');
     if (result === 'success' || result === 'cancelled') setPaymentResult(result);
+    // Back from a paid checkout: report the sale to Google Ads. The package price was saved just
+    // before the buyer left for Stripe; no saved price (for example someone typing ?payment=success
+    // into the address bar) means nothing is reported. The saved id is used once, so a refresh
+    // never counts the sale twice.
+    if (result === 'success') {
+      try {
+        const saved = JSON.parse(window.sessionStorage.getItem('rt_service_pending') || 'null');
+        if (saved && saved.id && saved.value > 0) {
+          window.sessionStorage.removeItem('rt_service_pending');
+          trackPurchase({ value: saved.value, currency: 'USD', transactionId: saved.id, kind: 'service' });
+        }
+      } catch {
+        /* tracking must never get in the way of the page */
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -200,6 +216,14 @@ export default function ServiceRequestForm({ serviceKey }) {
           setBusy(false);
           setError(data.error || "Couldn't start checkout — please try again.");
           return;
+        }
+        try {
+          const pkg = config.packages.find((p) => p.id === selectedPackage);
+          const value = Number(String(pkg?.price || '').replace(/[^0-9.]/g, ''));
+          const id = `svc_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+          if (value > 0) window.sessionStorage.setItem('rt_service_pending', JSON.stringify({ id, value }));
+        } catch {
+          /* ignore: only affects advert measurement */
         }
         window.location.href = data.url;
       } catch {

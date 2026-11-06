@@ -46,7 +46,7 @@ function once(key) {
   return true;
 }
 
-// kind: 'membership' | 'pro' | 'offering'. transactionId must be unique per payment (the Stripe
+// kind: 'membership' | 'pro' | 'offering' | 'service' (prayer and meditation requests). transactionId must be unique per payment (the Stripe
 // session id, or the purchase row id) so a refresh never counts a sale twice.
 export function trackPurchase({ value, currency = 'USD', transactionId, kind = 'offering' }) {
   if (!gtagReady() || !transactionId) return;
