@@ -23,6 +23,7 @@ export const LESSONS = [
     cardSubtitle: 'One short video, one template and five small actions.',
     pill: 'VIDEO COURSE',
     icon: 'course',
+    cover: '/academy/getting-started.jpg', // banner shown on the lesson card and the video tile
     title: 'Sell more from your storefront',
     kind: 'VIDEO COURSE · 5 MINUTES',
     minutes: 5,

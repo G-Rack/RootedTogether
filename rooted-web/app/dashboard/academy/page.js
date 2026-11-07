@@ -34,12 +34,17 @@ function LessonCard({ lesson, done, ready }) {
   const complete = count === keys.length;
   return (
     <Link href={`/dashboard/academy/${lesson.slug}`} className="rt-card" aria-label={`${lesson.cardTitle}. ${count} of ${keys.length} steps done.`}>
-      <div
-        aria-hidden="true"
-        style={{ aspectRatio: '16 / 8', display: 'grid', placeItems: 'center', background: meta?.tint || '#F1E4D3', color: meta?.ink || '#6B4226' }}
-      >
-        <TypeIcon name={lesson.icon} size={38} />
-      </div>
+      {lesson.cover ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={lesson.cover} alt="" style={{ display: 'block', width: '100%', aspectRatio: '16 / 8', objectFit: 'cover' }} />
+      ) : (
+        <div
+          aria-hidden="true"
+          style={{ aspectRatio: '16 / 8', display: 'grid', placeItems: 'center', background: meta?.tint || '#F1E4D3', color: meta?.ink || '#6B4226' }}
+        >
+          <TypeIcon name={lesson.icon} size={38} />
+        </div>
+      )}
       <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{lesson.pill} · {lesson.minutes} MIN</span>
         <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>{lesson.cardTitle}</div>
@@ -79,9 +84,14 @@ export default function AcademyPage() {
             <LessonCard key={l.slug} lesson={l} done={done} ready={loaded} />
           ) : (
             <div key={l.slug} className="rt-card" style={{ opacity: 0.85 }}>
-              <div aria-hidden="true" style={{ aspectRatio: '16 / 8', display: 'grid', placeItems: 'center', background: '#F1E4D3', color: '#6B4226' }}>
-                <TypeIcon name={l.icon} size={38} />
-              </div>
+              {l.cover ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={l.cover} alt="" style={{ display: 'block', width: '100%', aspectRatio: '16 / 8', objectFit: 'cover' }} />
+              ) : (
+                <div aria-hidden="true" style={{ aspectRatio: '16 / 8', display: 'grid', placeItems: 'center', background: '#F1E4D3', color: '#6B4226' }}>
+                  <TypeIcon name={l.icon} size={38} />
+                </div>
+              )}
               <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{l.pill} · {l.minutes} MIN</span>
                 <div className="serif" style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3 }}>{l.cardTitle}</div>

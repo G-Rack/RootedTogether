@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
-import { INTRO_GUIDES } from '@/lib/academy';
+import { INTRO_GUIDES, LESSONS } from '@/lib/academy';
 
 // Free for every creator (Pro or not): the intro video to the creator hub, in two versions.
 export default function GettingStartedPage() {
@@ -61,7 +61,7 @@ export default function GettingStartedPage() {
           {urls === null ? (
             <div className="skeleton" style={{ width: '100%', height: '100%' }} />
           ) : current ? (
-            <video key={pick} src={current} controls playsInline preload="metadata" style={{ width: '100%', height: '100%', background: '#000' }} />
+            <video key={pick} src={current} controls playsInline preload="metadata" poster={LESSONS[0].cover} style={{ width: '100%', height: '100%', background: '#000' }} />
           ) : (
             <div style={{ textAlign: 'center', color: '#FBF6EF', padding: 24 }}>
               <div className="serif" style={{ fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 700 }}>Getting started</div>

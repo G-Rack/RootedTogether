@@ -165,7 +165,7 @@ export default function AcademyLessonPage() {
               onClick={playVideo}
               disabled={busy === 'video'}
               aria-label={`Play ${lesson.title}`}
-              style={{ all: 'unset', cursor: 'pointer', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, textAlign: 'center', padding: 24, boxSizing: 'border-box', background: 'linear-gradient(135deg, #6B4226, #2E1B10)', color: '#FBF6EF' }}
+              style={{ all: 'unset', cursor: 'pointer', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, textAlign: 'center', padding: 24, boxSizing: 'border-box', background: lesson.cover ? `linear-gradient(rgba(46,27,16,0.55), rgba(46,27,16,0.7)), url(${lesson.cover}) center / cover` : 'linear-gradient(135deg, #6B4226, #2E1B10)', color: '#FBF6EF' }}
             >
               <span style={{ width: 76, height: 76, borderRadius: '50%', background: '#C8923F', color: '#2E1B10', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 4 }}><PlayIcon /></span>
               <span className="serif" style={{ fontSize: 'clamp(20px, 3vw, 30px)', fontWeight: 700 }}>{lesson.title}</span>
