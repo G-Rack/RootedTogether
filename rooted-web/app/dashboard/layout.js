@@ -186,9 +186,6 @@ export default function DashboardLayout({ children }) {
           padding: '20px 0 24px',
         }}
       >
-        <div style={{ padding: '0 22px 14px' }}>
-          <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 999, background: '#2E1B10', color: '#C8923F', fontSize: 11, fontWeight: 800, letterSpacing: '0.12em' }}>CREATOR DASHBOARD</span>
-        </div>
         <div
           style={{
             padding: '0 22px 20px',
