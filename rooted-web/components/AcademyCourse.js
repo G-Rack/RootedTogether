@@ -10,15 +10,9 @@ import useAcademyProgress from '@/lib/useAcademyProgress';
 import { lessonStepKeys, lessonMinutes } from '@/lib/academy';
 import { formatBytes } from '@/lib/pro';
 
-async function signedUrl(path) {
-  const { data } = await supabase.storage.from('pro-academy').createSignedUrl(path, 3600);
+async function signedUrl(path, download = false) {
+  const { data } = await supabase.storage.from('pro-academy').createSignedUrl(path, 3600, download ? { download: true } : undefined);
   return data?.signedUrl || null;
-}
-
-function PlayIcon() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
-  );
 }
 
 function DocIcon() {
@@ -45,13 +39,13 @@ function Tick({ on }) {
   );
 }
 
-// A multi-chapter Academy course: chapter list, one video at a time, one action per chapter, one workbook.
+// A multi-chapter Academy course: chapter list, one PDF guide at a time, one action per chapter, one workbook.
 export default function AcademyCourse({ lesson, BackLink }) {
   const { session, isPro } = useSession();
   const { done, loaded, error: progressError, setError: setProgressError, toggleDone } = useAcademyProgress(session, isPro);
-  const [files, setFiles] = useState(null); // path -> size, for files that exist in the bucket
+  const [files, setFiles] = useState(null); // path -> size, for PDFs that exist in the bucket
   const [current, setCurrent] = useState(1);
-  const [videoUrl, setVideoUrl] = useState(null);
+  const [readUrl, setReadUrl] = useState(null);
   const [busy, setBusy] = useState('');
   const [fileError, setFileError] = useState('');
   const error = fileError || progressError;
@@ -60,13 +54,9 @@ export default function AcademyCourse({ lesson, BackLink }) {
     if (!session || !isPro) return undefined;
     let active = true;
     async function load() {
-      const [vids, downs] = await Promise.all([
-        supabase.storage.from('pro-academy').list('videos', { limit: 200 }),
-        supabase.storage.from('pro-academy').list('downloads', { limit: 100 }),
-      ]);
+      const downs = await supabase.storage.from('pro-academy').list('downloads', { limit: 200 });
       if (!active) return;
       const found = {};
-      (vids.data || []).forEach((f) => { found[`videos/${f.name}`] = f.metadata?.size || 0; });
       (downs.data || []).forEach((f) => { found[`downloads/${f.name}`] = f.metadata?.size || 0; });
       setFiles(found);
     }
@@ -93,7 +83,7 @@ export default function AcademyCourse({ lesson, BackLink }) {
             <div key={c.key} style={{ display: 'flex', gap: 14, padding: '14px 20px', borderTop: i ? '1px solid rgba(107,66,38,0.08)' : 'none', alignItems: 'baseline' }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gold)', width: 24 }}>{c.n}</span>
               <span style={{ flex: 1, fontSize: 14.5, fontWeight: 600 }}>{c.title}</span>
-              <span className="muted" style={{ fontSize: 12.5 }}>{c.minutes} min</span>
+              <span className="muted" style={{ fontSize: 12.5 }}>{c.minutes} min read</span>
             </div>
           ))}
         </div>
@@ -104,25 +94,43 @@ export default function AcademyCourse({ lesson, BackLink }) {
   if (!loaded || files === null) return <div className="skeleton" style={{ height: 300 }} />;
 
   const ch = chapters.find((c) => c.n === current) || chapters[0];
-  const hasVideo = files[ch.video] !== undefined;
+  const hasGuide = files[ch.file] !== undefined;
   const hasTemplate = files[tpl.path] !== undefined;
   const isDone = done.has(ch.key);
 
   const selectChapter = (n) => {
     setCurrent(n);
-    setVideoUrl(null);
+    setReadUrl(null);
     setFileError('');
     setProgressError('');
   };
 
-  const playVideo = async () => {
-    setBusy('video');
+  const readGuide = async () => {
+    setBusy('read');
     setFileError('');
     setProgressError('');
-    const url = await signedUrl(ch.video);
+    const url = await signedUrl(ch.file);
     setBusy('');
-    if (!url) { setFileError('This video could not be opened. Please try again.'); return; }
-    setVideoUrl(url);
+    if (!url) { setFileError('This guide could not be opened. Please try again.'); return; }
+    setReadUrl(url);
+  };
+
+  const openInTab = async () => {
+    setBusy('tab');
+    setFileError('');
+    const url = await signedUrl(ch.file);
+    setBusy('');
+    if (!url) { setFileError('This guide could not be opened. Please try again.'); return; }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const downloadGuide = async () => {
+    setBusy('dl');
+    setFileError('');
+    const url = await signedUrl(ch.file, true);
+    setBusy('');
+    if (!url) { setFileError('This guide could not be downloaded. Please try again.'); return; }
+    window.location.href = url;
   };
 
   const downloadTemplate = async () => {
@@ -142,42 +150,47 @@ export default function AcademyCourse({ lesson, BackLink }) {
         <ProBadge />
       </div>
       <div className="muted" style={{ fontSize: 14, lineHeight: 1.6, maxWidth: 680 }}>
-        {lesson.summary} About {minutes} minutes in all. {doneCount} of {total} chapters done.
+        {lesson.summary} About {minutes} minutes of reading in all. {doneCount} of {total} chapters done.
       </div>
 
       {error && <div className="error-banner" style={{ marginTop: 16 }}>{error}</div>}
 
       <div className="responsive-2col" style={{ '--col-a': '1.7fr', '--col-b': '1fr', '--col-gap': '24px', marginTop: 24, alignItems: 'start' }}>
-        {/* Player and chapter action */}
+        {/* Chapter guide and action */}
         <div>
           <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
-            <div style={{ background: '#2E1B10', aspectRatio: '16 / 9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {videoUrl ? (
-                <video key={ch.key} src={videoUrl} controls autoPlay playsInline style={{ width: '100%', height: '100%', background: '#000' }} />
-              ) : hasVideo ? (
-                <button
-                  type="button"
-                  onClick={playVideo}
-                  disabled={busy === 'video'}
-                  aria-label={`Play chapter ${ch.n}: ${ch.title}`}
-                  style={{ all: 'unset', cursor: 'pointer', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center', padding: 24, boxSizing: 'border-box', background: 'linear-gradient(135deg, #6B4226, #2E1B10)', color: '#FBF6EF' }}
-                >
-                  <span style={{ width: 70, height: 70, borderRadius: '50%', background: '#C8923F', color: '#2E1B10', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 4 }}><PlayIcon /></span>
-                  <span className="serif" style={{ fontSize: 'clamp(18px, 2.6vw, 26px)', fontWeight: 700 }}>{ch.title}</span>
-                  <span style={{ fontSize: 14, opacity: 0.85 }}>{busy === 'video' ? 'Opening…' : `Play chapter ${ch.n} · ${ch.minutes} minutes`}</span>
-                </button>
+            <div style={{ padding: '22px 24px', background: 'linear-gradient(135deg, #6B4226, #2E1B10)', color: '#FBF6EF' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, color: '#E8CDA8' }}>CHAPTER {ch.n} OF {total} · {ch.minutes} MIN READ</div>
+              <div className="serif" style={{ fontSize: 'clamp(22px, 3vw, 30px)', fontWeight: 700, marginTop: 6 }}>{ch.title}</div>
+              <div style={{ fontSize: 14, lineHeight: 1.6, marginTop: 8, opacity: 0.9, maxWidth: 560 }}>{ch.summary}</div>
+            </div>
+            <div style={{ padding: '16px 24px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              {hasGuide ? (
+                <>
+                  {!readUrl && (
+                    <button type="button" className="btn btn-primary btn-small" onClick={readGuide} disabled={busy === 'read'}>
+                      {busy === 'read' ? 'Opening…' : 'Read this chapter'}
+                    </button>
+                  )}
+                  {readUrl && (
+                    <button type="button" className="btn btn-outline btn-small" onClick={() => setReadUrl(null)}>Close the reader</button>
+                  )}
+                  <button type="button" className="btn btn-outline btn-small" onClick={openInTab} disabled={busy === 'tab'}>Open in a new tab</button>
+                  <button type="button" className="btn btn-outline btn-small" onClick={downloadGuide} disabled={busy === 'dl'}>
+                    {busy === 'dl' ? 'Preparing…' : `Download PDF${files[ch.file] ? ` (${formatBytes(files[ch.file])})` : ''}`}
+                  </button>
+                </>
               ) : (
-                <div style={{ textAlign: 'center', color: '#FBF6EF', padding: 24 }}>
-                  <div className="serif" style={{ fontSize: 'clamp(18px, 2.6vw, 26px)', fontWeight: 700 }}>{ch.title}</div>
-                  <div style={{ fontSize: 14, opacity: 0.8, marginTop: 8 }}>This chapter&rsquo;s video is coming soon.</div>
-                </div>
+                <span className="muted" style={{ fontSize: 14 }}>This chapter&rsquo;s guide is coming soon.</span>
               )}
             </div>
-            <div style={{ padding: '18px 22px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, color: 'var(--gold)' }}>CHAPTER {ch.n} OF {total} · {ch.minutes} MINUTES</div>
-              <div className="serif" style={{ fontSize: 20, fontWeight: 700, color: 'var(--brown)', marginTop: 4 }}>{ch.title}</div>
-              <div className="muted" style={{ fontSize: 14, lineHeight: 1.6, marginTop: 6 }}>{ch.summary}</div>
-            </div>
+            {readUrl && (
+              <iframe
+                title={`Chapter ${ch.n}: ${ch.title}`}
+                src={`${readUrl}#view=FitH`}
+                style={{ display: 'block', width: '100%', height: 'min(78vh, 820px)', border: 0, borderTop: '1px solid rgba(107,66,38,0.1)', background: '#fff' }}
+              />
+            )}
           </div>
 
           <label className="card" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '16px 20px', marginTop: 14, cursor: 'pointer', background: isDone ? 'rgba(138,154,107,0.08)' : undefined }}>
@@ -203,7 +216,7 @@ export default function AcademyCourse({ lesson, BackLink }) {
             </div>
             {chapters.map((c, i) => {
               const active = c.n === ch.n;
-              const live = files[c.video] !== undefined;
+              const live = files[c.file] !== undefined;
               return (
                 <button
                   key={c.key}
@@ -215,7 +228,7 @@ export default function AcademyCourse({ lesson, BackLink }) {
                   <Tick on={done.has(c.key)} />
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 14, fontWeight: active ? 700 : 600, color: 'var(--text)' }}>{c.n}. {c.title}</span>
-                    <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>{c.minutes} min{live ? '' : ' · coming soon'}</span>
+                    <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>{c.minutes} min read{live ? '' : ' · coming soon'}</span>
                   </span>
                 </button>
               );

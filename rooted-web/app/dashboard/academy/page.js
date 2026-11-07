@@ -47,7 +47,7 @@ function LessonCard({ lesson, done, ready }) {
         </div>
       )}
       <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{lesson.pill} · {lessonMinutes(lesson)} MIN</span>
+        <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{lesson.pill} · {lesson.chapters ? `${lesson.chapters.length} CHAPTERS` : `${lessonMinutes(lesson)} MIN`}</span>
         <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>{lesson.cardTitle}</div>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>{lesson.cardSubtitle}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
@@ -94,7 +94,7 @@ export default function AcademyPage() {
                 </div>
               )}
               <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{l.pill} · {lessonMinutes(l)} MIN</span>
+                <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{l.pill} · {l.chapters ? `${l.chapters.length} CHAPTERS` : `${lessonMinutes(l)} MIN`}</span>
                 <div className="serif" style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3 }}>{l.cardTitle}</div>
                 <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>{l.cardSubtitle}</div>
               </div>

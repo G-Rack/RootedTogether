@@ -54,9 +54,9 @@ export const LESSONS = [
 
 for (const l of LESSONS) for (const s of l.steps) s.key = `${l.key}-${s.n}`;
 
-// Multi-chapter courses. Each chapter has its own video under videos/ in the pro-academy bucket;
-// a chapter whose video has not been uploaded yet shows "coming soon". One tick per chapter is
-// saved as `${key}-ch${n}`. The workbook is the one PDF that goes with the course.
+// Multi-chapter courses. Each chapter is its own PDF guide under downloads/ in the pro-academy bucket;
+// a chapter whose PDF has not been uploaded yet shows "coming soon". `minutes` is the reading time.
+// One tick per chapter is saved as `${key}-ch${n}`. The workbook is the one PDF that goes with the course.
 const WORKBOOK = {
   path: 'downloads/social-media-workbook.pdf',
   title: 'Social Media That Serves and Sells: Workbook',
@@ -77,7 +77,7 @@ export const COURSES = [
     slug: 'social-media-that-sells',
     key: 'social',
     cardTitle: 'Social media that serves and sells',
-    cardSubtitle: 'Eight short chapters on Instagram, TikTok, the Creative hub and posting.',
+    cardSubtitle: 'Eight short guides on Instagram, TikTok, the Creative hub and posting.',
     pill: 'COURSE',
     icon: 'course',
     title: 'Social media that serves and sells',
@@ -85,14 +85,41 @@ export const COURSES = [
     summary: 'Build a simple plan, then show up on Instagram, TikTok and the places your people already are, turn followers into buyers, and learn what is working. One workbook goes with it.',
     template: WORKBOOK,
     chapters: [
-      { n: 1, title: 'Your plan', minutes: 6, video: 'videos/social-01-your-plan.mp4', summary: 'One audience, three kinds of posts and a weekly rhythm you can keep.', action: 'Write your "I help" sentence three ways, pick the narrowest, and choose your three themes and posting days.' },
-      { n: 2, title: 'Instagram', minutes: 8, video: 'videos/social-02-instagram.mp4', summary: 'Set up your profile and use Reels, carousels and Stories well.', action: 'Update your profile with the checklist, post one Reel and share three Stories.' },
-      { n: 3, title: 'TikTok', minutes: 7, video: 'videos/social-03-tiktok.mp4', summary: 'Hooks, the first three seconds, and what to film.', action: 'Film five hooks in one sitting and post two of them.' },
-      { n: 4, title: 'Facebook, YouTube Shorts and WhatsApp', minutes: 5, video: 'videos/social-04-other-places.mp4', summary: 'Make it once, share it in several places, and use groups kindly.', action: 'Repost one video in two new places and share your link with one group you already belong to.' },
-      { n: 5, title: 'Using the Rooted Creative hub', minutes: 5, video: 'videos/social-05-creative-hub.mp4', summary: 'Turn your shop, offerings and reviews into ready-to-post pictures and captions.', action: 'Make two posts in different looks, post one and save the other.' },
-      { n: 6, title: 'Posting tips', minutes: 6, video: 'videos/social-06-posting-tips.mp4', summary: 'Captions, hashtags, comments, messages and the invitation post.', action: 'Write one invitation post and reply to every comment for seven days.' },
-      { n: 7, title: 'Turning followers into buyers', minutes: 6, video: 'videos/social-07-followers-to-buyers.mp4', summary: 'A ready storefront, your link everywhere, one first offer and ten personal invitations.', action: 'Check your storefront, add your link to every profile and send ten personal invitations.' },
-      { n: 8, title: 'Reading your numbers', minutes: 5, video: 'videos/social-08-your-numbers.mp4', summary: 'Four numbers and three questions, in ten minutes a week.', action: 'Put a ten-minute review in your calendar every Sunday for four weeks.' },
+      { n: 1, title: 'Your plan', minutes: 4, file: 'downloads/social-01-your-plan.pdf', summary: 'One audience, three kinds of posts and a weekly rhythm you can keep.', action: 'Write your "I help" sentence three ways, pick the narrowest, and choose your three themes and posting days.' },
+      { n: 2, title: 'Instagram', minutes: 5, file: 'downloads/social-02-instagram.pdf', summary: 'Set up your profile and use Reels, carousels and Stories well.', action: 'Update your profile with the checklist, post one Reel and share three Stories.' },
+      { n: 3, title: 'TikTok', minutes: 5, file: 'downloads/social-03-tiktok.pdf', summary: 'Hooks, the first three seconds, and what to film.', action: 'Film five hooks in one sitting and post two of them.' },
+      { n: 4, title: 'Facebook, YouTube Shorts and WhatsApp', minutes: 4, file: 'downloads/social-04-other-places.pdf', summary: 'Make it once, share it in several places, and use groups kindly.', action: 'Repost one video in two new places and share your link with one group you already belong to.' },
+      { n: 5, title: 'Using the Rooted Creative hub', minutes: 4, file: 'downloads/social-05-creative-hub.pdf', summary: 'Turn your shop, offerings and reviews into ready-to-post pictures and captions.', action: 'Make two posts in different looks, post one and save the other.' },
+      { n: 6, title: 'Posting tips', minutes: 5, file: 'downloads/social-06-posting-tips.pdf', summary: 'Captions, hashtags, comments, messages and the invitation post.', action: 'Write one invitation post and reply to every comment for seven days.' },
+      { n: 7, title: 'Turning followers into buyers', minutes: 4, file: 'downloads/social-07-followers-to-buyers.pdf', summary: 'A ready storefront, your link everywhere, one first offer and ten personal invitations.', action: 'Check your storefront, add your link to every profile and send ten personal invitations.' },
+      { n: 8, title: 'Reading your numbers', minutes: 3, file: 'downloads/social-08-your-numbers.pdf', summary: 'Four numbers and three questions, in ten minutes a week.', action: 'Put a ten-minute review in your calendar every Sunday for four weeks.' },
+    ],
+  },
+  {
+    slug: 'create-content-with-ai',
+    key: 'ai',
+    cardTitle: 'Create content with AI',
+    cardSubtitle: 'Seven short guides on writing, images and video with AI, including Higgsfield.',
+    pill: 'COURSE',
+    icon: 'course',
+    title: 'Create content with AI',
+    kind: 'COURSE · 7 CHAPTERS',
+    summary: 'Use AI to write your captions, make pictures and short video clips, and connect tools like Higgsfield to Claude so you can ask in plain English, while keeping your own voice and staying honest with your community.',
+    template: {
+      path: 'downloads/ai-content-prompt-library.pdf',
+      title: 'AI Content Prompt Library',
+      note: 'PDF · copy and paste the prompts',
+      summary: 'Ready-to-use prompts for writing, images, video and the Claude plus Higgsfield connection, with a voice file, a weekly batch plan and a pre-posting checklist.',
+      inside: [],
+    },
+    chapters: [
+      { n: 1, title: 'The AI content workflow', minutes: 4, file: 'downloads/ai-01-workflow.pdf', summary: 'Where AI helps, where you stay in charge, and a weekly routine.', action: 'Choose one teaching from your own life and say it in your own words in three or four sentences.' },
+      { n: 2, title: 'Writing with AI', minutes: 6, file: 'downloads/ai-02-writing.pdf', summary: 'Prompts that give you captions and scripts in your own voice.', action: 'Write a six-part prompt, get a caption, edit it until it sounds like you, and save your voice file.' },
+      { n: 3, title: 'Images and graphics', minutes: 5, file: 'downloads/ai-03-images.pdf', summary: 'Describe a picture clearly and keep a consistent look.', action: 'Make three images in your colours and use your favourite this week.' },
+      { n: 4, title: 'Video with Higgsfield', minutes: 6, file: 'downloads/ai-04-video.pdf', summary: 'Type a prompt, or bring a photo to life, and get a short clip back.', action: 'Make three short clips for one teaching and join them with your own voiceover.' },
+      { n: 5, title: 'Connect Higgsfield to Claude', minutes: 5, file: 'downloads/ai-05-connect-higgsfield.pdf', summary: 'Ask in plain English and get the words and the visuals in one conversation.', action: 'Connect Higgsfield to Claude and ask for one caption and three clips.' },
+      { n: 6, title: 'Schedule, repurpose and boost', minutes: 4, file: 'downloads/ai-06-schedule-boost.pdf', summary: 'Batch a week, turn one idea into five pieces, and boost what works.', action: 'Prepare and schedule one full week of posts in a single sitting.' },
+      { n: 7, title: 'Using AI well', minutes: 4, file: 'downloads/ai-07-using-ai-well.pdf', summary: 'Stay honest, protect people, check your facts and keep your voice.', action: 'Write your own three AI rules and keep them where you work.' },
     ],
   },
   {
@@ -107,8 +134,8 @@ export const COURSES = [
     summary: 'For when your organic posts are working. Run one small, capped test on Meta or Google without risking money you cannot spare, and without breaking the rules for faith content.',
     template: WORKBOOK,
     chapters: [
-      { n: 1, title: 'Meta ads: Instagram and Facebook', minutes: 9, video: 'videos/ads-01-meta.mp4', summary: 'When to start, what the rules say, and how to boost a post safely.', action: 'If your organic posts are working, run one small capped test with the checklist.' },
-      { n: 2, title: 'Google ads: Search', minutes: 9, video: 'videos/ads-02-google.mp4', summary: 'Reach people who are already searching for the help you offer.', action: 'If people search for your offering, plan one Search test with a fixed budget.' },
+      { n: 1, title: 'Meta ads: Instagram and Facebook', minutes: 6, file: 'downloads/ads-01-meta.pdf', summary: 'When to start, what the rules say, and how to boost a post safely.', action: 'If your organic posts are working, run one small capped test with the checklist.' },
+      { n: 2, title: 'Google ads: Search', minutes: 6, file: 'downloads/ads-02-google.pdf', summary: 'Reach people who are already searching for the help you offer.', action: 'If people search for your offering, plan one Search test with a fixed budget.' },
     ],
   },
 ];
