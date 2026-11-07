@@ -54,10 +54,80 @@ export const LESSONS = [
 
 for (const l of LESSONS) for (const s of l.steps) s.key = `${l.key}-${s.n}`;
 
+// Multi-chapter courses. Each chapter has its own video under videos/ in the pro-academy bucket;
+// a chapter whose video has not been uploaded yet shows "coming soon". One tick per chapter is
+// saved as `${key}-ch${n}`. The workbook is the one PDF that goes with the course.
+const WORKBOOK = {
+  path: 'downloads/social-media-workbook.pdf',
+  title: 'Social Media That Serves and Sells: Workbook',
+  note: 'PDF · print it or fill it in on screen',
+  summary: 'One page for each chapter\'s action: your plan, a profile checklist, a hook bank, invitation messages, a four-week content calendar, a weekly review and the ads checklists.',
+  inside: [
+    'Your "I help" sentence, three themes and posting days',
+    'Instagram profile checklist and a bank of 20 hooks',
+    'Creative hub checklist, caption formula and the five-question invitation post',
+    'Ten personal invitations, with thank-you and check-in messages',
+    'A four-week content calendar and a Sunday ten-minute review',
+    'Meta and Google test checklists',
+  ],
+};
+
+export const COURSES = [
+  {
+    slug: 'social-media-that-sells',
+    key: 'social',
+    cardTitle: 'Social media that serves and sells',
+    cardSubtitle: 'Eight short chapters on Instagram, TikTok, the Creative hub and posting.',
+    pill: 'COURSE',
+    icon: 'course',
+    title: 'Social media that serves and sells',
+    kind: 'COURSE · 8 CHAPTERS',
+    summary: 'Build a simple plan, then show up on Instagram, TikTok and the places your people already are, turn followers into buyers, and learn what is working. One workbook goes with it.',
+    template: WORKBOOK,
+    chapters: [
+      { n: 1, title: 'Your plan', minutes: 6, video: 'videos/social-01-your-plan.mp4', summary: 'One audience, three kinds of posts and a weekly rhythm you can keep.', action: 'Write your "I help" sentence three ways, pick the narrowest, and choose your three themes and posting days.' },
+      { n: 2, title: 'Instagram', minutes: 8, video: 'videos/social-02-instagram.mp4', summary: 'Set up your profile and use Reels, carousels and Stories well.', action: 'Update your profile with the checklist, post one Reel and share three Stories.' },
+      { n: 3, title: 'TikTok', minutes: 7, video: 'videos/social-03-tiktok.mp4', summary: 'Hooks, the first three seconds, and what to film.', action: 'Film five hooks in one sitting and post two of them.' },
+      { n: 4, title: 'Facebook, YouTube Shorts and WhatsApp', minutes: 5, video: 'videos/social-04-other-places.mp4', summary: 'Make it once, share it in several places, and use groups kindly.', action: 'Repost one video in two new places and share your link with one group you already belong to.' },
+      { n: 5, title: 'Using the Rooted Creative hub', minutes: 5, video: 'videos/social-05-creative-hub.mp4', summary: 'Turn your shop, offerings and reviews into ready-to-post pictures and captions.', action: 'Make two posts in different looks, post one and save the other.' },
+      { n: 6, title: 'Posting tips', minutes: 6, video: 'videos/social-06-posting-tips.mp4', summary: 'Captions, hashtags, comments, messages and the invitation post.', action: 'Write one invitation post and reply to every comment for seven days.' },
+      { n: 7, title: 'Turning followers into buyers', minutes: 6, video: 'videos/social-07-followers-to-buyers.mp4', summary: 'A ready storefront, your link everywhere, one first offer and ten personal invitations.', action: 'Check your storefront, add your link to every profile and send ten personal invitations.' },
+      { n: 8, title: 'Reading your numbers', minutes: 5, video: 'videos/social-08-your-numbers.mp4', summary: 'Four numbers and three questions, in ten minutes a week.', action: 'Put a ten-minute review in your calendar every Sunday for four weeks.' },
+    ],
+  },
+  {
+    slug: 'paid-ads-for-creators',
+    key: 'ads',
+    cardTitle: 'Paid ads for creators (optional)',
+    cardSubtitle: 'A careful first test on Meta and on Google, with the faith-content rules.',
+    pill: 'COURSE',
+    icon: 'course',
+    title: 'Paid ads for creators',
+    kind: 'COURSE · 2 CHAPTERS · OPTIONAL',
+    summary: 'For when your organic posts are working. Run one small, capped test on Meta or Google without risking money you cannot spare, and without breaking the rules for faith content.',
+    template: WORKBOOK,
+    chapters: [
+      { n: 1, title: 'Meta ads: Instagram and Facebook', minutes: 9, video: 'videos/ads-01-meta.mp4', summary: 'When to start, what the rules say, and how to boost a post safely.', action: 'If your organic posts are working, run one small capped test with the checklist.' },
+      { n: 2, title: 'Google ads: Search', minutes: 9, video: 'videos/ads-02-google.mp4', summary: 'Reach people who are already searching for the help you offer.', action: 'If people search for your offering, plan one Search test with a fixed budget.' },
+    ],
+  },
+];
+
+for (const c of COURSES) for (const ch of c.chapters) ch.key = `${c.key}-ch${ch.n}`;
+
+
+// Everything shown in the Academy list: the single lessons first, then the multi-chapter courses.
+export const ALL_ITEMS = [...LESSONS, ...COURSES];
+
 export function getLesson(slug) {
-  return LESSONS.find((l) => l.slug === slug) || null;
+  return ALL_ITEMS.find((l) => l.slug === slug) || null;
 }
 
+// The tick-boxes of a lesson (its steps) or of a course (its chapters).
 export function lessonStepKeys(lesson) {
-  return lesson.steps.map((s) => s.key);
+  return (lesson.chapters || lesson.steps).map((s) => s.key);
+}
+
+export function lessonMinutes(lesson) {
+  return lesson.minutes ?? lesson.chapters.reduce((t, c) => t + c.minutes, 0);
 }

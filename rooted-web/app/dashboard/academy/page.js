@@ -6,7 +6,7 @@ import ProBadge from '@/components/ProBadge';
 import ProUpgradeBanner from '@/components/ProUpgradeBanner';
 import TypeIcon from '@/components/TypeIcon';
 import { OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
-import { LESSONS, lessonStepKeys } from '@/lib/academy';
+import { ALL_ITEMS, lessonStepKeys, lessonMinutes } from '@/lib/academy';
 import useAcademyProgress from '@/lib/useAcademyProgress';
 
 function TickBox({ on }) {
@@ -32,8 +32,9 @@ function LessonCard({ lesson, done, ready }) {
   const keys = lessonStepKeys(lesson);
   const count = keys.filter((k) => done.has(k)).length;
   const complete = count === keys.length;
+  const unit = lesson.chapters ? 'chapters' : 'steps';
   return (
-    <Link href={`/dashboard/academy/${lesson.slug}`} className="rt-card" aria-label={`${lesson.cardTitle}. ${count} of ${keys.length} steps done.`}>
+    <Link href={`/dashboard/academy/${lesson.slug}`} className="rt-card" aria-label={`${lesson.cardTitle}. ${count} of ${keys.length} ${unit} done.`}>
       {lesson.cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={lesson.cover} alt="" style={{ display: 'block', width: '100%', aspectRatio: '16 / 8', objectFit: 'cover' }} />
@@ -46,7 +47,7 @@ function LessonCard({ lesson, done, ready }) {
         </div>
       )}
       <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{lesson.pill} · {lesson.minutes} MIN</span>
+        <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{lesson.pill} · {lessonMinutes(lesson)} MIN</span>
         <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>{lesson.cardTitle}</div>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>{lesson.cardSubtitle}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
@@ -54,7 +55,7 @@ function LessonCard({ lesson, done, ready }) {
             {keys.map((k) => <TickBox key={k} on={done.has(k)} />)}
           </span>
           <span style={{ fontSize: 13, fontWeight: 700, color: complete ? 'var(--brown)' : 'var(--text-soft)' }}>
-            {!ready ? ' ' : complete ? 'All steps done' : `${count} of ${keys.length} steps done`}
+            {!ready ? ' ' : complete ? `All ${unit} done` : `${count} of ${keys.length} ${unit} done`}
           </span>
         </div>
       </div>
@@ -79,7 +80,7 @@ export default function AcademyPage() {
       {!isPro && <div style={{ marginBottom: 22 }}><ProUpgradeBanner title="The Academy is part of Creator Pro" /></div>}
 
       <div className="grid-cards">
-        {LESSONS.map((l) => (
+        {ALL_ITEMS.map((l) => (
           isPro ? (
             <LessonCard key={l.slug} lesson={l} done={done} ready={loaded} />
           ) : (
@@ -93,7 +94,7 @@ export default function AcademyPage() {
                 </div>
               )}
               <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{l.pill} · {l.minutes} MIN</span>
+                <span className="type-pill" style={{ alignSelf: 'flex-start' }}>{l.pill} · {lessonMinutes(l)} MIN</span>
                 <div className="serif" style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3 }}>{l.cardTitle}</div>
                 <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>{l.cardSubtitle}</div>
               </div>

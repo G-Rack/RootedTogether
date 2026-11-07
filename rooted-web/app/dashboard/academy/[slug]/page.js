@@ -8,6 +8,7 @@ import { useSession } from '@/components/SessionProvider';
 import ProBadge from '@/components/ProBadge';
 import ProUpgradeBanner from '@/components/ProUpgradeBanner';
 import { getLesson, lessonStepKeys } from '@/lib/academy';
+import AcademyCourse from '@/components/AcademyCourse';
 import useAcademyProgress from '@/lib/useAcademyProgress';
 import { formatBytes } from '@/lib/pro';
 
@@ -51,6 +52,12 @@ function BackLink() {
 
 export default function AcademyLessonPage() {
   const { slug } = useParams();
+  const lesson = getLesson(slug);
+  if (lesson?.chapters) return <AcademyCourse lesson={lesson} BackLink={BackLink} />;
+  return <SingleLesson slug={slug} />;
+}
+
+function SingleLesson({ slug }) {
   const lesson = getLesson(slug);
   const { session, isPro } = useSession();
   const { done, loaded, error: progressError, setError: setProgressError, toggleDone } = useAcademyProgress(session, isPro);
