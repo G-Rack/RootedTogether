@@ -153,6 +153,17 @@ export default function DashboardOverviewPage() {
 
       {storefront && <StorefrontLinkCard storefront={storefront} />}
 
+      <div className="card" style={{ padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', border: '1.5px solid #C8923F' }}>
+        <span style={{ width: 40, height: 40, borderRadius: '50%', background: '#C8923F', color: '#2E1B10', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', paddingLeft: 2 }} aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
+        </span>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700 }}>New here? Watch the 5-minute getting started video</div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>A quick tour of your creator hub and how to sell your first product. Free for every creator.</div>
+        </div>
+        <Link href="/dashboard/getting-started" className="btn btn-primary btn-small">Watch now</Link>
+      </div>
+
       {isPro ? (
         <div className="card" style={{ padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <ProBadge />

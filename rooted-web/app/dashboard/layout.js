@@ -24,6 +24,15 @@ const NAV = [
     ),
   },
   {
+    href: '/dashboard/getting-started',
+    label: 'Getting started',
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" /><path d="M10 8.5v7l6-3.5z" />
+      </svg>
+    ),
+  },
+  {
     href: '/dashboard/offerings',
     label: 'My Offerings',
     icon: (

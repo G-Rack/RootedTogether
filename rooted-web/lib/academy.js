@@ -7,6 +7,14 @@
 // A Watch or Download button appears as soon as the file is there. To replace either
 // one, upload a new file under the same name in Supabase (Storage, pro-academy).
 
+// The Getting started intro video is free for every creator (Pro or not). It comes in two
+// versions, and the storage policy "pro academy read" lets any signed-in person read exactly
+// these two files. Upload both under videos/ in the pro-academy bucket with these names.
+export const INTRO_GUIDES = [
+  { key: 'grace', name: 'Grace', path: 'videos/sell-more-from-your-storefront.mp4' },
+  { key: 'samuel', name: 'Pastor Samuel', path: 'videos/sell-more-from-your-storefront-pastor-samuel.mp4' },
+];
+
 export const LESSONS = [
   {
     slug: 'getting-started',
