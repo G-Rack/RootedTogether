@@ -75,6 +75,7 @@ const WORKBOOK = {
 export const COURSES = [
   {
     slug: 'social-media-that-sells',
+    cover: '/academy/social-media-that-sells.jpg',
     key: 'social',
     cardTitle: 'Social media that serves and sells',
     cardSubtitle: 'Eight short guides on Instagram, TikTok, the Creative hub and posting.',
@@ -97,6 +98,7 @@ export const COURSES = [
   },
   {
     slug: 'create-content-with-ai',
+    cover: '/academy/create-content-with-ai.jpg',
     key: 'ai',
     cardTitle: 'Create content with AI',
     cardSubtitle: 'Seven short guides on writing, images and video with AI, including Higgsfield.',
@@ -124,6 +126,7 @@ export const COURSES = [
   },
   {
     slug: 'paid-ads-for-creators',
+    cover: '/academy/paid-ads-for-creators.jpg',
     key: 'ads',
     cardTitle: 'Paid ads for creators (optional)',
     cardSubtitle: 'A careful first test on Meta and on Google, with the faith-content rules.',
