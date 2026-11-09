@@ -2,7 +2,7 @@
 // TikTok on a canvas in the browser, so nothing is uploaded anywhere.
 //
 // makeCreative(spec) returns a PNG data URL. `spec` says what to draw:
-//   kind:    'storefront' | 'offering' | 'collage' | 'quote'
+//   kind:    'storefront' | 'offering' | 'collage' | 'quote' | 'community'
 //   format:  'story' | 'post' | 'square'
 //   theme:   a key of THEMES
 //   creator: { name, role, initials, avatar, banner, usePhoto }
@@ -10,6 +10,7 @@
 //   offering: { title, typeLabel, priceLabel, img, tint, ink }   (offering)
 //   collage:  [{ title, img, tint, ink }]                         (collage)
 //   quote:    { body, reviewer, offeringTitle, rating }           (quote)
+//   community: { name, blurb, icon, img, memberLabel }            (community)
 //   ctaLabel, linkText
 
 export const FORMATS = {
@@ -399,10 +400,52 @@ function quotePost(s, spec) {
   }
 }
 
+function communityPost(s, spec) {
+  const { ctx, pad, cw, w, theme } = s;
+  const c = spec.community;
+  const cx = w / 2;
+  let y = s.top;
+  const frameH = Math.round(cw * (s.format === 'story' ? 0.8 : s.format === 'post' ? 0.5 : 0.34));
+  photoSlot(ctx, { img: c.img, tint: theme.accent }, pad, y, cw, frameH, 32, 'cover');
+  if (!c.img && c.icon) {
+    ctx.font = `${Math.round(frameH * 0.42)}px ${SANS}`;
+    ctx.fillStyle = '#FFFFFF';
+    drawAt(ctx, c.icon, cx, y + frameH * 0.28, 'center');
+  }
+  y += frameH + (s.format === 'story' ? 56 : 36);
+
+  const rowH = s.format === 'square' ? 50 : 56;
+  if (c.memberLabel) {
+    pill(ctx, c.memberLabel.toUpperCase(), pad, y, { font: `700 26px ${SANS}`, h: rowH, padX: 26, bg: theme.pillBg, ink: theme.pillInk });
+  }
+  pill(ctx, 'FREE TO JOIN', 0, y, { font: `700 26px ${SANS}`, h: rowH, padX: 26, bg: theme.accent, ink: theme.accentInk, align: 'right', right: pad + cw });
+  y += rowH + (s.format === 'square' ? 26 : 32);
+
+  const t = fitText(ctx, c.name, { maxW: cw, maxLines: s.format === 'story' ? 3 : 2, size: s.format === 'story' ? 84 : s.format === 'post' ? 72 : 60, minSize: 42 });
+  ctx.fillStyle = theme.ink;
+  t.lines.forEach((line, i) => ctx.fillText(line, pad, y + i * t.size * 1.15));
+  y += t.lines.length * t.size * 1.15 + 18;
+
+  if (c.blurb && y + 60 <= s.bottom) {
+    const d = fitText(ctx, c.blurb, { maxW: cw, maxLines: s.format === 'story' ? 4 : s.format === 'post' ? 3 : 2, size: 40, minSize: 30, weight: '400', family: SANS });
+    ctx.fillStyle = theme.soft;
+    d.lines.forEach((line, i) => ctx.fillText(line, pad, y + i * d.size * 1.4));
+    y += d.lines.length * d.size * 1.4 + 16;
+  }
+  if (spec.creator && spec.creator.name && y + 50 <= s.bottom) {
+    ctx.font = `600 36px ${SANS}`;
+    ctx.fillStyle = theme.accent;
+    ctx.fillText(`Led by ${spec.creator.name}`, pad, y);
+    y += 50;
+  }
+  return y;
+}
+
 function drawBody(s, spec) {
   if (spec.kind === 'offering' && spec.offering) return offeringPost(s, spec);
   if (spec.kind === 'collage') return collagePost(s, spec);
   if (spec.kind === 'quote' && spec.quote) return quotePost(s, spec);
+  if (spec.kind === 'community' && spec.community) return communityPost(s, spec);
   return storefront(s, spec);
 }
 
@@ -410,7 +453,7 @@ function render(spec) {
   // First pass on a scratch canvas to learn how tall the content is, so the
   // real pass can centre it between the top line and the button.
   let shift = 0;
-  if (spec.kind === 'storefront' || spec.kind === 'offering') {
+  if (spec.kind === 'storefront' || spec.kind === 'offering' || spec.kind === 'community') {
     const probe = setup(spec);
     const end = drawBody(probe, spec);
     if (typeof end === 'number') shift = Math.max(0, Math.min((probe.bottom - end) * 0.5, 420));
@@ -431,6 +474,7 @@ export function makeCreative(spec) {
     creator: sp.creator && { ...sp.creator, avatar: null, banner: null },
     offering: sp.offering && { ...sp.offering, img: null },
     collage: (sp.collage || []).map((c) => ({ ...c, img: null })),
+    community: sp.community && { ...sp.community, img: null },
   });
   try {
     return render(spec).toDataURL('image/png');

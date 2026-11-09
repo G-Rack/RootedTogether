@@ -25,7 +25,7 @@ function listText(items) {
 
 // info: { kind, platform, url, name, tagline, bio, types: ['Courses', ...],
 //         fromPrice, offering: {title, typeLabel, priceLabel, description},
-//         quote: {body, reviewer, offeringTitle}, count }
+//         quote: {body, reviewer, offeringTitle}, community: {name, description, memberCount}, count }
 export function buildCaption(info, variant = 0) {
   const { kind, platform, url } = info;
   const ig = platform === 'instagram';
@@ -34,6 +34,23 @@ export function buildCaption(info, variant = 0) {
   const types = listText((info.types || []).slice(0, 4)).toLowerCase();
   const intro = info.tagline || blurbFrom(info.bio, 130);
   const from = info.fromPrice ? `, from ${info.fromPrice}` : '';
+
+  if (kind === 'community' && info.community) {
+    const cm = info.community;
+    const blurb = blurbFrom(cm.description, ig ? 200 : 110);
+    const joinLine = ig ? `Join here (link in my bio, or go straight to it): ${url}` : `Join: ${url}`;
+    const count = cm.memberCount > 1 ? `${cm.memberCount} of us are already inside.` : '';
+    const hooks = [
+      `I started a community for you: ${cm.name}.`,
+      `There is a seat for you in ${cm.name}.`,
+      `Come and pray, share and grow with us in ${cm.name}.`,
+      `You do not have to walk this alone. Join ${cm.name}.`,
+    ];
+    const hook = pick(hooks, variant);
+    const how = 'It is free. Download the Rooted Together app, tap the leaf at the top of Explore, find us and tap Join.';
+    if (!ig) return `${hook} ${blurb ? `${blurb} ` : ''}${count} ${joinLine} ${tags}`.replace(/\s+/g, ' ').trim();
+    return `${hook}\n\n${blurb ? `${blurb}\n\n` : ''}${count ? `${count}\n\n` : ''}${how}\n\n${joinLine}\n\n${tags}`;
+  }
 
   if (kind === 'offering' && info.offering) {
     const o = info.offering;

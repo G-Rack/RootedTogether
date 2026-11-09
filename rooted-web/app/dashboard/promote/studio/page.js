@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
-import { avatarUrl, bannerUrl, coverUrl } from '@/lib/storage';
+import { avatarUrl, bannerUrl, coverUrl, communityImageUrl } from '@/lib/storage';
 import { formatPrice, initialsFor, OFFERING_TYPE_LABELS, ROLE_LABELS } from '@/lib/roles';
 import { OFFERING_TYPES, OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 import { fetchCreatorReviews } from '@/lib/reviews';
@@ -22,9 +22,11 @@ const KINDS = [
   { key: 'offering', label: 'One offering', hint: 'Show a single course, ebook or routine' },
   { key: 'collage', label: 'Collage', hint: 'Covers of several offerings together' },
   { key: 'quote', label: 'Kind words', hint: 'A review from someone you helped' },
+  { key: 'community', label: 'My community', hint: 'Invite people to join your in-app community' },
 ];
 
 const CTA_OPTIONS = ['Shop my offerings', 'Link in my bio', 'Tap the link to shop'];
+const COMMUNITY_CTA_OPTIONS = ['Join my community', 'Link in my bio', 'Tap the link to join'];
 
 function CopyButton({ text, label, primary = false, disabled = false }) {
   const [copied, setCopied] = useState(false);
@@ -79,6 +81,7 @@ function StudioInner() {
   const [formatPick, setFormatPick] = useState('story');
   const [offeringId, setOfferingId] = useState(null);
   const [quoteIdx, setQuoteIdx] = useState(0);
+  const [communityId, setCommunityId] = useState(null);
   const [usePhoto, setUsePhoto] = useState(true);
   const [ctaLabel, setCtaLabel] = useState(CTA_OPTIONS[0]);
   const [headlineEdit, setHeadlineEdit] = useState({});
@@ -93,10 +96,11 @@ function StudioInner() {
     if (!userId) return undefined;
     let active = true;
     async function load() {
-      const [{ data: sf }, { data: offeringRows }, reviewRows] = await Promise.all([
+      const [{ data: sf }, { data: offeringRows }, reviewRows, { data: communityRows }] = await Promise.all([
         supabase.from('creator_storefronts').select('*').eq('auth_user_id', userId).maybeSingle(),
         supabase.from('offerings').select('*').eq('creator_auth_id', userId).eq('status', 'published').order('sort_order'),
         fetchCreatorReviews(userId, 8),
+        supabase.from('community_listing').select('*').eq('creator_auth_id', userId).order('created_at', { ascending: false }),
       ]);
       if (!active) return;
       if (!sf) {
@@ -105,15 +109,18 @@ function StudioInner() {
         return;
       }
       const offerings = offeringRows || [];
-      const [avatar, banner, ...covers] = await Promise.all([
+      const communities = communityRows || [];
+      const [avatar, banner, communityImgs, ...covers] = await Promise.all([
         loadImage(avatarUrl(sf.avatar_path)),
         loadImage(bannerUrl(sf.banner_path)),
+        Promise.all(communities.slice(0, 6).map((c) => loadImage(communityImageUrl(c.image_path)))),
         ...offerings.slice(0, 12).map((o) => loadImage(coverUrl(o.cover_path))),
       ]);
       if (!active) return;
       const coverMap = {};
       offerings.slice(0, 12).forEach((o, i) => { coverMap[o.id] = covers[i]; });
-      setData({ sf, offerings, reviews: (reviewRows || []).filter((r) => r.body && r.body.trim().length > 8), avatar, banner, coverMap });
+      const communityList = communities.slice(0, 6).map((c, i) => ({ ...c, img: communityImgs[i] || null }));
+      setData({ sf, offerings, reviews: (reviewRows || []).filter((r) => r.body && r.body.trim().length > 8), avatar, banner, coverMap, communityList });
       setLoading(false);
     }
     load();
@@ -122,7 +129,7 @@ function StudioInner() {
 
   const derived = useMemo(() => {
     if (!data || data.missing) return null;
-    const { sf, offerings, reviews, avatar, banner, coverMap } = data;
+    const { sf, offerings, reviews, avatar, banner, coverMap, communityList } = data;
     const name = profile?.full_name || sf.display_name || '';
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://rootedtogether.club';
     const url = `${origin}/creator/${sf.handle}`;
@@ -145,14 +152,26 @@ function StudioInner() {
     const items = offerings.map(toItem);
     // Pictures first, so the collage shows real covers when there are some.
     const collageItems = [...items].sort((a, b) => Number(!!b.img) - Number(!!a.img)).slice(0, 4);
+    const communities = (communityList || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      blurb: blurbFrom(c.description, 150),
+      description: c.description,
+      icon: c.icon,
+      img: c.img,
+      members: Number(c.member_count) || 0,
+      memberLabel: `${Number(c.member_count) || 0} ${Number(c.member_count) === 1 ? 'member' : 'members'}`,
+      url: `${origin}/c/${c.id}`,
+    }));
     return {
-      sf, name, url, shortLink, types, fromPrice, intro, items, collageItems, reviews, avatar, banner,
+      sf, name, url, shortLink, types, fromPrice, intro, items, collageItems, reviews, avatar, banner, communities,
       role: ROLE_LABELS[profile?.role] || '',
       available: {
         storefront: true,
         offering: items.length >= 1,
         collage: items.length >= 2,
         quote: reviews.length >= 1,
+        community: communities.length >= 1,
       },
     };
   }, [data, profile]);
@@ -166,6 +185,9 @@ function StudioInner() {
     const activeKind = d.available[kind] ? kind : 'storefront';
     const offering = d.items.find((o) => o.id === offeringId) || d.items[0] || null;
     const review = d.reviews[Math.min(quoteIdx, Math.max(0, d.reviews.length - 1))] || null;
+    const community = d.communities.find((c) => c.id === communityId) || d.communities[0] || null;
+    const ctaChoices = activeKind === 'community' ? COMMUNITY_CTA_OPTIONS : CTA_OPTIONS;
+    const ctaValue = ctaChoices.includes(ctaLabel) ? ctaLabel : ctaChoices[0];
     const headline = headlineEdit[activeKind] ?? (activeKind === 'collage' ? 'Shop my offerings' : d.name);
     const sub = subEdit[activeKind] ?? (activeKind === 'collage' ? d.types.slice(0, 3).join(' · ') : d.intro);
     const spec = {
@@ -180,21 +202,22 @@ function StudioInner() {
       offering,
       collage: d.collageItems,
       quote: review && { body: review.body, reviewer: review.reviewer_name, offeringTitle: review.offering_title, rating: review.rating },
-      ctaLabel,
-      linkText: d.shortLink,
+      community: community && { name: community.name, blurb: community.blurb, icon: community.icon, img: community.img, memberLabel: community.memberLabel },
+      ctaLabel: ctaValue,
+      linkText: activeKind === 'community' ? 'Free in the Rooted Together app' : d.shortLink,
     };
-    return { activeKind, offering, review, headline, sub, spec };
-  }, [derived, kind, offeringId, quoteIdx, headlineEdit, subEdit, format, theme, usePhoto, ctaLabel]);
+    return { activeKind, offering, review, community, ctaChoices, ctaValue, headline, sub, spec };
+  }, [derived, kind, offeringId, quoteIdx, communityId, headlineEdit, subEdit, format, theme, usePhoto, ctaLabel]);
 
   const preview = useMemo(() => (view && typeof document !== 'undefined' ? makeCreative(view.spec) : null), [view]);
 
-  const captionKey = view ? `${platform}|${view.activeKind}|${view.offering?.id}|${quoteIdx}|${variant}` : '';
+  const captionKey = view ? `${platform}|${view.activeKind}|${view.offering?.id}|${quoteIdx}|${view.community?.id}|${variant}` : '';
   const generated = useMemo(() => {
     if (!view || !derived) return '';
     return buildCaption({
       kind: view.activeKind,
       platform,
-      url: derived.url,
+      url: view.activeKind === 'community' && view.community ? view.community.url : derived.url,
       name: derived.name,
       tagline: derived.sf.tagline,
       bio: derived.sf.bio,
@@ -202,6 +225,7 @@ function StudioInner() {
       fromPrice: derived.fromPrice,
       offering: view.offering,
       quote: view.review && { body: view.review.body, reviewer: view.review.reviewer_name, offeringTitle: view.review.offering_title },
+      community: view.community && { name: view.community.name, description: view.community.description, memberCount: view.community.members },
     }, variant);
   }, [view, derived, platform, variant]);
   const caption = captionEdit && captionEdit.key === captionKey ? captionEdit.text : generated;
@@ -305,7 +329,7 @@ function StudioInner() {
                   >
                     <div style={{ fontWeight: 700, fontSize: 14.5, color: 'var(--brown)' }}>{k.label}</div>
                     <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.4, marginTop: 2 }}>
-                      {ok ? k.hint : k.key === 'quote' ? 'Appears once someone reviews you' : k.key === 'collage' ? 'Needs two live offerings' : 'Needs a live offering'}
+                      {ok ? k.hint : k.key === 'quote' ? 'Appears once someone reviews you' : k.key === 'collage' ? 'Needs two live offerings' : k.key === 'community' ? 'Create a community in the app first' : 'Needs a live offering'}
                     </div>
                   </button>
                 );
@@ -317,6 +341,14 @@ function StudioInner() {
                 <label className="field-label" htmlFor="hub-offering">Which offering?</label>
                 <select id="hub-offering" className="input-field" value={view.offering?.id || ''} onChange={(e) => { setOfferingId(e.target.value); setVariant(0); }}>
                   {derived.items.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+                </select>
+              </div>
+            )}
+            {view.activeKind === 'community' && derived.communities.length > 1 && (
+              <div style={{ marginTop: 12 }}>
+                <label className="field-label" htmlFor="hub-community">Which community?</label>
+                <select id="hub-community" className="input-field" value={view.community?.id || ''} onChange={(e) => { setCommunityId(e.target.value); setVariant(0); }}>
+                  {derived.communities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             )}
@@ -367,8 +399,8 @@ function StudioInner() {
             )}
             <div style={{ marginBottom: 12 }}>
               <label className="field-label" htmlFor="hub-cta">Button on the picture</label>
-              <select id="hub-cta" className="input-field" value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)}>
-                {CTA_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+              <select id="hub-cta" className="input-field" value={view.ctaValue} onChange={(e) => setCtaLabel(e.target.value)}>
+                {view.ctaChoices.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
@@ -383,7 +415,7 @@ function StudioInner() {
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               <CopyButton text={caption} label="Copy caption" primary />
               <button type="button" className="btn btn-outline btn-small" onClick={() => { setVariant((v) => (v + 1) % CAPTION_VARIANTS); setCaptionEdit(null); }}>Another idea</button>
-              <CopyButton text={derived.url} label="Copy link" />
+              <CopyButton text={view.activeKind === 'community' && view.community ? view.community.url : derived.url} label="Copy link" />
             </div>
           </Step>
 

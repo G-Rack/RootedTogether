@@ -24,6 +24,11 @@ export function bannerUrl(path) {
   return publicStorageUrl('storefront-banners', path);
 }
 
+// Community pictures live in the public community-images bucket (the app uploads them).
+export function communityImageUrl(path) {
+  return publicStorageUrl('community-images', path);
+}
+
 export function coverUrl(path) {
   return publicStorageUrl('offering-covers', path);
 }
