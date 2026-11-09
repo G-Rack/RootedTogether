@@ -126,6 +126,7 @@ export const COURSES = [
   },
   {
     slug: 'grow-with-your-community',
+    cover: '/academy/grow-with-your-community.jpg',
     key: 'comm',
     cardTitle: 'Grow with your community',
     cardSubtitle: 'Five short chapters on building a community in the app and growing your following from Instagram.',
