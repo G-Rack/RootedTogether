@@ -35,12 +35,12 @@ export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy' })
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rooted Together | Something special is coming soon</title>
-<meta name="description" content="Something special is coming soon from Rooted Together. A faith-based mentorship community on iOS, Android and the web.">
+<title>Rooted Together | Coming soon, by invitation</title>
+<meta name="description" content="Rooted Together is coming soon, by invitation. A faith-based mentorship community on iOS, Android and the web.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#FBF6EF">
-<meta property="og:title" content="Rooted Together | Something special is coming soon">
-<meta property="og:description" content="A faith-based mentorship community. iOS and Android apps coming soon.">
+<meta property="og:title" content="Rooted Together | Coming soon, by invitation">
+<meta property="og:description" content="A faith-based mentorship community. Coming soon, by invitation.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/icon.png">
 <meta name="twitter:card" content="summary">
@@ -62,21 +62,22 @@ main{width:100%;max-width:640px;display:flex;flex-direction:column;align-items:c
 #logo{display:flex;flex-direction:column;align-items:center;gap:14px;cursor:default;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;outline:none}
 #logo img{width:92px;height:92px;border-radius:24px;box-shadow:0 14px 34px rgba(46,27,16,.2),0 0 0 1px rgba(107,66,38,.08)}
 .word{font-size:25px;font-weight:700;color:var(--brown);letter-spacing:-.2px}
-.eyebrow{margin-top:34px;font-size:12px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
-h1{margin:12px 0 0;font-size:clamp(34px,7.4vw,54px);line-height:1.1;font-weight:700;color:var(--dark);letter-spacing:-.8px}
+.rule{width:150px;height:2px;margin:22px auto 0;border-radius:2px;background:var(--gold)}
+h1{margin:26px 0 0;font-size:clamp(30px,6.6vw,46px);line-height:1.12;font-weight:600;color:var(--brown);letter-spacing:-.5px}
+h1 .dot{color:var(--gold)}
 .blurb{margin:18px auto 0;max-width:520px;font-size:16.5px;line-height:1.65;color:var(--soft)}
-.verse{margin:26px 0 0;font-size:17px;font-style:italic;color:var(--brown);line-height:1.55}
+.verse{margin:38px 0 0;max-width:520px;font-size:17px;font-style:italic;color:var(--brown);line-height:1.55}
 .verse small{display:block;margin-top:6px;font-family:Inter,sans-serif;font-style:normal;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
-.badges{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:36px}
+.badges{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:30px}
 .badge{display:flex;align-items:center;gap:12px;padding:11px 20px 11px 16px;border-radius:14px;background:var(--brown);color:#fff;text-align:left;line-height:1.1;box-shadow:0 8px 20px rgba(107,66,38,.22)}
 .badge span{display:block;font-size:12.5px;letter-spacing:.2px;opacity:.9}
 .badge b{display:block;font-size:21px;font-weight:600;letter-spacing:-.3px;margin-top:3px}
-.notify{margin-top:40px;width:100%;max-width:440px}
-.notify p{margin:0 0 12px;font-size:14.5px;color:var(--soft)}
+.notify{margin-top:30px;width:100%;max-width:500px}
+.notify p{margin:0 0 12px;font-size:15px;color:var(--soft)}
 .row{display:flex;gap:8px}
 .row input{flex:1;min-width:0;padding:14px 16px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font:inherit;font-size:15px;color:var(--dark);outline:none}
 .row input:focus{border-color:var(--brown)}
-.row button{padding:0 22px;border:0;border-radius:12px;background:var(--dark);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
+.row button{padding:0 24px;border:0;border-radius:12px;background:var(--brown);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
 .row button:disabled{opacity:.6;cursor:default}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 .msg{min-height:20px;margin-top:10px;font-size:13.5px;color:var(--soft)}
@@ -111,25 +112,26 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     <div class="word serif">Rooted Together</div>
   </div>
 
-  <div class="eyebrow">Launching soon</div>
-  <h1 class="serif">Something special is coming soon.</h1>
+  <div class="rule" aria-hidden="true"></div>
+  <h1 class="serif">Coming soon <span class="dot">&middot;</span> by invitation</h1>
   <p class="blurb">${esc(blurb)}</p>
-  <p class="verse serif">&ldquo;Rooted and built up in him, and stablished in the faith.&rdquo;<small>Colossians 2:7</small></p>
+
+  <form class="notify" id="notify" novalidate>
+    <p>Leave your email and we will send your invitation when the doors open.</p>
+    <div class="row">
+      <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" aria-label="Email address" required>
+      <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit" id="notifyBtn">Request an invitation</button>
+    </div>
+    <div class="msg" id="notifyMsg" role="status" aria-live="polite"></div>
+  </form>
+
+  <p class="verse serif">&ldquo;The LORD bless thee, and keep thee: the LORD make his face shine upon thee, and be gracious unto thee: the LORD lift up his countenance upon thee, and give thee peace.&rdquo;<small>Numbers 6:24&ndash;26</small></p>
 
   <div class="badges">
     <div class="badge">${IOS_SVG}<div><span>Coming soon on the</span><b>App Store</b></div></div>
     <div class="badge">${PLAY_SVG}<div><span>Coming soon on</span><b>Google Play</b></div></div>
   </div>
-
-  <form class="notify" id="notify" novalidate>
-    <p>Want a note the day we open? Leave your email.</p>
-    <div class="row">
-      <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" aria-label="Email address" required>
-      <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button type="submit" id="notifyBtn">Notify me</button>
-    </div>
-    <div class="msg" id="notifyMsg" role="status" aria-live="polite"></div>
-  </form>
 
   ${socialRow}
 
@@ -148,6 +150,12 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
 (function () {
   var logo = document.getElementById('logo'), gate = document.getElementById('gate'), code = document.getElementById('code');
   var taps = 0, timer = null;
+  var utm = '';
+  try {
+    var q = new URLSearchParams(window.location.search).get('utm_source');
+    if (q) { utm = q.slice(0, 100); window.sessionStorage.setItem('rt_utm_source', utm); }
+    else { utm = window.sessionStorage.getItem('rt_utm_source') || ''; }
+  } catch (e) {}
   logo.addEventListener('click', function () {
     taps += 1; clearTimeout(timer); timer = setTimeout(function () { taps = 0; }, 3500);
     if (taps >= 5) { taps = 0; gate.classList.add('open'); code.focus(); }
@@ -194,9 +202,9 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     var btn = document.getElementById('notifyBtn'), msg = document.getElementById('notifyMsg'), email = document.getElementById('email');
     msg.className = 'msg'; msg.textContent = '';
     btn.disabled = true;
-    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value }).then(function (j) {
+    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value, utm_source: utm }).then(function (j) {
       btn.disabled = false;
-      if (j.ok) { track(); msg.className = 'msg ok'; msg.textContent = 'Thank you. We will email you when we open.'; email.value = ''; }
+      if (j.ok) { track(); msg.className = 'msg ok'; msg.textContent = 'Thank you. Your request is in. We will email your invitation when we open.'; email.value = ''; }
       else { msg.className = 'msg err'; msg.textContent = j.error || 'Something went wrong. Please try again.'; }
     }).catch(function () { btn.disabled = false; msg.className = 'msg err'; msg.textContent = 'Something went wrong. Please try again.'; });
   });
