@@ -11,6 +11,7 @@ const OPEN = [
   /^\/_next\//,
   /^\/(privacy|terms)\/?$/,
   /^\/api\/(gate|waitlist)$/,
+  /^\/unsubscribe\/?$/,
   /^\/(icon|apple-icon)\.png$/,
   /^\/favicon\.ico$/,
   /^\/robots\.txt$/,

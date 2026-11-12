@@ -28,9 +28,10 @@ export async function POST(request) {
     body: JSON.stringify(row),
   });
   try {
-    let res = await save({ email, source, utm_source: utmSource });
+    // source holds the advert (utm_source) when there is one, otherwise the site address.
+    let res = await save({ email, source: utmSource || source, utm_source: utmSource });
     // If the utm_source column is not in the database yet, still save the email without it.
-    if (res.status === 400) res = await save({ email, source });
+    if (res.status === 400) res = await save({ email, source: utmSource || source });
     // 409 means this email is already on the list, which is fine.
     if (res.ok || res.status === 409) return NextResponse.json({ ok: true });
   } catch { /* fall through to the error below */ }
