@@ -14,9 +14,28 @@ const PLAY_SVG = '<svg width="28" height="32" viewBox="0 0 30 34" fill="none" ar
 // variant 'seeker' (rootedtogether.club): leads with the free daily devotional; the button itself is
 // the consent to receive it. variant 'creator' (joinrootedtogether.club): "Request an invitation",
 // with an optional devotional tickbox that starts off.
-export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', variant = 'creator' }) {
+// variant 'gift' (rootedtogether.club/gift?campaign=<slug>): a free PDF by email. `gift` is the row from
+// public.gifts ({ slug, title, subline }); the button sends the PDF and the daily devotional.
+export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', variant = 'creator', gift = null }) {
   const year = new Date().getFullYear();
-  const seeker = variant === 'seeker';
+  const isGift = variant === 'gift' && !!gift;
+  const seeker = variant === 'seeker' || isGift;
+  const pageTitle = isGift ? `${gift.title} | Rooted Together` : 'Rooted Together | Coming soon, by invitation';
+  const pageDesc = isGift ? gift.subline : 'Rooted Together is coming soon, by invitation. A faith-based mentorship community on iOS, Android and the web.';
+  const hero = isGift
+    ? `<h1 class="serif">${esc(gift.title)}</h1>\n  <p class="blurb">${esc(gift.subline)}</p>`
+    : seeker
+      ? '<h1 class="serif seek">A free daily devotional, in your inbox each morning.</h1>\n  <p class="blurb">And your invitation when Rooted Together opens. Coming soon, by invitation.</p>'
+      : `<h1 class="serif">Coming soon <span class="dot">&middot;</span> by invitation</h1>\n  <p class="blurb">${esc(blurb)}</p>`;
+  const buttonLabel = isGift ? 'Send me the gift' : seeker ? 'Send me the devotional' : 'Request an invitation';
+  const finePrint = isGift
+    ? `<p class="fine">We'll email your free PDF and our daily devotional. Unsubscribe any time. <a href="${esc(privacyHref)}">Privacy Policy</a></p>`
+    : seeker
+      ? `<p class="fine">By clicking, you agree to receive our free daily devotional by email, and your invitation when we open. Unsubscribe any time. <a href="${esc(privacyHref)}">Privacy Policy</a></p>`
+      : '<label class="opt"><input type="checkbox" id="devotional" name="devotional"><span>Send me the daily devotional</span></label>';
+  const successText = isGift
+    ? 'Thank you. Your gift is on its way to your inbox.'
+    : seeker ? 'Thank you. You are on the list for the daily devotional and your invitation.' : 'Thank you. Your request is in. We will email your invitation when we open.';
   const links = [
     social.instagram && `<a href="${esc(social.instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${INSTAGRAM_SVG}</a>`,
     social.tiktok && `<a href="${esc(social.tiktok)}" target="_blank" rel="noopener noreferrer" aria-label="TikTok">${TIKTOK_SVG}</a>`,
@@ -39,12 +58,12 @@ export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', v
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rooted Together | Coming soon, by invitation</title>
-<meta name="description" content="Rooted Together is coming soon, by invitation. A faith-based mentorship community on iOS, Android and the web.">
+<title>${esc(pageTitle)}</title>
+<meta name="description" content="${esc(pageDesc)}">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#FBF6EF">
-<meta property="og:title" content="Rooted Together | Coming soon, by invitation">
-<meta property="og:description" content="A faith-based mentorship community. Coming soon, by invitation.">
+<meta property="og:title" content="${esc(pageTitle)}">
+<meta property="og:description" content="${esc(isGift ? gift.subline : 'A faith-based mentorship community. Coming soon, by invitation.')}">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/icon.png">
 <meta name="twitter:card" content="summary">
@@ -123,20 +142,16 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
   </div>
 
   <div class="rule" aria-hidden="true"></div>
-  ${seeker
-    ? '<h1 class="serif seek">A free daily devotional, in your inbox each morning.</h1>\n  <p class="blurb">And your invitation when Rooted Together opens. Coming soon, by invitation.</p>'
-    : `<h1 class="serif">Coming soon <span class="dot">&middot;</span> by invitation</h1>\n  <p class="blurb">${esc(blurb)}</p>`}
+  ${hero}
 
   <form class="notify" id="notify" novalidate>
     ${seeker ? '' : '<p>Leave your email and we will send your invitation when the doors open.</p>'}
     <div class="row">
       <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" aria-label="Email address" required>
       <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button type="submit" id="notifyBtn">${seeker ? 'Send me the devotional' : 'Request an invitation'}</button>
+      <button type="submit" id="notifyBtn">${buttonLabel}</button>
     </div>
-    ${seeker
-      ? `<p class="fine">By clicking, you agree to receive our free daily devotional by email, and your invitation when we open. Unsubscribe any time. <a href="${esc(privacyHref)}">Privacy Policy</a></p>`
-      : '<label class="opt"><input type="checkbox" id="devotional" name="devotional"><span>Send me the daily devotional</span></label>'}
+    ${finePrint}
     <div class="msg" id="notifyMsg" role="status" aria-live="polite"></div>
   </form>
 
@@ -222,14 +237,14 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     msg.className = 'msg'; msg.textContent = '';
     btn.disabled = true;
     var tick = document.getElementById('devotional');
-    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value, utm_source: utm, utm_campaign: utmCamp, devotional: ${seeker ? 'true' : 'tick ? tick.checked : false'} }).then(function (j) {
+    post('${isGift ? '/api/gift' : '/api/waitlist'}', { email: email.value, website: document.getElementById('website').value, utm_source: utm, utm_campaign: ${isGift ? JSON.stringify(gift.slug) : 'utmCamp'}, campaign: ${isGift ? JSON.stringify(gift.slug) : "''"}, devotional: ${seeker ? 'true' : 'tick ? tick.checked : false'} }).then(function (j) {
       btn.disabled = false;
       if (j.ok && j.duplicate) { msg.className = 'msg ok'; msg.textContent = 'You are already on our list. We will be in touch.'; email.value = ''; }
       else if (j.ok) {
         if (j.saved) track();
         if (tick) tick.checked = false;
         msg.className = 'msg ok';
-        msg.textContent = ${seeker ? "'Thank you. You are on the list for the daily devotional and your invitation.'" : "'Thank you. Your request is in. We will email your invitation when we open.'"};
+        msg.textContent = ${JSON.stringify(successText)};
         email.value = '';
       }
       else { msg.className = 'msg err'; msg.textContent = j.error || 'Something went wrong. Please try again.'; }

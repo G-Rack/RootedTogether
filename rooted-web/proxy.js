@@ -10,7 +10,8 @@ import { CONSENT_COUNTRIES, REGION_COOKIE } from './lib/tracking';
 const OPEN = [
   /^\/_next\//,
   /^\/(privacy|terms)\/?$/,
-  /^\/api\/(gate|waitlist)$/,
+  /^\/api\/(gate|waitlist|gift)$/,
+  /^\/gift(\/pdf)?\/?$/,
   /^\/unsubscribe\/?$/,
   /^\/(icon|apple-icon)\.png$/,
   /^\/favicon\.ico$/,
