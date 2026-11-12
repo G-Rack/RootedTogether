@@ -2,7 +2,7 @@
 // while the site is locked, so none of the real site is loaded for them.
 // Tapping the logo five times reveals a small box for the secret code (handled in /api/gate).
 
-import { GOOGLE_TAG_ID, CONSENT_INIT, SIGNUP_LABEL, CONSENT_KEY } from './tracking';
+import { GOOGLE_TAG_ID, CONSENT_INIT, PIXELS_INIT, SIGNUP_LABEL, CONSENT_KEY } from './tracking';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -11,8 +11,12 @@ const TIKTOK_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="curren
 const IOS_SVG = '<svg width="28" height="32" viewBox="0 0 30 34" fill="none" aria-hidden="true"><rect x="5" y="2" width="20" height="30" rx="4.5" stroke="#fff" stroke-width="2.4"/><path d="M12 6h6" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M15 12v10M10.8 18l4.2 4.2 4.2-4.2" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const PLAY_SVG = '<svg width="28" height="32" viewBox="0 0 30 34" fill="none" aria-hidden="true"><path d="M5 3.8v26.4c0 1.4 1.5 2.2 2.7 1.5l20-13.2c1-.7 1-2.2 0-2.9L7.7 2.3C6.5 1.6 5 2.4 5 3.8z" fill="#fff"/></svg>';
 
-export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy' }) {
+// variant 'seeker' (rootedtogether.club): leads with the free daily devotional; the button itself is
+// the consent to receive it. variant 'creator' (joinrootedtogether.club): "Request an invitation",
+// with an optional devotional tickbox that starts off.
+export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', variant = 'creator' }) {
   const year = new Date().getFullYear();
+  const seeker = variant === 'seeker';
   const links = [
     social.instagram && `<a href="${esc(social.instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${INSTAGRAM_SVG}</a>`,
     social.tiktok && `<a href="${esc(social.tiktok)}" target="_blank" rel="noopener noreferrer" aria-label="TikTok">${TIKTOK_SVG}</a>`,
@@ -45,6 +49,7 @@ export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy' })
 <meta property="og:image" content="/icon.png">
 <meta name="twitter:card" content="summary">
 ${googleHead}
+<script>${PIXELS_INIT}</script>
 <link rel="icon" href="/icon.png">
 <link rel="apple-touch-icon" href="/apple-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,6 +86,9 @@ h1 .dot{color:var(--gold)}
 .row button:disabled{opacity:.6;cursor:default}
 .opt{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:14px;font-size:14px;color:var(--soft);cursor:pointer;text-align:left}
 .opt input{width:18px;height:18px;accent-color:var(--brown);flex:none}
+h1.seek{font-size:clamp(28px,5.6vw,40px);line-height:1.18;max-width:600px}
+.fine{margin:12px auto 0;max-width:460px;font-size:12.5px;line-height:1.55;color:var(--soft)}
+.fine a{color:var(--brown);text-decoration:underline}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 .msg{min-height:20px;margin-top:10px;font-size:13.5px;color:var(--soft)}
 .msg.ok{color:#4F6B3A;font-weight:600}
@@ -115,17 +123,20 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
   </div>
 
   <div class="rule" aria-hidden="true"></div>
-  <h1 class="serif">Coming soon <span class="dot">&middot;</span> by invitation</h1>
-  <p class="blurb">${esc(blurb)}</p>
+  ${seeker
+    ? '<h1 class="serif seek">A free daily devotional, in your inbox each morning.</h1>\n  <p class="blurb">And your invitation when Rooted Together opens. Coming soon, by invitation.</p>'
+    : `<h1 class="serif">Coming soon <span class="dot">&middot;</span> by invitation</h1>\n  <p class="blurb">${esc(blurb)}</p>`}
 
   <form class="notify" id="notify" novalidate>
-    <p>Leave your email and we will send your invitation when the doors open.</p>
+    ${seeker ? '' : '<p>Leave your email and we will send your invitation when the doors open.</p>'}
     <div class="row">
       <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" aria-label="Email address" required>
       <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button type="submit" id="notifyBtn">Request an invitation</button>
+      <button type="submit" id="notifyBtn">${seeker ? 'Send me the devotional' : 'Request an invitation'}</button>
     </div>
-    <label class="opt"><input type="checkbox" id="devotional" name="devotional"><span>Send me the daily devotional</span></label>
+    ${seeker
+      ? `<p class="fine">By clicking, you agree to receive our free daily devotional by email, and your invitation when we open. Unsubscribe any time. <a href="${esc(privacyHref)}">Privacy Policy</a></p>`
+      : '<label class="opt"><input type="checkbox" id="devotional" name="devotional"><span>Send me the daily devotional</span></label>'}
     <div class="msg" id="notifyMsg" role="status" aria-live="polite"></div>
   </form>
 
@@ -153,11 +164,14 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
 (function () {
   var logo = document.getElementById('logo'), gate = document.getElementById('gate'), code = document.getElementById('code');
   var taps = 0, timer = null;
-  var utm = '';
+  var utm = '', utmCamp = '';
   try {
-    var q = new URLSearchParams(window.location.search).get('utm_source');
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('utm_source'), qc = params.get('utm_campaign');
     if (q) { utm = q.slice(0, 100); window.sessionStorage.setItem('rt_utm_source', utm); }
     else { utm = window.sessionStorage.getItem('rt_utm_source') || ''; }
+    if (qc) { utmCamp = qc.slice(0, 100); window.sessionStorage.setItem('rt_utm_campaign', utmCamp); }
+    else { utmCamp = window.sessionStorage.getItem('rt_utm_campaign') || ''; }
   } catch (e) {}
   logo.addEventListener('click', function () {
     taps += 1; clearTimeout(timer); timer = setTimeout(function () { taps = 0; }, 3500);
@@ -183,6 +197,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
   });
 
   function track() {
+    if (window.rtTrackSignup) window.rtTrackSignup();
     if (typeof window.gtag !== 'function') return;
     window.gtag('event', 'sign_up', { method: 'waitlist' });
     ${SIGNUP_LABEL ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}' });` : ''}
@@ -194,6 +209,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
       var v = granted ? 'granted' : 'denied';
       try { window.localStorage.setItem('${CONSENT_KEY}', v); } catch (e) {}
       window.gtag('consent', 'update', { ad_storage: v, ad_user_data: v, ad_personalization: v, analytics_storage: v });
+      if (granted && window.rtLoadPixels) window.rtLoadPixels();
       bar.hidden = true;
     };
     document.getElementById('consentNo').addEventListener('click', function () { choose(false); });
@@ -205,9 +221,17 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     var btn = document.getElementById('notifyBtn'), msg = document.getElementById('notifyMsg'), email = document.getElementById('email');
     msg.className = 'msg'; msg.textContent = '';
     btn.disabled = true;
-    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value, utm_source: utm, devotional: document.getElementById('devotional').checked }).then(function (j) {
+    var tick = document.getElementById('devotional');
+    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value, utm_source: utm, utm_campaign: utmCamp, devotional: ${seeker ? 'true' : 'tick ? tick.checked : false'} }).then(function (j) {
       btn.disabled = false;
-      if (j.ok) { track(); document.getElementById('devotional').checked = false; msg.className = 'msg ok'; msg.textContent = 'Thank you. Your request is in. We will email your invitation when we open.'; email.value = ''; }
+      if (j.ok && j.duplicate) { msg.className = 'msg ok'; msg.textContent = 'You are already on our list. We will be in touch.'; email.value = ''; }
+      else if (j.ok) {
+        if (j.saved) track();
+        if (tick) tick.checked = false;
+        msg.className = 'msg ok';
+        msg.textContent = ${seeker ? "'Thank you. You are on the list for the daily devotional and your invitation.'" : "'Thank you. Your request is in. We will email your invitation when we open.'"};
+        email.value = '';
+      }
       else { msg.className = 'msg err'; msg.textContent = j.error || 'Something went wrong. Please try again.'; }
     }).catch(function () { btn.disabled = false; msg.className = 'msg err'; msg.textContent = 'Something went wrong. Please try again.'; });
   });

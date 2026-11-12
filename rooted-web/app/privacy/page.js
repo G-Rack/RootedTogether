@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = 'admin@rootedtogether.club';
-const EFFECTIVE_DATE = 'November 5, 2026';
+const EFFECTIVE_DATE = 'November 12, 2026';
 
 const sections = [
   {
@@ -35,6 +35,7 @@ const sections = [
       'To create and run your account, show your profile to the people you choose, and deliver the features you use, including messages, communities, and purchases.',
       'To process payments, subscriptions, and payouts, prevent fraud and misuse, and keep the community safe.',
       'To send essential messages such as email confirmation, password resets, receipts, and important changes to the service.',
+      'If you ask for our free daily devotional, to email it to you each morning until you unsubscribe. Every devotional email has an unsubscribe link, and you can also write to us at the address below.',
       'To understand and improve how the app and marketplace work.',
       'To meet our legal obligations.',
     ],
@@ -49,7 +50,7 @@ const sections = [
     title: 'Who we share information with',
     body: [
       'We do not sell your personal information.',
-      'We use trusted service providers who process information on our behalf: Supabase (accounts, database, and file storage), Stripe (payments and creator payouts on our website), Google Play and the Apple App Store (app subscriptions), RevenueCat (subscription management), Vercel (hosting of our website), Google (measuring how our adverts perform), and email delivery providers. They may only use your information to provide their services to us.',
+      'We use trusted service providers who process information on our behalf: Supabase (accounts, database, and file storage), Stripe (payments and creator payouts on our website), Google Play and the Apple App Store (app subscriptions), RevenueCat (subscription management), Vercel (hosting of our website), Google, Meta and TikTok (measuring how our adverts perform), and email delivery providers. They may only use your information to provide their services to us.',
       'We may disclose information if required by law, to protect the rights and safety of our members, or as part of a business transfer such as a merger. If that happens, we will tell you before your information becomes subject to a different policy.',
     ],
   },
@@ -74,8 +75,9 @@ const sections = [
     cookies: true,
     body: [
       'We advertise on Google, and our websites (rootedtogether.club and joinrootedtogether.club) use the Google tag to measure how those adverts perform. When you arrive from an advert and then create an account, join our email list or make a purchase, the tag tells Google that it happened, together with the purchase amount, so we can see which adverts work and avoid paying for ones that do not. It uses cookies and similar technology and receives details such as your device, browser and the pages you visit. We do not send Google your name, email address or payment details.',
+      'We also advertise on Meta (Facebook and Instagram) and TikTok, and our websites use the Meta Pixel and the TikTok Pixel to measure how those adverts perform. When you arrive from one of those adverts and then join our waiting list, the pixel tells Meta or TikTok that a sign-up happened, together with details such as your device, browser and the pages you visit, so we can see which adverts work. We do not send them your name or email address. These pixels also use cookies and similar technology.',
       'If you are in the European Union, the European Economic Area, the United Kingdom or Switzerland, we ask first and these cookies stay off until you choose Allow. Everywhere else they are on unless your browser sends a Global Privacy Control signal, which we treat as a request to opt out. The website works the same whichever you choose.',
-      'You can change your choice at any time below, clear the cookies in your browser, or manage how Google uses advertising data in your Google account settings.',
+      'You can change your choice at any time below, clear the cookies in your browser, or manage how Google, Meta and TikTok use advertising data in your account settings with them.',
     ],
   },
   {

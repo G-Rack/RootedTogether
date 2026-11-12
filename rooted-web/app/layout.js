@@ -4,6 +4,7 @@ import SessionProvider from '@/components/SessionProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import GoogleTag from '@/components/GoogleTag';
+import Pixels from '@/components/Pixels';
 import ConsentBanner from '@/components/ConsentBanner';
 
 // Same typefaces as the onboarding site, exposed as CSS variables (see globals.css).
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body>
         <GoogleTag />
+        <Pixels />
         <SessionProvider>
           <Header />
           {children}
