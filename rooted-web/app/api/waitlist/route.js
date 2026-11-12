@@ -17,6 +17,9 @@ export async function POST(request) {
   const source = (request.headers.get('host') || 'unknown').slice(0, 60);
   // Which advert brought them (the ?utm_source= on the link). Kept short and plain.
   const utmSource = String(body?.utm_source || '').replace(/[^\w .+\-]/g, '').trim().slice(0, 100) || null;
+  // Only an explicit tick counts as consent to the daily devotional. The time is stored with it.
+  const devotional = body?.devotional === true;
+  const consent = { devotional_consent: devotional, devotional_consent_at: devotional ? new Date().toISOString() : null };
   const save = (row) => fetch(`${SUPABASE_URL}/rest/v1/waitlist_signups`, {
     method: 'POST',
     headers: {
@@ -29,7 +32,7 @@ export async function POST(request) {
   });
   try {
     // source holds the advert (utm_source) when there is one, otherwise the site address.
-    let res = await save({ email, source: utmSource || source, utm_source: utmSource });
+    let res = await save({ email, source: utmSource || source, utm_source: utmSource, ...consent });
     // If the utm_source column is not in the database yet, still save the email without it.
     if (res.status === 400) res = await save({ email, source: utmSource || source });
     // 409 means this email is already on the list, which is fine.

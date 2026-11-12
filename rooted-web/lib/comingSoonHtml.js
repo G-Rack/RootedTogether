@@ -79,6 +79,8 @@ h1 .dot{color:var(--gold)}
 .row input:focus{border-color:var(--brown)}
 .row button{padding:0 24px;border:0;border-radius:12px;background:var(--brown);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
 .row button:disabled{opacity:.6;cursor:default}
+.opt{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:14px;font-size:14px;color:var(--soft);cursor:pointer;text-align:left}
+.opt input{width:18px;height:18px;accent-color:var(--brown);flex:none}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 .msg{min-height:20px;margin-top:10px;font-size:13.5px;color:var(--soft)}
 .msg.ok{color:#4F6B3A;font-weight:600}
@@ -123,6 +125,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
       <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
       <button type="submit" id="notifyBtn">Request an invitation</button>
     </div>
+    <label class="opt"><input type="checkbox" id="devotional" name="devotional"><span>Send me the daily devotional</span></label>
     <div class="msg" id="notifyMsg" role="status" aria-live="polite"></div>
   </form>
 
@@ -202,9 +205,9 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     var btn = document.getElementById('notifyBtn'), msg = document.getElementById('notifyMsg'), email = document.getElementById('email');
     msg.className = 'msg'; msg.textContent = '';
     btn.disabled = true;
-    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value, utm_source: utm }).then(function (j) {
+    post('/api/waitlist', { email: email.value, website: document.getElementById('website').value, utm_source: utm, devotional: document.getElementById('devotional').checked }).then(function (j) {
       btn.disabled = false;
-      if (j.ok) { track(); msg.className = 'msg ok'; msg.textContent = 'Thank you. Your request is in. We will email your invitation when we open.'; email.value = ''; }
+      if (j.ok) { track(); document.getElementById('devotional').checked = false; msg.className = 'msg ok'; msg.textContent = 'Thank you. Your request is in. We will email your invitation when we open.'; email.value = ''; }
       else { msg.className = 'msg err'; msg.textContent = j.error || 'Something went wrong. Please try again.'; }
     }).catch(function () { btn.disabled = false; msg.className = 'msg err'; msg.textContent = 'Something went wrong. Please try again.'; });
   });
