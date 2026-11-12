@@ -7,6 +7,8 @@ import DateOfBirthField from '@/components/DateOfBirthField';
 import { safeNext } from '@/lib/buyerAccount';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
 import { trackSignUp } from '@/lib/tracking';
+import DevotionalOptIn from '@/components/DevotionalOptIn';
+import { saveDevotionalConsent } from '@/lib/emailConsent';
 
 // Where Google and Apple sign-in land. Someone who already has an account goes
 // straight on. A new person confirms their name and date of birth, which makes
@@ -21,6 +23,7 @@ function FinishAccountInner() {
   const [dob, setDob] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [devotional, setDevotional] = useState(false);
 
   const metaName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || '';
 
@@ -70,6 +73,7 @@ function FinishAccountInner() {
       return;
     }
     trackSignUp('social');
+    if (devotional) await saveDevotionalConsent(session.access_token, 'web-social-signup');
     // A full load so the whole site picks up the new account straight away.
     window.location.assign(next || '/');
   };
@@ -92,6 +96,7 @@ function FinishAccountInner() {
             <label className="field-label">Date of birth</label>
             <DateOfBirthField required value={dob} onChange={setDob} />
           </div>
+          <DevotionalOptIn checked={devotional} onChange={setDevotional} />
           <button type="submit" disabled={busy} className="btn btn-primary" style={{ marginTop: 4 }}>
             {busy ? 'Finishing…' : 'Finish account'}
           </button>

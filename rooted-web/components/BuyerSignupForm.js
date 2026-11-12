@@ -5,6 +5,7 @@ import PasswordField from '@/components/PasswordField';
 import DateOfBirthField from '@/components/DateOfBirthField';
 import { createBuyerAccount } from '@/lib/buyerAccount';
 import SocialAuthButtons from '@/components/SocialAuthButtons';
+import DevotionalOptIn from '@/components/DevotionalOptIn';
 
 // The short, free sign-up for people who are here to buy. Used on the sign-up
 // page and inside the "Almost there" window on an offering. Calls onDone(true)
@@ -16,6 +17,7 @@ export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [devotional, setDevotional] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -25,7 +27,7 @@ export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel
       return;
     }
     setBusy(true);
-    const result = await createBuyerAccount({ name, email, dob, password, referralCode });
+    const result = await createBuyerAccount({ name, email, dob, password, referralCode, devotional });
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
@@ -66,6 +68,7 @@ export default function BuyerSignupForm({ onDone, referralCode = '', submitLabel
           autoComplete="new-password"
         />
       </div>
+      <DevotionalOptIn checked={devotional} onChange={setDevotional} />
       <button type="submit" disabled={busy} className="btn btn-primary" style={{ marginTop: 4 }}>
         {busy ? 'Creating account…' : submitLabel}
       </button>

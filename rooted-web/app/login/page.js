@@ -13,6 +13,8 @@ import BuyerSignupForm from '@/components/BuyerSignupForm';
 import { trackSignUp } from '@/lib/tracking';
 import { reportPaymentLinkPurchase } from '@/lib/reportPurchase';
 import SocialAuthButtons from '@/components/SocialAuthButtons';
+import DevotionalOptIn from '@/components/DevotionalOptIn';
+import { saveDevotionalConsent } from '@/lib/emailConsent';
 import { safeNext } from '@/lib/buyerAccount';
 import { CHURCH_TYPE_OPTIONS } from '@/lib/roleProfileFields';
 
@@ -549,6 +551,7 @@ function SignupForm({ router, onWide }) {
   // $49 is waived for them; submit-signup checks the token against the invitations table.
   const rawInvite = searchParams.get('invite') || '';
   const inviteToken = /^[a-f0-9]{64}$/.test(rawInvite) ? rawInvite : '';
+  const [devotional, setDevotional] = useState(false);
   const [gate, setGate] = useState(sessionId ? 'checking' : inviteToken ? 'ok' : 'needs_payment');
   const [paidEmail, setPaidEmail] = useState('');
   const [paidReferral, setPaidReferral] = useState('');
@@ -681,7 +684,8 @@ function SignupForm({ router, onWide }) {
         return;
       }
       trackSignUp('creator');
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (!signInError && devotional) await saveDevotionalConsent(signedIn?.session?.access_token, 'web-creator-signup');
       setBusy(false);
       if (signInError) {
         setError('Account created — please log in.');
@@ -808,6 +812,7 @@ function SignupForm({ router, onWide }) {
           You were invited by a Rooted Together member. They&rsquo;ll be credited when you join.
         </div>
       )}
+      <DevotionalOptIn checked={devotional} onChange={setDevotional} />
       <button type="submit" disabled={busy} className="btn btn-primary" style={{ marginTop: 4 }}>
         {busy ? 'Creating account…' : 'Create account'}
       </button>

@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY } from './config';
 import { trackSignUp } from './tracking';
+import { saveDevotionalConsent } from './emailConsent';
 
 // Free buyer accounts. These are ordinary "seeker" accounts: no membership,
 // no payment. The submit-signup Edge Function only asks for the $49 membership
@@ -13,7 +14,7 @@ export function safeNext(raw) {
   return raw;
 }
 
-export async function createBuyerAccount({ name, email, dob, password, referralCode }) {
+export async function createBuyerAccount({ name, email, dob, password, referralCode, devotional = false }) {
   let res;
   let body = {};
   try {
@@ -38,8 +39,9 @@ export async function createBuyerAccount({ name, email, dob, password, referralC
   if (!res.ok) return { ok: false, error: body.error || "Couldn't create your account right now." };
   trackSignUp('buyer');
 
-  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
   if (error) return { ok: true, signedIn: false, error: 'Your account is ready — please log in.' };
+  if (devotional) await saveDevotionalConsent(signedIn?.session?.access_token, 'web-signup');
   return { ok: true, signedIn: true };
 }
 
