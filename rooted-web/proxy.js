@@ -9,7 +9,7 @@ import { CONSENT_COUNTRIES, REGION_COOKIE } from './lib/tracking';
 // coming-soon page itself uses.
 const OPEN = [
   /^\/_next\//,
-  /^\/(privacy|terms)\/?$/,
+  /^\/(privacy|terms|child-safety)\/?$/,
   /^\/api\/(gate|waitlist|gift)$/,
   /^\/gift(\/pdf)?\/?$/,
   /^\/unsubscribe\/?$/,
