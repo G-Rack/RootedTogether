@@ -69,7 +69,7 @@ export default function Footer() {
           color: 'var(--text-soft)',
         }}
       >
-        © Rooted Together. {new Date().getFullYear()}. All rights reserved.
+        © {new Date().getFullYear()} Rooted Together, Inc. All rights reserved.
       </div>
     </div>
   );

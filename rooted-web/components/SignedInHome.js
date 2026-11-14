@@ -186,7 +186,7 @@ export default function SignedInHome({
         )}
 
         <div className="home-legal">
-          <span>&copy; Rooted Together. {new Date().getFullYear()}</span>
+          <span>&copy; {new Date().getFullYear()} Rooted Together, Inc.</span>
           <Link href="/privacy">Privacy Policy</Link>
           <Link href="/terms">Terms of Service</Link>
           <a href="mailto:admin@rootedtogether.club">Contact</a>
