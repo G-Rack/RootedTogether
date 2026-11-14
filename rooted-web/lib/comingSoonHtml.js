@@ -214,8 +214,9 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
   function track() {
     if (window.rtTrackSignup) window.rtTrackSignup();
     if (typeof window.gtag !== 'function') return;
-    window.gtag('event', 'sign_up', { method: 'waitlist' });
-    ${SIGNUP_LABEL ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}' });` : ''}
+    var p = { method: ${isGift ? "'gift'" : "'waitlist'"}, utm_source: utm || '(direct)', utm_campaign: ${isGift ? JSON.stringify(gift.slug) : "'' + (utmCamp || '(none)')"} };
+    window.gtag('event', 'sign_up', p);
+    ${SIGNUP_LABEL ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}', utm_source: p.utm_source, utm_campaign: p.utm_campaign });` : ''}
   }
   var bar = document.getElementById('consent');
   if (bar && window.__rtAskConsent) {
