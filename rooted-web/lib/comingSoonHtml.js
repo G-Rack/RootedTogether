@@ -16,18 +16,24 @@ const PLAY_SVG = '<svg width="28" height="32" viewBox="0 0 30 34" fill="none" ar
 // with an optional devotional tickbox that starts off.
 // variant 'gift' (rootedtogether.club/gift?campaign=<slug>): a free PDF by email. `gift` is the row from
 // public.gifts ({ slug, title, subline }); the button sends the PDF and the daily devotional.
-export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', variant = 'creator', gift = null }) {
+export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', variant = 'creator', gift = null, devotionalLanding = false }) {
   const year = new Date().getFullYear();
   const isGift = variant === 'gift' && !!gift;
   const seeker = variant === 'seeker' || isGift;
-  const pageTitle = isGift ? `${gift.title} | Rooted Together` : 'Rooted Together | Coming soon, by invitation';
-  const pageDesc = isGift ? gift.subline : 'Rooted Together is coming soon, by invitation. A faith-based mentorship community on iOS, Android and the web.';
-  const hero = isGift
+  // /gift?campaign=devotional: same page and form, only the copy leads with the devotional and the gift is a welcome bonus.
+  const devLanding = isGift && devotionalLanding;
+  // The label sent as the campaign for sign-up tracking: the gift's slug, or 'devotional' on the devotional page.
+  const campLabel = isGift ? (devLanding ? 'devotional' : gift.slug) : '';
+  const pageTitle = devLanding ? 'A free daily devotional | Rooted Together' : isGift ? `${gift.title} | Rooted Together` : 'Rooted Together | Coming soon, by invitation';
+  const pageDesc = devLanding ? `A verse, a short reflection and a prayer each morning, free by email. Welcome bonus: ${gift.title}.` : isGift ? gift.subline : 'Rooted Together is coming soon, by invitation. A faith-based mentorship community on iOS, Android and the web.';
+  const hero = devLanding
+    ? `<h1 class="serif">A free daily devotional, every morning</h1>\n  <p class="blurb">Welcome bonus: ${esc(gift.title)}. ${esc(gift.subline)}</p>`
+    : isGift
     ? `<h1 class="serif">${esc(gift.title)}</h1>\n  <p class="blurb">${esc(gift.subline)}</p>`
     : seeker
       ? '<h1 class="serif seek">A free daily devotional, in your inbox each morning.</h1>\n  <p class="blurb">And your invitation when Rooted Together opens. Coming soon, by invitation.</p>'
       : `<h1 class="serif">Coming soon <span class="dot">&middot;</span> by invitation</h1>\n  <p class="blurb">${esc(blurb)}</p>`;
-  const buttonLabel = isGift ? 'Send me the gift' : seeker ? 'Send me the devotional' : 'Request an invitation';
+  const buttonLabel = isGift ? (devLanding ? 'Send me the devotional' : 'Send me the gift') : seeker ? 'Send me the devotional' : 'Request an invitation';
   const finePrint = isGift
     ? `<p class="fine">We'll email your free PDF and our daily devotional. Unsubscribe any time. <a href="${esc(privacyHref)}">Privacy Policy</a></p>`
     : seeker
@@ -36,6 +42,14 @@ export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', v
   const successText = isGift
     ? 'Thank you. Your gift is on its way to your inbox.'
     : seeker ? 'Thank you. You are on the list for the daily devotional and your invitation.' : 'Thank you. Your request is in. We will email your invitation when we open.';
+  const successDevOnly = 'Thank you. You are on the list for the daily devotional.';
+  // Two opt-ins on the gift form, both ticked to start; at least one must stay ticked.
+  const giftOpts = isGift
+    ? `<div class="opts">
+        <label class="opt"><input type="checkbox" id="optGift" name="send_gift" checked><span>Send me ${esc(gift.title)}</span></label>
+        <label class="opt"><input type="checkbox" id="optDev" name="send_devotional" checked><span>Send me the free daily devotional (a verse, a short reflection and a prayer each morning)</span></label>
+      </div>`
+    : '';
   const links = [
     social.instagram && `<a href="${esc(social.instagram)}" target="_blank" rel="noopener noreferrer" aria-label="Instagram">${INSTAGRAM_SVG}</a>`,
     social.tiktok && `<a href="${esc(social.tiktok)}" target="_blank" rel="noopener noreferrer" aria-label="TikTok">${TIKTOK_SVG}</a>`,
@@ -63,7 +77,7 @@ export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', v
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#FBF6EF">
 <meta property="og:title" content="${esc(pageTitle)}">
-<meta property="og:description" content="${esc(isGift ? gift.subline : 'A faith-based mentorship community. Coming soon, by invitation.')}">
+<meta property="og:description" content="${esc(devLanding ? pageDesc : isGift ? gift.subline : 'A faith-based mentorship community. Coming soon, by invitation.')}">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/icon.png">
 <meta name="twitter:card" content="summary">
@@ -106,6 +120,11 @@ h1 .dot{color:var(--gold)}
 .opt{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:14px;font-size:14px;color:var(--soft);cursor:pointer;text-align:left}
 .opt input{width:18px;height:18px;accent-color:var(--brown);flex:none}
 h1.seek{font-size:clamp(28px,5.6vw,40px);line-height:1.18;max-width:600px}
+.row.stack{flex-direction:column}
+.row.stack button{padding:14px 24px}
+.opts{display:flex;flex-direction:column;gap:10px;margin:4px 0 2px;text-align:left}
+.opts .opt{margin:0;justify-content:flex-start;align-items:flex-start;line-height:1.45}
+.opts .opt input{margin-top:2px}
 .fine{margin:12px auto 0;max-width:460px;font-size:12.5px;line-height:1.55;color:var(--soft)}
 .fine a{color:var(--brown);text-decoration:underline}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
@@ -146,9 +165,10 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
 
   <form class="notify" id="notify" novalidate>
     ${seeker ? '' : '<p>Leave your email and we will send your invitation when the doors open.</p>'}
-    <div class="row">
+    <div class="row${isGift ? ' stack' : ''}">
       <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" aria-label="Email address" required>
       <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      ${giftOpts}
       <button type="submit" id="notifyBtn">${buttonLabel}</button>
     </div>
     ${finePrint}
@@ -214,7 +234,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
   function track() {
     if (window.rtTrackSignup) window.rtTrackSignup();
     if (typeof window.gtag !== 'function') return;
-    var p = { method: ${isGift ? "'gift'" : "'waitlist'"}, utm_source: utm || '(direct)', utm_campaign: ${isGift ? JSON.stringify(gift.slug) : "'' + (utmCamp || '(none)')"} };
+    var p = { method: ${isGift ? "'gift'" : "'waitlist'"}, utm_source: utm || '(direct)', utm_campaign: ${isGift ? JSON.stringify(campLabel) : "'' + (utmCamp || '(none)')"} };
     window.gtag('event', 'sign_up', p);
     ${SIGNUP_LABEL ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}', utm_source: p.utm_source, utm_campaign: p.utm_campaign });` : ''}
   }
@@ -236,16 +256,18 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     e.preventDefault();
     var btn = document.getElementById('notifyBtn'), msg = document.getElementById('notifyMsg'), email = document.getElementById('email');
     msg.className = 'msg'; msg.textContent = '';
-    btn.disabled = true;
+    ${isGift ? `var wantGift = document.getElementById('optGift').checked, wantDev = document.getElementById('optDev').checked;
+    if (!wantGift && !wantDev) { msg.className = 'msg err'; msg.textContent = 'Please choose at least one.'; return; }
+    ` : ''}btn.disabled = true;
     var tick = document.getElementById('devotional');
-    post('${isGift ? '/api/gift' : '/api/waitlist'}', { email: email.value, website: document.getElementById('website').value, utm_source: utm, utm_campaign: ${isGift ? JSON.stringify(gift.slug) : 'utmCamp'}, campaign: ${isGift ? JSON.stringify(gift.slug) : "''"}, devotional: ${seeker ? 'true' : 'tick ? tick.checked : false'} }).then(function (j) {
+    post('${isGift ? '/api/gift' : '/api/waitlist'}', { email: email.value, website: document.getElementById('website').value, utm_source: utm, utm_campaign: ${isGift ? JSON.stringify(campLabel) : 'utmCamp'}, campaign: ${isGift ? JSON.stringify(gift.slug) : "''"}, devotional: ${isGift ? 'wantDev' : seeker ? 'true' : 'tick ? tick.checked : false'}${isGift ? ', send_gift: wantGift' : ''} }).then(function (j) {
       btn.disabled = false;
       if (j.ok && j.duplicate) { msg.className = 'msg ok'; msg.textContent = 'You are already on our list. We will be in touch.'; email.value = ''; }
       else if (j.ok) {
         if (j.saved) track();
         if (tick) tick.checked = false;
         msg.className = 'msg ok';
-        msg.textContent = ${JSON.stringify(successText)};
+        msg.textContent = ${isGift ? `wantGift ? ${JSON.stringify(successText)} : ${JSON.stringify(successDevOnly)}` : JSON.stringify(successText)};
         email.value = '';
       }
       else { msg.className = 'msg err'; msg.textContent = j.error || 'Something went wrong. Please try again.'; }

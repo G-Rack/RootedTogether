@@ -16,13 +16,17 @@ export async function POST(request) {
   if (email.length < 5 || email.length > 254 || !EMAIL.test(email)) {
     return NextResponse.json({ ok: false, error: 'Please enter a valid email address.' }, { status: 400 });
   }
+  // The two tickboxes on the form. Only an explicit false means unticked; at least one must be ticked.
+  const sendGift = body?.send_gift !== false;
+  const sendDevotional = body?.devotional !== false;
+  if (!sendGift && !sendDevotional) return NextResponse.json({ ok: false, error: 'Please choose at least one.' }, { status: 400 });
   const campaign = String(body?.campaign || '').trim().toLowerCase();
   if (!SLUG.test(campaign)) return NextResponse.json({ ok: false, error: 'This gift is not available.' }, { status: 404 });
   try {
     const res = await fetch(`${FUNCTIONS_URL}/gift-signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-      body: JSON.stringify({ email, campaign, utm_source: tidy(body?.utm_source) }),
+      body: JSON.stringify({ email, campaign, utm_source: tidy(body?.utm_source), utm_campaign: tidy(body?.utm_campaign), send_gift: sendGift, send_devotional: sendDevotional }),
       cache: 'no-store',
     });
     const j = await res.json().catch(() => ({}));
