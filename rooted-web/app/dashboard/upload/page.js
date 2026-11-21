@@ -14,6 +14,8 @@ import CourseLessonsEditor, { newLessonSlot, lessonFromRow } from '@/components/
 import AudiobookTracksEditor, { newTrackSlot, trackFromRow } from '@/components/AudiobookTracksEditor';
 
 const TYPES = OFFERING_TYPE_KEYS;
+// No longer offered for new uploads. An existing offering of these types can still be opened and edited.
+const RETIRED_TYPES = new Set(['printable', 'template']);
 // Smallest price a paid item can have. Free items (price 0) are still allowed.
 const MIN_PRICE_DOLLARS = 5;
 
@@ -365,7 +367,7 @@ function UploadPageInner() {
         <div>
           <label className="field-label">Offering type</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {TYPES.map((t) => (
+            {TYPES.filter((t) => !RETIRED_TYPES.has(t) || t === type).map((t) => (
               <button
                 key={t}
                 type="button"
