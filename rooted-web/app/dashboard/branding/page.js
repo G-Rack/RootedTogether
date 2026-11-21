@@ -102,29 +102,31 @@ export default function BrandingPage() {
         )}
       </div>
 
-      <section aria-label="Your cards" style={{ marginTop: 32, display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start' }}>
+      <div style={{ maxWidth: 1000, margin: '32px auto 0' }}>
+        <DetailsForm
+          storefront={storefront}
+          setStorefront={setStorefront}
+          session={session}
+          handle={handle}
+          setHandle={setHandle}
+          tagline={tagline}
+          setTagline={setTagline}
+          bio={bio}
+          setBio={setBio}
+          links={links}
+          setLinks={setLinks}
+          avatarPath={avatarPath}
+          setAvatarPath={setAvatarPath}
+          bannerPath={bannerPath}
+          setBannerPath={setBannerPath}
+          name={name}
+        />
+      </div>
+
+      <section aria-label="Your cards" style={{ marginTop: 48, display: 'flex', flexWrap: 'wrap', gap: 28, alignItems: 'flex-start', justifyContent: 'center' }}>
         <StorefrontCard card={card} socials={liveSocials} stats={stats} savedHandle={storefront?.handle} />
         <SharePanel card={card} cardStyle={cardStyle} onPick={pickStyle} />
       </section>
-
-      <DetailsForm
-        storefront={storefront}
-        setStorefront={setStorefront}
-        session={session}
-        handle={handle}
-        setHandle={setHandle}
-        tagline={tagline}
-        setTagline={setTagline}
-        bio={bio}
-        setBio={setBio}
-        links={links}
-        setLinks={setLinks}
-        avatarPath={avatarPath}
-        setAvatarPath={setAvatarPath}
-        bannerPath={bannerPath}
-        setBannerPath={setBannerPath}
-        name={name}
-      />
     </div>
   );
 }
@@ -478,14 +480,14 @@ function DetailsForm({ storefront, setStorefront, session, handle, setHandle, ta
   const banner = bannerUrl(bannerPath);
 
   return (
-    <section aria-label="Your details" style={{ marginTop: 36 }}>
+    <section aria-label="Your details">
       <div className="sf-eyebrow" style={SECTION_LABEL}>Your details</div>
       <form onSubmit={save} style={{ ...CARD_BOX, padding: 'clamp(20px, 3vw, 32px)' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px 24px' }}>
           <div style={{ minWidth: 0 }}>
             <h2 className="serif" style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>Make it yours</h2>
             <p style={{ margin: '6px 0 0', fontSize: 14.5, lineHeight: 1.5, color: 'var(--text-soft)' }}>
-              Your photo, banner, words and links. Everything you change here shows in the cards above as you type.
+              Your photo, banner, words and links. Everything you change here shows in the cards below as you type.
             </p>
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 14px', borderRadius: 999, background: '#F1E4D3', color: 'var(--brown)', fontSize: 13, fontWeight: 700 }}>
