@@ -85,7 +85,7 @@ export default function BrandingPage() {
   const card = { name, role, handle: shownHandle, tagline, avatar, banner };
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ width: '100%' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px 28px' }}>
         <div style={{ minWidth: 0 }}>
           <h1 className="serif" style={{ margin: 0, fontSize: 'clamp(28px, 3.4vw, 36px)', lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--brown)' }}>
@@ -102,7 +102,7 @@ export default function BrandingPage() {
         )}
       </div>
 
-      <div style={{ maxWidth: 1000, margin: '32px auto 0' }}>
+      <div style={{ marginTop: 32 }}>
         <DetailsForm
           storefront={storefront}
           setStorefront={setStorefront}
