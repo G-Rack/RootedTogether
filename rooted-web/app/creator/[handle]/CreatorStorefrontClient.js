@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -164,10 +164,32 @@ export default function CreatorStorefrontClient() {
     };
   }, [handle, session]);
 
-  const filteredOfferings = useMemo(
-    () => (tab === 'all' ? offerings : offerings.filter((o) => o.type === tab)),
-    [offerings, tab],
-  );
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('popular');
+  const [copied, setCopied] = useState(false);
+  const [barVisible, setBarVisible] = useState(false);
+  const [activeSection, setActiveSection] = useState('shop');
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const heroRef = useRef(null);
+  const reviewsRef = useRef(null);
+
+  const visibleOfferings = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const bought = (o) => offeringStats[o.id]?.purchases_count || 0;
+    const price = (o) => (o.is_free_for_family ? 0 : o.price_cents || 0);
+    const when = (o) => new Date(o.created_at || 0).getTime();
+    const list = offerings.filter(
+      (o) =>
+        (tab === 'all' || o.type === tab) &&
+        (!q || (o.title || '').toLowerCase().includes(q) || (o.description || '').toLowerCase().includes(q)),
+    );
+    if (sort === 'popular') return [...list].sort((a, b) => bought(b) - bought(a));
+    if (sort === 'newest') return [...list].sort((a, b) => when(b) - when(a));
+    if (sort === 'low') return [...list].sort((a, b) => price(a) - price(b));
+    if (sort === 'high') return [...list].sort((a, b) => price(b) - price(a));
+    return list;
+  }, [offerings, tab, query, sort, offeringStats]);
+  const filtersActive = tab !== 'all' || query.trim() !== '';
 
   // The piece to lead with: the one most people have bought, else the first.
   const featured = useMemo(() => {
@@ -183,26 +205,105 @@ export default function CreatorStorefrontClient() {
     return years < 1 ? '<1' : Math.floor(years);
   }, [profile, now]);
 
+  // Scroll effects: sections fade in as they arrive, the slim top bar appears once the
+  // header has scrolled away, and the section links follow where the visitor is reading.
+  useEffect(() => {
+    if (loading || notFound) return undefined;
+    const reveal = Array.from(document.querySelectorAll('.sf-reveal'));
+    if (typeof IntersectionObserver === 'undefined') {
+      reveal.forEach((el) => el.classList.add('in'));
+      return undefined;
+    }
+    const revealObs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add('in');
+            revealObs.unobserve(en.target);
+          }
+        });
+      },
+      { rootMargin: '0px 0px -6% 0px', threshold: 0.04 },
+    );
+    reveal.forEach((el) => revealObs.observe(el));
+
+    const hero = heroRef.current;
+    const heroObs = hero
+      ? new IntersectionObserver(([en]) => setBarVisible(!en.isIntersecting), { threshold: 0, rootMargin: '-72px 0px 0px 0px' })
+      : null;
+    if (hero && heroObs) heroObs.observe(hero);
+
+    const sections = ['shop', 'reviews', 'about', 'services'].map((id) => document.getElementById(id)).filter(Boolean);
+    const spy = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) setActiveSection(en.target.id);
+        });
+      },
+      { rootMargin: '-30% 0px -60% 0px' },
+    );
+    sections.forEach((s) => spy.observe(s));
+
+    return () => {
+      revealObs.disconnect();
+      if (heroObs) heroObs.disconnect();
+      spy.disconnect();
+    };
+  }, [loading, notFound, creatorIsPro, reviews.length, offerings.length]);
+
   const toggleFollow = async () => {
     if (!session) {
       router.push(`/login?tab=signup&path=buyer&next=${encodeURIComponent(`/creator/${handle}`)}`);
       return;
     }
+    const wasFollowing = isFollowing;
+    setIsFollowing(!wasFollowing); // show the change at once, put it back if it fails
     setFollowBusy(true);
-    if (isFollowing) {
-      await supabase.from('follows').delete().eq('follower_auth_id', session.user.id).eq('followee_auth_id', storefront.auth_user_id);
-      setIsFollowing(false);
-    } else {
-      await supabase.from('follows').insert({ follower_auth_id: session.user.id, followee_auth_id: storefront.auth_user_id });
-      setIsFollowing(true);
-    }
+    const result = wasFollowing
+      ? await supabase.from('follows').delete().eq('follower_auth_id', session.user.id).eq('followee_auth_id', storefront.auth_user_id)
+      : await supabase.from('follows').insert({ follower_auth_id: session.user.id, followee_auth_id: storefront.auth_user_id });
+    if (result.error) setIsFollowing(wasFollowing);
     setFollowBusy(false);
+  };
+
+  const shareLink = async () => {
+    const url = window.location.href.split('#')[0];
+    try {
+      if (navigator.share && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) {
+        await navigator.share({ title: profile?.name, text: storefront?.tagline || '', url });
+        return;
+      }
+    } catch {
+      return; // the visitor closed the share sheet
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch {
+      /* clipboard blocked: nothing else to do */
+    }
+  };
+
+  const goTo = (id) => (e) => {
+    e.preventDefault();
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+  };
+
+  const slideReviews = (dir) => {
+    const el = reviewsRef.current;
+    if (el) el.scrollBy({ left: dir * Math.max(280, el.clientWidth * 0.8), behavior: 'smooth' });
   };
 
   if (loading) {
     return (
-      <div className="container" style={{ paddingBlock: '48px' }}>
-        <div className="skeleton" style={{ height: 320 }} />
+      <div style={{ ...WRAP, paddingBlock: 32 }}>
+        <div className="skeleton" style={{ height: 'clamp(150px, 24vw, 270px)', borderRadius: 28 }} />
+        <div className="skeleton" style={{ height: 150, marginTop: 20, borderRadius: 22 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20, marginTop: 28 }}>
+          {[0, 1, 2].map((i) => <div key={i} className="skeleton" style={{ height: 300, borderRadius: 22 }} />)}
+        </div>
       </div>
     );
   }
@@ -230,97 +331,153 @@ export default function CreatorStorefrontClient() {
   const freeCount = offerings.filter((o) => o.is_free_for_family && o.status === 'published').length;
   const socials = activeSocials(storefront);
   const aboutText = storefront.bio || profile.story || '';
+  const longAbout = aboutText.length > 520;
   const hasReviews = reviews.length > 0;
+  const navLinks = [
+    offerings.length > 0 && { id: 'shop', label: 'Shop' },
+    hasReviews && { id: 'reviews', label: 'Reviews' },
+    { id: 'about', label: 'About' },
+    creatorIsPro && { id: 'services', label: 'Services' },
+  ].filter(Boolean);
+
+  const followButton = (small) =>
+    isSelf ? (
+      <Link href="/dashboard/branding" className={`btn btn-outline ${small ? 'btn-small' : ''}`}>
+        Edit storefront
+      </Link>
+    ) : (
+      <button
+        type="button"
+        onClick={toggleFollow}
+        disabled={followBusy}
+        aria-pressed={isFollowing}
+        className={`btn sf-follow ${isFollowing ? 'is-on' : ''} ${small ? 'btn-small' : ''}`}
+      >
+        {isFollowing ? (
+          <>
+            <Icon size={15}><path d="M5 12.5l4.5 4.5L19 7.5" /></Icon>
+            Following
+          </>
+        ) : (
+          <>
+            <Icon size={15}><path d="M12 5v14M5 12h14" /></Icon>
+            Follow
+          </>
+        )}
+      </button>
+    );
+
+  const statTiles = [
+    { value: stats.offerings_count ?? 0, label: stats.offerings_count === 1 ? 'offering' : 'offerings' },
+    (stats.students_count ?? 0) > 0 && { value: stats.students_count, label: stats.students_count === 1 ? 'student' : 'students' },
+    reviewStats.review_count > 0 && {
+      value: Number(reviewStats.avg_rating).toFixed(1),
+      label: `${reviewStats.review_count} ${reviewStats.review_count === 1 ? 'review' : 'reviews'}`,
+      stars: Number(reviewStats.avg_rating),
+    },
+    yearsActive !== null && { value: yearsActive, label: yearsActive === 1 ? 'year here' : 'years here' },
+  ].filter(Boolean);
 
   return (
     <div style={{ background: 'var(--cream)' }}>
       {/* Hero */}
-      <section
-        style={{
-          position: 'relative',
-          color: '#FBF6EF',
-          background: banner ? `center / cover no-repeat url("${banner}")` : 'linear-gradient(160deg, #6B4226 0%, #8C6A4A 100%)',
-        }}
-      >
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(46,27,16,0.22) 0%, rgba(46,27,16,0.9) 100%)' }} />
-        <div style={{ ...WRAP, position: 'relative', paddingTop: 'clamp(110px, 17vw, 190px)', paddingBottom: 36, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '24px 32px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 22, flexWrap: 'wrap', minWidth: 0, flex: '1 1 480px' }}>
-            {avatar ? (
-              <div style={{ width: 112, height: 112, borderRadius: 999, flexShrink: 0, border: '4px solid #FBF6EF', background: `center / cover no-repeat url("${avatar}")`, boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} />
-            ) : (
-              <div className="avatar" style={{ width: 112, height: 112, fontSize: 34, border: '4px solid #FBF6EF', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-                {initialsFor(profile.name)}
+      <div style={{ ...WRAP, paddingTop: 24 }}>
+        <section className="sf-hero" ref={heroRef}>
+          <div
+            className="sf-banner"
+            style={{
+              background: banner
+                ? `center / cover no-repeat url("${banner}")`
+                : 'radial-gradient(800px 280px at 88% -20%, rgba(200,146,63,0.4), transparent 62%), linear-gradient(160deg, #6B4226 0%, #8C6A4A 100%)',
+            }}
+          />
+          <div className="sf-hero-body">
+            <div className="sf-hero-top">
+              {avatar ? (
+                <div className="sf-avatar" style={{ background: `center / cover no-repeat url("${avatar}")` }} />
+              ) : (
+                <div className="avatar sf-avatar" style={{ fontSize: 34 }}>{initialsFor(profile.name)}</div>
+              )}
+              <div className="sf-actions">
+                {offerings.length > 0 && (
+                  <a href="#shop" onClick={goTo('shop')} className="btn btn-primary">
+                    Shop now
+                    <Icon size={15}><path d="M12 5v14M6 13l6 6 6-6" /></Icon>
+                  </a>
+                )}
+                {followButton(false)}
+                <button type="button" onClick={shareLink} className="sf-icon-btn" aria-label="Copy storefront link" title={copied ? 'Link copied' : 'Share this storefront'}>
+                  {copied ? (
+                    <Icon size={18}><path d="M5 12.5l4.5 4.5L19 7.5" /></Icon>
+                  ) : (
+                    <Icon size={18}><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13" /></Icon>
+                  )}
+                </button>
+                <span className="sf-toast" role="status" aria-live="polite">{copied ? 'Link copied' : ''}</span>
               </div>
-            )}
-            <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+            </div>
+
+            <div style={{ marginTop: 14, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h1 className="serif" style={{ margin: 0, fontSize: 'clamp(30px, 4.4vw, 46px)', lineHeight: 1.08, fontWeight: 700, letterSpacing: '-0.015em' }}>{profile.name}</h1>
+                <h1 className="serif" style={{ margin: 0, fontSize: 'clamp(28px, 4vw, 40px)', lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--text)' }}>{profile.name}</h1>
                 <span title="Approved creator" style={{ color: '#C8923F', display: 'flex' }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="rgba(46,27,16,0.4)" strokeWidth="1">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="rgba(46,27,16,0.3)" strokeWidth="1">
                     <path d="M12 2l2.4 2.1 3.1-.6.9 3 2.6 1.7-1 3 1 3-2.6 1.7-.9 3-3.1-.6L12 22l-2.4-2.1-3.1.6-.9-3-2.6-1.7 1-3-1-3 2.6-1.7.9-3 3.1.6z" />
                   </svg>
                 </span>
                 {creatorIsPro && <ProBadge />}
               </div>
-              <div style={{ marginTop: 6, fontSize: 15, color: '#E8CDA8', fontWeight: 600 }}>{ROLE_LABELS[profile.role] || profile.role}</div>
+              <div className="sf-eyebrow" style={{ marginTop: 8 }}>{ROLE_LABELS[profile.role] || profile.role}</div>
               {storefront.tagline && (
-                <p style={{ margin: '12px 0 0', maxWidth: 560, fontSize: 17, lineHeight: 1.5, color: 'rgba(251,246,239,0.92)' }}>{storefront.tagline}</p>
+                <p style={{ margin: '10px 0 0', maxWidth: 640, fontSize: 17, lineHeight: 1.55, color: 'var(--text-soft)' }}>{storefront.tagline}</p>
               )}
-              <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {reviewStats.review_count > 0 && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, background: 'rgba(251,246,239,0.14)', fontSize: 13, fontWeight: 600 }}>
-                    <StarRating value={Number(reviewStats.avg_rating)} size={13} />
-                    {Number(reviewStats.avg_rating).toFixed(1)} ({reviewStats.review_count})
-                  </span>
-                )}
-                <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(251,246,239,0.14)', fontSize: 13, fontWeight: 600 }}>{stats.offerings_count ?? 0} offerings</span>
-                {(stats.students_count ?? 0) > 0 && (
-                  <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(251,246,239,0.14)', fontSize: 13, fontWeight: 600 }}>{stats.students_count} students</span>
-                )}
-                {yearsActive !== null && (
-                  <span style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(251,246,239,0.14)', fontSize: 13, fontWeight: 600 }}>{yearsActive} {yearsActive === 1 ? 'year' : 'years'} on Rooted Together</span>
-                )}
-              </div>
+              {socials.length > 0 && (
+                <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {socials.map((so) => (
+                    <a key={so.key} href={so.href} target="_blank" rel="noreferrer" className="sf-social" aria-label={so.label} title={so.label}>
+                      {so.icon}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="sf-stats">
+              {statTiles.map((t) => (
+                <div key={t.label} className="sf-stat">
+                  <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)', lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {t.value}
+                    {t.stars !== undefined && <StarRating value={t.stars} size={13} />}
+                  </div>
+                  <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{t.label}</div>
+                </div>
+              ))}
             </div>
           </div>
+        </section>
+      </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {offerings.length > 0 && (
-              <a href="#shop" className="btn" style={{ background: '#C8923F', color: '#2E1B10', minHeight: 50, padding: '0 28px', fontWeight: 700 }}>
-                Shop now
-              </a>
-            )}
-            {isSelf ? (
-              <Link href="/dashboard/branding" className="btn" style={{ border: '1.5px solid rgba(251,246,239,0.6)', color: '#FBF6EF', minHeight: 50 }}>
-                Edit storefront
-              </Link>
+      {/* Slim bar: stays at the top while reading, with the section links */}
+      <div className={`sf-bar ${barVisible ? 'stuck' : ''}`}>
+        <div style={{ ...WRAP, display: 'flex', alignItems: 'center', gap: 14, minHeight: 60 }}>
+          <div className="sf-bar-id">
+            {avatar ? (
+              <span style={{ width: 34, height: 34, borderRadius: 999, flex: 'none', background: `center / cover no-repeat url("${avatar}")` }} />
             ) : (
-              <button
-                onClick={toggleFollow}
-                disabled={followBusy}
-                className="btn"
-                style={{ border: '1.5px solid rgba(251,246,239,0.6)', color: '#FBF6EF', background: isFollowing ? 'rgba(251,246,239,0.18)' : 'transparent', minHeight: 50 }}
-              >
-                {isFollowing ? 'Following ✓' : 'Follow'}
-              </button>
+              <span className="avatar" style={{ width: 34, height: 34, fontSize: 13, flex: 'none' }}>{initialsFor(profile.name)}</span>
             )}
+            <span className="serif sf-bar-name">{profile.name}</span>
           </div>
+          <nav className="sf-nav" aria-label="Storefront sections">
+            {navLinks.map((l) => (
+              <a key={l.id} href={`#${l.id}`} onClick={goTo(l.id)} className="sf-navlink" aria-current={activeSection === l.id ? 'true' : undefined}>
+                {l.label}
+              </a>
+            ))}
+          </nav>
+          <div className="sf-bar-cta">{followButton(true)}</div>
         </div>
-      </section>
-
-      {/* Why buy here */}
-      <section aria-label="Why buy here" style={{ background: '#F1E4D3' }}>
-        <div style={{ ...WRAP, paddingBlock: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '12px 24px' }}>
-          {TRUST.map((t) => (
-            <div key={t.text} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, fontWeight: 600 }}>
-              <span style={{ display: 'grid', placeItems: 'center', width: 36, height: 36, flex: 'none', borderRadius: 12, background: '#fff', color: 'var(--brown)' }}>
-                <Icon size={18}>{t.icon}</Icon>
-              </span>
-              {t.text}
-            </div>
-          ))}
-        </div>
-      </section>
+      </div>
 
       {isSelf && (
         <div style={{ ...WRAP, paddingTop: 20 }}>
@@ -330,45 +487,105 @@ export default function CreatorStorefrontClient() {
         </div>
       )}
 
+      {/* Why buy here */}
+      <section aria-label="Why buy here" className="sf-reveal" style={{ ...WRAP, paddingTop: 22 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 26px' }}>
+          {TRUST.map((t) => (
+            <div key={t.text} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, fontWeight: 600, color: 'var(--text-soft)' }}>
+              <span style={{ display: 'grid', placeItems: 'center', width: 30, height: 30, flex: 'none', borderRadius: 10, background: '#F1E4D3', color: 'var(--brown)' }}>
+                <Icon size={16}>{t.icon}</Icon>
+              </span>
+              {t.text}
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Featured */}
       {featured && (
-        <section style={{ ...WRAP, paddingTop: 48 }}>
+        <section className="sf-reveal" style={{ ...WRAP, paddingTop: 40 }}>
+          <div className="sf-eyebrow" style={{ marginBottom: 12 }}>Start here</div>
           <FeaturedCard offering={featured} stats={offeringStats[featured.id]} />
         </section>
       )}
 
       {/* Shop */}
-      <section id="shop" style={{ ...WRAP, paddingTop: 56, scrollMarginTop: 16 }}>
-        <h2 style={H2}>Shop {firstName}&rsquo;s offerings</h2>
-        <p style={{ margin: '8px 0 0', fontSize: 15.5, color: '#6F5846' }}>Pick what speaks to you. You can check out in under a minute.</p>
+      <section id="shop" className="sf-reveal" style={{ ...WRAP, paddingTop: 56, scrollMarginTop: 76 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '14px 24px' }}>
+          <div>
+            <h2 style={H2}>Shop {firstName}&rsquo;s offerings</h2>
+            <p style={{ margin: '8px 0 0', fontSize: 15.5, color: '#6F5846' }}>Pick what speaks to you. You can check out in under a minute.</p>
+          </div>
+          {offerings.length > 1 && (
+            <div className="sf-toolbar">
+              <label className="sf-search">
+                <Icon size={17}><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></Icon>
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search offerings"
+                  aria-label="Search offerings"
+                />
+              </label>
+              <label className="sf-sort">
+                <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort offerings">
+                  <option value="popular">Most popular</option>
+                  <option value="newest">Newest</option>
+                  <option value="low">Price: low to high</option>
+                  <option value="high">Price: high to low</option>
+                </select>
+              </label>
+            </div>
+          )}
+        </div>
 
         {offerings.length > 1 && (
-          <div role="group" aria-label="Filter by type" style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div role="group" aria-label="Filter by type" className="sf-chips">
             {TYPE_TABS.map((t) => {
               const count = t === 'all' ? offerings.length : offerings.filter((o) => o.type === t).length;
               // Only show types this creator actually sells.
               if (t !== 'all' && count === 0) return null;
               return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  aria-pressed={tab === t}
-                  className={tab === t ? 'btn btn-primary btn-small' : 'btn btn-outline btn-small'}
-                >
-                  {t === 'all' ? `All (${count})` : `${OFFERING_TYPE_LABELS[t]} (${count})`}
+                <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className="sf-pill">
+                  {t === 'all' ? 'All' : OFFERING_TYPE_LABELS[t]}
+                  <span className="sf-pill-count">{count}</span>
                 </button>
               );
             })}
           </div>
         )}
 
-        <div style={{ marginTop: 24 }}>
-          {filteredOfferings.length === 0 && <div className="muted">Nothing here yet — check back soon.</div>}
-          {filteredOfferings.length > 0 && (
+        {filtersActive && (
+          <div className="muted" style={{ marginTop: 14, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            Showing {visibleOfferings.length} of {offerings.length}
+            <button type="button" className="sf-link" onClick={() => { setTab('all'); setQuery(''); }}>Clear filters</button>
+          </div>
+        )}
+
+        <div style={{ marginTop: 22 }}>
+          {visibleOfferings.length === 0 && (
+            <div className="sf-empty">
+              <span style={{ display: 'grid', placeItems: 'center', width: 52, height: 52, borderRadius: 16, background: '#F1E4D3', color: 'var(--brown)' }}>
+                <Icon size={24}><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></Icon>
+              </span>
+              <div className="serif" style={{ fontSize: 18, fontWeight: 700 }}>
+                {offerings.length === 0 ? 'Nothing here yet' : 'No matches'}
+              </div>
+              <div className="muted" style={{ fontSize: 14 }}>
+                {offerings.length === 0 ? 'Check back soon.' : 'Try a different word, or clear the filters.'}
+              </div>
+              {filtersActive && (
+                <button type="button" className="btn btn-outline btn-small" onClick={() => { setTab('all'); setQuery(''); }}>
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+          {visibleOfferings.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 290px), 1fr))', gap: 22 }}>
-              {filteredOfferings.map((o) => (
-                <StoreCard key={o.id} offering={o} stats={offeringStats[o.id]} />
+              {visibleOfferings.map((o, i) => (
+                <StoreCard key={o.id} offering={o} stats={offeringStats[o.id]} index={i} />
               ))}
             </div>
           )}
@@ -377,7 +594,7 @@ export default function CreatorStorefrontClient() {
 
       {/* Spiritual Family */}
       {(isFamily || freeCount > 0) && (
-        <section style={{ ...WRAP, paddingTop: 40 }}>
+        <section className="sf-reveal" style={{ ...WRAP, paddingTop: 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '18px 22px', borderRadius: 20, background: 'var(--success-bg)', border: '1px solid var(--success-border)' }}>
             <span style={{ display: 'grid', placeItems: 'center', width: 44, height: 44, flex: 'none', borderRadius: 14, background: '#fff', color: 'var(--success-text)' }}>
               <Icon size={22}><path d="M12 21s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.6-7 10-7 10z" /></Icon>
@@ -402,22 +619,34 @@ export default function CreatorStorefrontClient() {
 
       {/* Reviews: shown once there are real ones */}
       {hasReviews && (
-        <section style={{ ...WRAP, paddingTop: 64 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 28px', marginBottom: 24 }}>
-            <h2 style={H2}>What students are saying</h2>
-            {reviewStats.review_count > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: '#fff', border: '1px solid #EADBC8', fontSize: 14, fontWeight: 700 }}>
-                <StarRating value={Number(reviewStats.avg_rating)} size={15} />
-                {Number(reviewStats.avg_rating).toFixed(1)}
-                <span className="muted" style={{ fontWeight: 500 }}>from {reviewStats.review_count} {reviewStats.review_count === 1 ? 'review' : 'reviews'}</span>
-              </span>
+        <section id="reviews" className="sf-reveal" style={{ ...WRAP, paddingTop: 64, scrollMarginTop: 76 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px 24px', marginBottom: 22 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 22px' }}>
+              <h2 style={H2}>What students are saying</h2>
+              {reviewStats.review_count > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: '#fff', border: '1px solid #EADBC8', fontSize: 14, fontWeight: 700 }}>
+                  <StarRating value={Number(reviewStats.avg_rating)} size={15} />
+                  {Number(reviewStats.avg_rating).toFixed(1)}
+                  <span className="muted" style={{ fontWeight: 500 }}>from {reviewStats.review_count} {reviewStats.review_count === 1 ? 'review' : 'reviews'}</span>
+                </span>
+              )}
+            </div>
+            {reviews.length > 1 && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="sf-icon-btn" onClick={() => slideReviews(-1)} aria-label="Previous reviews">
+                  <Icon size={18}><path d="M15 5l-7 7 7 7" /></Icon>
+                </button>
+                <button type="button" className="sf-icon-btn" onClick={() => slideReviews(1)} aria-label="Next reviews">
+                  <Icon size={18}><path d="M9 5l7 7-7 7" /></Icon>
+                </button>
+              </div>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 18 }}>
+          <div className="sf-scroller" ref={reviewsRef} tabIndex={0} aria-label="Student reviews">
             {reviews.map((r) => (
-              <figure key={r.id} style={{ margin: 0, padding: 22, borderRadius: 22, background: '#fff', border: '1px solid #EADBC8', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <figure key={r.id} className="sf-review">
                 <StarRating value={r.rating} size={14} />
-                {r.body && <blockquote style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6 }}>{r.body}</blockquote>}
+                {r.body && <blockquote style={{ margin: 0, fontSize: 14.5, lineHeight: 1.65 }}>{r.body}</blockquote>}
                 <figcaption className="muted" style={{ fontSize: 12.5, marginTop: 'auto' }}>
                   {r.reviewer_name}, on {r.offering_title}
                 </figcaption>
@@ -428,32 +657,39 @@ export default function CreatorStorefrontClient() {
       )}
 
       {/* About */}
-      <section style={{ ...WRAP, paddingTop: 64 }}>
+      <section id="about" className="sf-reveal" style={{ ...WRAP, paddingTop: 64, scrollMarginTop: 76 }}>
         <div className="responsive-2col" style={{ '--col-a': '2fr', '--col-b': '1fr', '--col-gap': '36px', alignItems: 'start' }}>
           <div>
             <h2 style={H2}>About {firstName}</h2>
-            <div style={{ marginTop: 14, fontSize: 16, color: 'var(--text)', lineHeight: 1.75, whiteSpace: 'pre-line' }}>
+            <div
+              style={{
+                marginTop: 14,
+                fontSize: 16,
+                color: 'var(--text)',
+                lineHeight: 1.75,
+                whiteSpace: 'pre-line',
+                ...(longAbout && !aboutOpen ? { display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : {}),
+              }}
+            >
               {aboutText || 'This creator hasn’t written their story yet.'}
             </div>
+            {longAbout && (
+              <button type="button" className="sf-link" style={{ marginTop: 10, fontSize: 14.5 }} onClick={() => setAboutOpen((v) => !v)} aria-expanded={aboutOpen}>
+                {aboutOpen ? 'Show less' : 'Read more'}
+              </button>
+            )}
           </div>
-          <div style={{ padding: 22, borderRadius: 22, background: '#fff', border: '1px solid #EADBC8', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brown)', marginBottom: 8 }}>Connect with {firstName}</div>
+          <div className="sf-connect">
+            <div className="sf-eyebrow" style={{ marginBottom: 8 }}>Connect with {firstName}</div>
             {socials.map((so) => (
-              <a
-                key={so.key}
-                href={so.href}
-                target="_blank"
-                rel="noreferrer"
-                style={{ fontSize: 14.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, minHeight: 48 }}
-              >
-                <span style={{ width: 36, height: 36, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {so.icon}
-                </span>
-                <span style={{ minWidth: 0 }}>{so.label} →</span>
+              <a key={so.key} href={so.href} target="_blank" rel="noreferrer" className="sf-connect-row">
+                <span className="sf-connect-icon">{so.icon}</span>
+                <span style={{ minWidth: 0, flex: 1 }}>{so.label}</span>
+                <Icon size={15}><path d="M7 17L17 7M9 7h8v8" /></Icon>
               </a>
             ))}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 48 }}>
-              <span style={{ width: 36, height: 36, borderRadius: 999, flexShrink: 0, border: '1px solid rgba(107,66,38,0.16)', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="sf-connect-row" style={{ cursor: 'default' }}>
+              <span className="sf-connect-icon">
                 <Icon size={16}><path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></Icon>
               </span>
               <span style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.35 }}>
@@ -461,12 +697,18 @@ export default function CreatorStorefrontClient() {
                 <span className="muted" style={{ display: 'block', fontSize: 12.5, fontWeight: 500 }}>Get the app to send {firstName} a message.</span>
               </span>
             </div>
+            <button type="button" className="sf-connect-row" onClick={shareLink} style={{ width: '100%', textAlign: 'left', font: 'inherit', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <span className="sf-connect-icon">
+                <Icon size={16}><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7M16 6l-4-4-4 4M12 2v13" /></Icon>
+              </span>
+              <span style={{ flex: 1 }}>{copied ? 'Link copied' : 'Share this storefront'}</span>
+            </button>
           </div>
         </div>
       </section>
 
       {creatorIsPro && (
-        <section style={{ ...WRAP, paddingTop: 64 }}>
+        <section id="services" className="sf-reveal" style={{ ...WRAP, paddingTop: 64, scrollMarginTop: 76 }}>
           <h2 style={H2}>Additional Services</h2>
           <p style={{ margin: '8px 0 20px', fontSize: 15, color: '#6F5846' }}>
             {isSelf
@@ -475,7 +717,7 @@ export default function CreatorStorefrontClient() {
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 270px), 1fr))', gap: 18 }}>
             {SERVICES.map((service) => (
-              <div key={service.key} style={{ padding: 24, borderRadius: 22, background: '#fff', border: '1px solid #EADBC8', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div key={service.key} className="sf-service">
                 <div style={{ width: 46, height: 46, borderRadius: 14, background: '#F1E4D3', color: 'var(--brown)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {service.icon}
                 </div>
@@ -502,8 +744,8 @@ export default function CreatorStorefrontClient() {
 
       {/* Closing call to action, for visitors who are not signed in */}
       {!session && !isSelf && (
-        <section style={{ marginTop: 72, background: '#2E1B10' }}>
-          <div style={{ ...WRAP, paddingBlock: 56, textAlign: 'center' }}>
+        <section className="sf-reveal" style={{ ...WRAP, marginTop: 72 }}>
+          <div style={{ borderRadius: 28, background: 'linear-gradient(160deg, #2E1B10 0%, #4A2E1C 100%)', padding: 'clamp(32px, 5vw, 56px) clamp(20px, 4vw, 48px)', textAlign: 'center' }}>
             <h2 className="serif" style={{ margin: 0, fontSize: 'clamp(26px, 3.4vw, 36px)', fontWeight: 700, color: '#FBF6EF', textWrap: 'balance' }}>
               Ready to get started with {firstName}?
             </h2>
@@ -519,7 +761,7 @@ export default function CreatorStorefrontClient() {
                 Create a free account
               </Link>
               {offerings.length > 0 && (
-                <a href="#shop" className="btn" style={{ border: '1.5px solid rgba(251,246,239,0.5)', color: '#FBF6EF', minHeight: 50 }}>
+                <a href="#shop" onClick={goTo('shop')} className="btn" style={{ border: '1.5px solid rgba(251,246,239,0.5)', color: '#FBF6EF', minHeight: 50 }}>
                   Back to the offerings
                 </a>
               )}
@@ -553,15 +795,15 @@ function Rating({ stats }) {
   );
 }
 
-function StoreCard({ offering, stats }) {
+function StoreCard({ offering, stats, index = 0 }) {
   const o = offering;
   const popular = (stats?.purchases_count || 0) >= 3;
   const extra = detailLine(o);
   const free = o.is_free_for_family || !o.price_cents;
   return (
-    <Link href={`/offering/${o.id}`} className="rt-card" style={{ height: '100%' }}>
-      <div style={{ position: 'relative' }}>
-        <Cover offering={o} />
+    <Link href={`/offering/${o.id}`} className="rt-card sf-card sf-pop" style={{ height: '100%', animationDelay: `${Math.min(index, 9) * 40}ms` }}>
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <div className="sf-cover"><Cover offering={o} /></div>
         <div style={{ position: 'absolute', left: 12, top: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {popular && <span style={{ padding: '4px 10px', borderRadius: 999, background: '#C8923F', color: '#2E1B10', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em' }}>POPULAR</span>}
           {o.status !== 'published' && <span style={{ padding: '4px 10px', borderRadius: 999, background: '#2E1B10', color: '#FBF6EF', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em' }}>DRAFT</span>}
@@ -577,7 +819,7 @@ function StoreCard({ offering, stats }) {
         <Rating stats={stats} />
         <div style={{ marginTop: 'auto', paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <span className="serif" style={{ fontWeight: 700, fontSize: 22, color: 'var(--brown)' }}>{priceText(o)}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 16px', borderRadius: 999, background: 'var(--brown)', color: '#FBF6EF', fontSize: 14, fontWeight: 700 }}>
+          <span className="sf-go">
             {o.type === 'call' ? 'Book' : free ? 'Get it free' : 'Get it'}
             <Icon size={15}><path d="M5 12h14M13 6l6 6-6 6" /></Icon>
           </span>
@@ -595,11 +837,11 @@ function FeaturedCard({ offering, stats }) {
   return (
     <Link
       href={`/offering/${o.id}`}
-      className="rt-card"
+      className="rt-card sf-card"
       style={{ flexDirection: 'row', flexWrap: 'wrap', borderRadius: 28, borderColor: '#E8CDA8', boxShadow: '0 14px 40px rgba(46,27,16,0.08)' }}
     >
-      <div style={{ flex: '1 1 340px', minWidth: 0, display: 'flex' }}>
-        <div style={{ width: '100%' }}><Cover offering={o} /></div>
+      <div style={{ flex: '1 1 340px', minWidth: 0, display: 'flex', overflow: 'hidden' }}>
+        <div className="sf-cover" style={{ width: '100%' }}><Cover offering={o} /></div>
       </div>
       <div style={{ flex: '1 1 340px', minWidth: 0, padding: 'clamp(22px, 3vw, 40px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -616,7 +858,7 @@ function FeaturedCard({ offering, stats }) {
         <Rating stats={stats} />
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
           <span className="serif" style={{ fontWeight: 700, fontSize: 34, color: 'var(--brown)' }}>{priceText(o)}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 52, padding: '0 28px', borderRadius: 999, background: 'var(--brown)', color: '#FBF6EF', fontSize: 16, fontWeight: 700 }}>
+          <span className="sf-go sf-go-lg">
             {o.type === 'call' ? 'Book now' : free ? 'Get it free' : 'Get it now'}
             <Icon size={17}><path d="M5 12h14M13 6l6 6-6 6" /></Icon>
           </span>
