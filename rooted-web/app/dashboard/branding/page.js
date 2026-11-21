@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { avatarUrl, bannerUrl, uploadAvatar, uploadBanner } from '@/lib/storage';
 import { initialsFor } from '@/lib/roles';
 import { SOCIALS, activeSocials, formValue } from '@/lib/socials';
-import FileField from '@/components/FileField';
 
 export default function BrandingPage() {
   const { session, profile } = useSession();
@@ -51,7 +50,7 @@ export default function BrandingPage() {
       <div className="serif" style={{ fontSize: 24, fontWeight: 700, color: 'var(--brown)', marginBottom: 6 }}>
         Storefront Branding
       </div>
-      <div className="muted" style={{ fontSize: 13.5, marginBottom: 22 }}>
+      <div className="muted" style={{ fontSize: 13.5, marginBottom: 26 }}>
         This is your public page — profile picture, banner, about section, and links.
       </div>
 
@@ -77,7 +76,9 @@ function StorefrontPreview({ storefront, profile, stats, avatarPath, bannerPath 
   const name = profile?.full_name || 'Your name';
 
   return (
-    <div className="card sticky-panel" style={{ overflow: 'hidden' }}>
+    <div className="sticky-panel">
+    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, color: 'var(--gold)', marginBottom: 8 }}>PREVIEW</div>
+    <div className="card" style={{ overflow: 'hidden' }}>
       <div
         style={{
           height: 140,
@@ -138,6 +139,46 @@ function StorefrontPreview({ storefront, profile, stats, avatarPath, bannerPath 
         )}
       </div>
     </div>
+    </div>
+  );
+}
+
+function UploadIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brown)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <path d="M17 8l-5-5-5 5M12 3v12" />
+    </svg>
+  );
+}
+
+// Same dashed upload button as "Cover image" on the Upload page.
+function DashedUpload({ inputRef, accept, onChange, busy, label }) {
+  return (
+    <>
+      <input ref={inputRef} type="file" accept={accept} onChange={onChange} style={{ display: 'none' }} />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'var(--white)',
+          border: '1px dashed var(--brown-pale)',
+          borderRadius: 10,
+          padding: '12px 14px',
+          fontSize: 13,
+          color: 'var(--text-soft)',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        <UploadIcon />
+        {busy ? 'Uploading…' : label}
+      </button>
+    </>
   );
 }
 
@@ -159,6 +200,9 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
   );
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const avatarInputRef = useRef(null);
+  const bannerInputRef = useRef(null);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -181,11 +225,14 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
     const file = e.target.files?.[0];
     if (!file) return;
     setError('');
+    setUploadingBanner(true);
     try {
       const path = await uploadBanner(file, session.user.id);
       setBannerPath(path);
     } catch {
       setError("Couldn't upload that image.");
+    } finally {
+      setUploadingBanner(false);
     }
   };
 
@@ -219,38 +266,44 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
   const avatar = avatarUrl(avatarPath);
 
   return (
-    <div className="card" style={{ padding: 24 }}>
-      <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div>
+      <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {error && <div className="error-banner">{error}</div>}
         {saved && !error && <div className="success-banner">Saved.</div>}
 
         <div>
           <label className="field-label">Handle</label>
           <input className="input-field" required value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="zee-robinson" />
-          {storefront?.handle && <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>/creator/{storefront.handle}</div>}
+          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+            {storefront?.handle ? `Your public link: /creator/${storefront.handle}` : 'Letters, numbers and dashes. This becomes your public link.'}
+          </div>
         </div>
 
         <div>
           <label className="field-label">Profile picture</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {avatar ? (
               <div style={{ width: 56, height: 56, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatar})` }} />
             ) : (
               <div className="avatar" style={{ width: 56, height: 56, fontSize: 18, flexShrink: 0 }}>?</div>
             )}
-            <FileField accept="image/*" onChange={handleAvatarChange} label={avatar ? 'Change photo' : 'Choose a photo'} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <DashedUpload inputRef={avatarInputRef} accept="image/*" onChange={handleAvatarChange} busy={uploadingAvatar} label={avatar ? 'Change photo' : 'Upload photo'} />
+            </div>
           </div>
-          {uploadingAvatar && <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Uploading…</div>}
-          <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
             Shown on your storefront and on your card in the marketplace.
           </div>
         </div>
 
         <div>
           <label className="field-label">Banner image</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            {banner && <div style={{ width: 120, height: 60, borderRadius: 8, flexShrink: 0, background: `center / cover no-repeat url(${banner})` }} />}
-            <FileField accept="image/*" onChange={handleBannerChange} label={banner ? 'Change banner' : 'Choose a banner'} />
+          <DashedUpload inputRef={bannerInputRef} accept="image/*" onChange={handleBannerChange} busy={uploadingBanner} label={banner ? 'Change banner' : 'Upload banner'} />
+          {banner && (
+            <div style={{ marginTop: 10, width: '100%', aspectRatio: '16 / 5', borderRadius: 10, background: `center / cover no-repeat url(${banner})` }} />
+          )}
+          <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+            Best size: 1600 × 500 px (a wide picture). It sits across the top of your storefront.
           </div>
         </div>
 
@@ -272,7 +325,7 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
 
         <div>
           <label className="field-label">How people can reach you</label>
-          <div className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
             Add your Instagram and TikTok. Only the ones you fill in appear on your storefront. People can also message you in the Rooted Together app, which is always on.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -297,9 +350,11 @@ function BrandingForm({ storefront, setStorefront, session, avatarPath, setAvata
           </div>
         </div>
 
-        <button type="submit" disabled={busy} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-          {busy ? 'Saving…' : 'Save branding'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, paddingTop: 6 }}>
+          <button type="submit" disabled={busy || uploadingAvatar || uploadingBanner} className="btn btn-primary">
+            {busy ? 'Saving…' : 'Save branding'}
+          </button>
+        </div>
       </form>
     </div>
   );
