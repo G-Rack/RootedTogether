@@ -6,13 +6,15 @@ import { CONSENT_COUNTRIES, REGION_COOKIE } from './lib/tracking';
 
 // While SITE_LAUNCHED is false (lib/config.js) everyone except the owner sees the coming-soon
 // page. These few paths stay open: the code check, the email sign-up, and the picture files the
-// coming-soon page itself uses.
+// coming-soon page itself uses. /reset-password has to stay open so a password-reset email link
+// works on any phone or browser (it only does anything with a valid reset link).
 const OPEN = [
   /^\/_next\//,
   /^\/(privacy|terms|child-safety)\/?$/,
   /^\/api\/(gate|waitlist|gift)$/,
   /^\/gift(\/pdf)?\/?$/,
   /^\/unsubscribe\/?$/,
+  /^\/reset-password\/?$/,
   /^\/(icon|apple-icon)\.png$/,
   /^\/favicon\.ico$/,
   /^\/robots\.txt$/,
