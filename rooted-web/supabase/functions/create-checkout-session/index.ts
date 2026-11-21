@@ -102,11 +102,15 @@ Deno.serve(async (req: Request) => {
 
   const { data: creatorProfile } = await supabase
     .from("profiles")
-    .select("stripe_account_id, stripe_payouts_enabled")
+    .select("stripe_account_id, stripe_payouts_enabled, is_team_account")
     .eq("id", offering.creator_auth_id)
     .maybeSingle();
 
-  if (!creatorProfile?.stripe_account_id || !creatorProfile.stripe_payouts_enabled) {
+  // Rooted Together team accounts have no connected Stripe account: the sale is a plain charge on
+  // our own Stripe account, so the money lands in the platform balance with no transfer or fee.
+  const isTeamAccount = creatorProfile?.is_team_account === true;
+
+  if (!isTeamAccount && (!creatorProfile?.stripe_account_id || !creatorProfile.stripe_payouts_enabled)) {
     return jsonResponse(
       { error: "This creator hasn't finished setting up payouts yet — please check back soon." },
       400,
@@ -135,6 +139,12 @@ Deno.serve(async (req: Request) => {
     console.error("Pro lookup failed, using standard fee:", e);
   }
   const applicationFeeAmount = platformFeeCents(offering.price_cents, isPro);
+  const paymentIntentData = isTeamAccount
+    ? {}
+    : {
+        application_fee_amount: applicationFeeAmount,
+        transfer_data: { destination: creatorProfile!.stripe_account_id as string },
+      };
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -149,10 +159,7 @@ Deno.serve(async (req: Request) => {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: { destination: creatorProfile.stripe_account_id },
-      },
+      payment_intent_data: paymentIntentData,
       customer_email: userData.user.email || undefined,
       metadata: { offering_id: offering.id, buyer_auth_id: buyerAuthId },
       success_url: `${origin}/offering/${offering.id}?purchase=success`,

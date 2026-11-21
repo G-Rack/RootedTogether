@@ -43,6 +43,7 @@ export default function PayoutsPage() {
   // isn't on creator_storefronts instead).
   const [stripeAccountId, setStripeAccountId] = useState(null);
   const [stripePayoutsEnabled, setStripePayoutsEnabled] = useState(false);
+  const [isTeamAccount, setIsTeamAccount] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [openingDashboard, setOpeningDashboard] = useState(false);
   // Manual payouts: the creator's Stripe balance and the "Request payout" flow.
@@ -56,11 +57,12 @@ export default function PayoutsPage() {
   async function loadStripeStatus(authId) {
     const { data } = await supabase
       .from('profiles')
-      .select('stripe_account_id, stripe_payouts_enabled')
+      .select('stripe_account_id, stripe_payouts_enabled, is_team_account')
       .eq('id', authId)
       .maybeSingle();
     setStripeAccountId(data?.stripe_account_id || null);
     setStripePayoutsEnabled(!!data?.stripe_payouts_enabled);
+    setIsTeamAccount(!!data?.is_team_account);
     return data;
   }
 
@@ -253,9 +255,9 @@ export default function PayoutsPage() {
   }
 
   useEffect(() => {
-    if (session && stripePayoutsEnabled) loadPayoutBalance();
+    if (session && stripePayoutsEnabled && !isTeamAccount) loadPayoutBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, stripePayoutsEnabled]);
+  }, [session, stripePayoutsEnabled, isTeamAccount]);
 
   async function handleRequestPayout() {
     if (!session || payoutBusy) return;
@@ -370,6 +372,8 @@ export default function PayoutsPage() {
       <div className="muted" style={{ fontSize: 13.5, marginBottom: 22 }}>
         {isDemoSalesAccount(session?.user?.id)
           ? 'These are sample sales shown for demonstration. They are not real purchases.'
+          : isTeamAccount
+          ? 'Every sale below is a real purchase. This is a Rooted Together team account, so sales go straight to the Rooted Together Stripe account and there is nothing to connect or pay out.'
           : stripePayoutsEnabled
           ? 'Every sale below is a real purchase. Your payout account is connected, so your earnings are paid out to you through Stripe.'
           : 'Every sale below is a real purchase. Connect a payout account to get your earnings paid out to you.'}
@@ -453,7 +457,12 @@ export default function PayoutsPage() {
             Payout method
           </div>
           <div className="card" style={{ padding: '13px 16px' }}>
-            {stripePayoutsEnabled ? (
+            {isTeamAccount ? (
+              <div style={{ fontSize: 13 }}>
+                <strong>Rooted Together team account</strong> — sales stay in the main Rooted Together Stripe account. No payout setup needed.
+              </div>
+            ) : null}
+            {stripePayoutsEnabled && !isTeamAccount ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--success-text, #2e7d32)', flexShrink: 0 }} />
                 <div style={{ fontSize: 13 }}>
@@ -461,7 +470,7 @@ export default function PayoutsPage() {
                 </div>
               </div>
             ) : null}
-            {stripePayoutsEnabled ? (
+            {stripePayoutsEnabled && !isTeamAccount ? (
               <div style={{ marginTop: 12 }}>
                 {payoutBalance ? (
                   <div style={{ display: 'flex', gap: 24, marginBottom: 10 }}>
