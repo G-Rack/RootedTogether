@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
+import SaleTag from '@/components/SaleTag';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { fetchPayoutsEnabled, isPaidOffering, setPendingPublish } from '@/lib/payouts';
 
@@ -166,7 +167,10 @@ export default function MyOfferingsPage() {
                     {o.title}
                   </span>
                   <span className="muted">{OFFERING_TYPE_LABELS[o.type]}</span>
-                  <span>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 6px' }}>
+                    <span>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
+                    <SaleTag offering={o} size={12} />
+                  </span>
                   {statusBadge}
                   <span>{sales[o.id] || '—'}</span>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
@@ -195,6 +199,7 @@ export default function MyOfferingsPage() {
                     </span>
                     <span className="muted">·</span>
                     <span style={{ fontWeight: 700, color: 'var(--brown)' }}>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
+                    <SaleTag offering={o} size={12} />
                     <span className="muted">·</span>
                     <span className="muted">{sales[o.id] || 0} sales</span>
                   </div>

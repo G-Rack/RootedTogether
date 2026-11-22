@@ -14,6 +14,7 @@ import CourseLessonsViewer from '@/components/CourseLessonsViewer';
 import AudiobookPlayer from '@/components/AudiobookPlayer';
 import CoverImage from '@/components/CoverImage';
 import AuthGateModal from '@/components/AuthGateModal';
+import SaleTag from '@/components/SaleTag';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 import { trackPurchase } from '@/lib/tracking';
 
@@ -563,8 +564,9 @@ export default function OfferingDetailClient() {
 
         {/* Sidebar */}
         <div className="card sticky-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="serif" style={{ fontSize: 28, fontWeight: 700, color: 'var(--brown)' }}>
-            {freeForYou || freeCallAvailable || hasFreeCallUnlocked ? 'Free' : formatPrice(offering.price_cents)}
+          <div className="serif" style={{ fontSize: 28, fontWeight: 700, color: 'var(--brown)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
+            <span>{freeForYou || freeCallAvailable || hasFreeCallUnlocked ? 'Free' : formatPrice(offering.price_cents)}</span>
+            {!(freeForYou || freeCallAvailable || hasFreeCallUnlocked) && <SaleTag offering={offering} size={16} />}
           </div>
 
           {freeCallEligible && (

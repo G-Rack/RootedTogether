@@ -8,6 +8,7 @@ import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 import StarRating from '@/components/StarRating';
 import ProBadge from '@/components/ProBadge';
+import SaleTag from '@/components/SaleTag';
 
 export default function OfferingCard({ offering, creatorName, stats, isPro = false }) {
   const cover = coverUrl(offering.cover_path);
@@ -52,8 +53,11 @@ export default function OfferingCard({ offering, creatorName, stats, isPro = fal
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-          <span style={{ fontWeight: 700, color: 'var(--brown)' }}>
-            {offering.is_free_for_family ? 'Free for family' : formatPrice(offering.price_cents)}
+          <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 8px' }}>
+            <span style={{ fontWeight: 700, color: 'var(--brown)' }}>
+              {offering.is_free_for_family ? 'Free for family' : formatPrice(offering.price_cents)}
+            </span>
+            <SaleTag offering={offering} size={12.5} />
           </span>
         </div>
       </div>

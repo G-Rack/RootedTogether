@@ -13,6 +13,7 @@ import StarRating from '@/components/StarRating';
 import { activeSocials } from '@/lib/socials';
 import { fetchCreatorReviewStats, fetchCreatorReviews, fetchMarketStats } from '@/lib/reviews';
 import ProBadge from '@/components/ProBadge';
+import SaleTag from '@/components/SaleTag';
 import { OFFERING_TYPE_KEYS, OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 
 const TYPE_TABS = ['all', ...OFFERING_TYPE_KEYS];
@@ -818,7 +819,10 @@ function StoreCard({ offering, stats, index = 0 }) {
         {extra && <div className="muted" style={{ fontSize: 12.5 }}>{extra}</div>}
         <Rating stats={stats} />
         <div style={{ marginTop: 'auto', paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <span className="serif" style={{ fontWeight: 700, fontSize: 22, color: 'var(--brown)' }}>{priceText(o)}</span>
+          <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 8px', minWidth: 0 }}>
+            <span className="serif" style={{ fontWeight: 700, fontSize: 22, color: 'var(--brown)' }}>{priceText(o)}</span>
+            <SaleTag offering={o} />
+          </span>
           <span className="sf-go">
             {o.type === 'call' ? 'Book' : free ? 'Get it free' : 'Get it'}
             <Icon size={15}><path d="M5 12h14M13 6l6 6-6 6" /></Icon>
@@ -857,7 +861,10 @@ function FeaturedCard({ offering, stats }) {
         {extra && <div className="muted" style={{ fontSize: 13 }}>{extra}</div>}
         <Rating stats={stats} />
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-          <span className="serif" style={{ fontWeight: 700, fontSize: 34, color: 'var(--brown)' }}>{priceText(o)}</span>
+          <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
+            <span className="serif" style={{ fontWeight: 700, fontSize: 34, color: 'var(--brown)' }}>{priceText(o)}</span>
+            <SaleTag offering={o} size={16} />
+          </span>
           <span className="sf-go sf-go-lg">
             {o.type === 'call' ? 'Book now' : free ? 'Get it free' : 'Get it now'}
             <Icon size={17}><path d="M5 12h14M13 6l6 6-6 6" /></Icon>

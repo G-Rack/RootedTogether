@@ -12,6 +12,7 @@ import StorefrontLinkCard from '@/components/StorefrontLinkCard';
 import { PRO_UPGRADE_URL, BILLING_PORTAL_URL } from '@/lib/config';
 import { proUpgradeUrlFor } from '@/lib/proLinks';
 import { isDemoSalesAccount, buildDemoPurchases, SampleDataLabel } from '@/lib/demoSales';
+import SaleTag from '@/components/SaleTag';
 
 const TYPE_DOT = {
   course: 'var(--brown)',
@@ -234,7 +235,10 @@ export default function DashboardOverviewPage() {
                 >
                   <span style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.title}</span>
                   <span className="muted">{OFFERING_TYPE_LABELS[o.type]}</span>
-                  <span>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 6px' }}>
+                    <span>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
+                    <SaleTag offering={o} size={12} />
+                  </span>
                   {statusBadge}
                   <span>{sales || '—'}</span>
                 </div>
@@ -260,6 +264,7 @@ export default function DashboardOverviewPage() {
                     </span>
                     <span className="muted">·</span>
                     <span style={{ fontWeight: 700, color: 'var(--brown)' }}>{o.is_free_for_family ? 'Free' : formatPrice(o.price_cents)}</span>
+                    <SaleTag offering={o} size={12} />
                     <span className="muted">·</span>
                     <span className="muted">{sales || 0} sales</span>
                   </div>
