@@ -9,6 +9,7 @@ import { avatarUrl, bannerUrl, coverUrl, communityImageUrl } from '@/lib/storage
 import { formatPrice, initialsFor, OFFERING_TYPE_LABELS, ROLE_LABELS } from '@/lib/roles';
 import { OFFERING_TYPES, OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 import { fetchCreatorReviews } from '@/lib/reviews';
+import { hasDiscount, offeringDiscountPercent } from '@/lib/discount';
 import { FORMATS, FORMATS_BY_PLATFORM, THEMES, loadImage, makeCreative } from '@/lib/creativeHub';
 import { blurbFrom, buildCaption, CAPTION_VARIANTS } from '@/lib/creativeCaptions';
 
@@ -148,6 +149,11 @@ function StudioInner() {
       typeLabel: OFFERING_TYPE_LABELS[o.type] || 'Offering',
       priceLabel: o.is_free_for_family ? 'Free for Spiritual Family' : o.price_cents ? formatPrice(o.price_cents) : 'Free',
       description: o.description,
+      free: !!o.is_free_for_family || !o.price_cents,
+      onSale: hasDiscount(o),
+      percentOff: offeringDiscountPercent(o),
+      originalLabel: hasDiscount(o) ? formatPrice(o.original_price_cents) : '',
+      priceNow: o.price_cents ? formatPrice(o.price_cents) : 'Free',
     });
     const items = offerings.map(toItem);
     // Pictures first, so the collage shows real covers when there are some.
@@ -291,6 +297,43 @@ function StudioInner() {
       <p className="muted" style={{ margin: '0 0 22px', lineHeight: 1.6, maxWidth: 640 }}>
         Make a post from your own photo and offerings, then download it and copy the caption. You only need to post it once, then your link in your bio does the rest.
       </p>
+
+      {derived.items.length > 0 && (
+        <section aria-label="Your live offerings" style={{ margin: '0 0 28px' }}>
+          <h2 className="serif" style={{ margin: '0 0 10px', fontSize: 19, color: 'var(--brown)' }}>Your live offerings</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+            {derived.items.map((o) => (
+              <div key={o.id} className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                {o.img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={o.img} alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flex: 'none' }} />
+                ) : (
+                  <div style={{ width: 64, height: 64, borderRadius: 10, background: o.tint || '#F1E4D3', flex: 'none' }} />
+                )}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.title}</div>
+                  <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{o.typeLabel}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 8px', marginTop: 6 }}>
+                    {o.free ? (
+                      <span style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 14 }}>{o.priceLabel}</span>
+                    ) : (
+                      <>
+                        <span style={{ fontWeight: 700, color: 'var(--brown)', fontSize: 14 }}>{o.priceNow}</span>
+                        {o.onSale && <span className="muted" style={{ fontSize: 13, textDecoration: 'line-through' }}>{o.originalLabel}</span>}
+                        {o.onSale && (
+                          <span style={{ padding: '2px 9px', borderRadius: 999, background: '#F1E4D3', color: '#8A5E14', fontSize: 12, fontWeight: 700 }}>
+                            {o.percentOff}% off
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div style={{ display: 'flex', gap: 'clamp(20px, 4vw, 40px)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* Preview */}

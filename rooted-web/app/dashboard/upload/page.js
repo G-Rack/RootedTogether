@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { coverUrl, uploadCover, uploadContentFile } from '@/lib/storage';
+import { discountPercent } from '@/lib/discount';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { OFFERING_TYPE_KEYS, OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 import { fetchLessons, deleteLesson } from '@/lib/lessons';
@@ -73,6 +74,7 @@ function UploadPageInner() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priceDollars, setPriceDollars] = useState('');
+  const [discountDollars, setDiscountDollars] = useState('');
   const [coverPath, setCoverPath] = useState(null);
   const [contentUrl, setContentUrl] = useState('');
   const [contentFileName, setContentFileName] = useState('');
@@ -115,7 +117,13 @@ function UploadPageInner() {
       setType(o.type);
       setTitle(o.title);
       setDescription(o.description || '');
-      setPriceDollars(o.price_cents ? String(o.price_cents / 100) : '');
+      if (o.original_price_cents && o.original_price_cents > o.price_cents) {
+        setPriceDollars(String(o.original_price_cents / 100));
+        setDiscountDollars(String(o.price_cents / 100));
+      } else {
+        setPriceDollars(o.price_cents ? String(o.price_cents / 100) : '');
+        setDiscountDollars('');
+      }
       setCoverPath(o.cover_path);
       setCalendlyUrl(o.calendly_url || '');
       setCallDuration(o.call_duration_minutes ? String(o.call_duration_minutes) : '30');
@@ -231,11 +239,33 @@ function UploadPageInner() {
         }
       }
     }
-    const priceNum = isFreeForFamily ? 0 : parseFloat(priceDollars || '0');
-    if (!isFreeForFamily && (Number.isNaN(priceNum) || priceNum < 0)) {
-      setError('Enter a valid price.');
+    const originalNum = isFreeForFamily ? 0 : parseFloat(priceDollars || '0');
+    const discountOn = !isFreeForFamily && discountDollars.trim() !== '';
+    const discountNum = discountOn ? parseFloat(discountDollars) : 0;
+    if (!isFreeForFamily && (Number.isNaN(originalNum) || originalNum < 0)) {
+      setError('Enter a valid original price.');
       return;
     }
+    if (discountOn) {
+      if (Number.isNaN(discountNum) || discountNum < 0) {
+        setError('Enter a valid discount price.');
+        return;
+      }
+      if (!(originalNum > 0)) {
+        setError('Enter the original price first, then the discount price.');
+        return;
+      }
+      if (discountNum >= originalNum) {
+        setError('The discount price must be lower than the original price.');
+        return;
+      }
+      if (discountNum < MIN_PRICE_DOLLARS) {
+        setError('The discount price must be $5.00 or more. To offer it free, set the original price to 0 instead.');
+        return;
+      }
+    }
+    // What the buyer actually pays: the discount price when there is one.
+    const priceNum = discountOn ? discountNum : originalNum;
     if (!isFreeForFamily && priceNum > 0 && priceNum < MIN_PRICE_DOLLARS) {
       setError('Paid items start at $5. Set the price to $5.00 or more, or leave it at 0 to offer it free.');
       return;
@@ -258,7 +288,8 @@ function UploadPageInner() {
       type,
       title: title.trim(),
       description,
-      price_cents: isFreeForFamily ? 0 : Math.round(parseFloat(priceDollars || '0') * 100) || 0,
+      price_cents: isFreeForFamily ? 0 : Math.round(priceNum * 100) || 0,
+      original_price_cents: discountOn ? Math.round(originalNum * 100) : null,
       is_free_for_family: isFreeForFamily,
       cover_path: coverPath,
       calendly_url: type === 'call' ? calendlyUrl : null,
@@ -403,18 +434,45 @@ function UploadPageInner() {
 
         <div className="responsive-2col" style={{ '--col-gap': '16px' }}>
           <div>
-            <label className="field-label">Price (USD)</label>
-            <input
-              className="input-field"
-              type="number"
-              min="0"
-              step="0.01"
-              disabled={isFreeForFamily}
-              value={priceDollars}
-              onChange={(e) => setPriceDollars(e.target.value)}
-              placeholder="9.00"
-            />
-            <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Paid items start at $5. Leave it at 0 for a free item.</div>
+            <div className="responsive-2col" style={{ '--col-gap': '12px' }}>
+              <div>
+                <label className="field-label" htmlFor="offer-original">Original price (USD)</label>
+                <input
+                  id="offer-original"
+                  className="input-field"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  disabled={isFreeForFamily}
+                  value={priceDollars}
+                  onChange={(e) => setPriceDollars(e.target.value)}
+                  placeholder="9.00"
+                />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="offer-discount">Discount price (USD)</label>
+                <input
+                  id="offer-discount"
+                  className="input-field"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  disabled={isFreeForFamily}
+                  value={discountDollars}
+                  onChange={(e) => setDiscountDollars(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            {!isFreeForFamily && parseFloat(discountDollars) > 0 && parseFloat(priceDollars) > parseFloat(discountDollars) ? (
+              <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', borderRadius: 999, background: '#F1E4D3', color: 'var(--brown)', fontSize: 13, fontWeight: 700 }}>
+                {discountPercent(Math.round(parseFloat(priceDollars) * 100), Math.round(parseFloat(discountDollars) * 100))}% off. Buyers pay ${parseFloat(discountDollars).toFixed(2)}.
+              </div>
+            ) : (
+              <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                Paid items start at $5. Leave the original price at 0 for a free item. Add a discount price to run a sale: buyers pay the discount price, and the original price shows crossed out.
+              </div>
+            )}
             {payoutsReady === false && parseFloat(priceDollars || '0') > 0 && !isFreeForFamily && (
               <div className="error-banner" style={{ marginTop: 10, fontSize: 12.5 }}>
                 To publish a paid item you first need to connect Stripe so you can get paid. When you click Publish,
