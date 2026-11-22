@@ -437,7 +437,7 @@ export default function OfferingDetailClient() {
 
           {cover && !isCall && (
             <div style={{ marginTop: 22 }}>
-              <CoverImage src={cover} alt={offering.title} maxHeight={380} radius={16} />
+              <CoverImage src={cover} alt={offering.title} radius={16} />
             </div>
           )}
 

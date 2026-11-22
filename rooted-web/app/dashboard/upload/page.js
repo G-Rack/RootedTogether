@@ -510,7 +510,7 @@ function UploadPageInner() {
               </div>
             )}
             <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
-              Best size: 1600 × 900 px (a wide 16:9 picture). Any shape works — it’s shown whole, never cropped.
+              Best size: 1600 × 900 px (a wide 16:9 picture). A 16:9 picture fills the frame. Any other shape is shown whole on a soft blur, never cropped.
             </div>
           </div>
         </div>
