@@ -13,6 +13,7 @@ const OPEN = [
   /^\/(privacy|terms|child-safety)\/?$/,
   /^\/api\/(gate|waitlist|gift)$/,
   /^\/gift(\/pdf)?\/?$/,
+  /^\/creators\/?$/,
   /^\/unsubscribe\/?$/,
   /^\/reset-password\/?$/,
   /^\/(icon|apple-icon)\.png$/,

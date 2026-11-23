@@ -24,7 +24,9 @@ export async function POST(request) {
   const utmSource = tidy(body?.utm_source);
   const utmCampaign = tidy(body?.utm_campaign);
   // Only an explicit yes counts as consent to the daily devotional. The time is stored with it.
-  const devotional = body?.devotional === true;
+  // The /creators page sends list: 'creator_waitlist'; those sign-ups are stored with that source.
+  const isCreatorList = body?.list === 'creator_waitlist';
+  const devotional = !isCreatorList && body?.devotional === true;
   const consent = { devotional_consent: devotional, devotional_consent_at: devotional ? new Date().toISOString() : null };
   const save = (row) => fetch(`${SUPABASE_URL}/rest/v1/waitlist_signups`, {
     method: 'POST',
@@ -39,7 +41,7 @@ export async function POST(request) {
   try {
     // source holds the advert (utm_source) when there is one, otherwise the site address;
     // signup_page always holds the site address, so we know which page they used.
-    const source = utmSource || host;
+    const source = isCreatorList ? 'creator_waitlist' : (utmSource || host);
     let res = await save({ email, source, utm_source: utmSource, utm_campaign: utmCampaign, signup_page: host, ...consent });
     // If the newest columns are not in the database yet, still save the email with what exists.
     if (res.status === 400) res = await save({ email, source, utm_source: utmSource, ...consent });

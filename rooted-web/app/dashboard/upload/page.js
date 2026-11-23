@@ -74,7 +74,12 @@ function UploadPageInner() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priceDollars, setPriceDollars] = useState('');
-  const [discountDollars, setDiscountDollars] = useState('');
+  // Former price: only ever filled in by the creator. Shown crossed out with a % off badge.
+  const [formerDollars, setFormerDollars] = useState('');
+  // Optional "Launch price until" date (YYYY-MM-DD).
+  const [launchUntil, setLaunchUntil] = useState('');
+  // Course only: Lesson 1 can be watched free by anyone.
+  const [freePreview, setFreePreview] = useState(false);
   const [coverPath, setCoverPath] = useState(null);
   const [contentUrl, setContentUrl] = useState('');
   const [contentFileName, setContentFileName] = useState('');
@@ -117,13 +122,10 @@ function UploadPageInner() {
       setType(o.type);
       setTitle(o.title);
       setDescription(o.description || '');
-      if (o.original_price_cents && o.original_price_cents > o.price_cents) {
-        setPriceDollars(String(o.original_price_cents / 100));
-        setDiscountDollars(String(o.price_cents / 100));
-      } else {
-        setPriceDollars(o.price_cents ? String(o.price_cents / 100) : '');
-        setDiscountDollars('');
-      }
+      setPriceDollars(o.price_cents ? String(o.price_cents / 100) : '');
+      setFormerDollars(o.original_price_cents ? String(o.original_price_cents / 100) : '');
+      setLaunchUntil(o.launch_price_until || '');
+      setFreePreview(!!o.free_preview);
       setCoverPath(o.cover_path);
       setCalendlyUrl(o.calendly_url || '');
       setCallDuration(o.call_duration_minutes ? String(o.call_duration_minutes) : '30');
@@ -239,33 +241,38 @@ function UploadPageInner() {
         }
       }
     }
-    const originalNum = isFreeForFamily ? 0 : parseFloat(priceDollars || '0');
-    const discountOn = !isFreeForFamily && discountDollars.trim() !== '';
-    const discountNum = discountOn ? parseFloat(discountDollars) : 0;
-    if (!isFreeForFamily && (Number.isNaN(originalNum) || originalNum < 0)) {
-      setError('Enter a valid original price.');
+    // What the buyer pays.
+    const priceNum = isFreeForFamily ? 0 : parseFloat(priceDollars || '0');
+    if (!isFreeForFamily && (Number.isNaN(priceNum) || priceNum < 0)) {
+      setError('Enter a valid price.');
       return;
     }
-    if (discountOn) {
-      if (Number.isNaN(discountNum) || discountNum < 0) {
-        setError('Enter a valid discount price.');
+    // Former price: crossed out next to the price, only when the creator enters one.
+    const formerOn = !isFreeForFamily && formerDollars.trim() !== '';
+    const formerNum = formerOn ? parseFloat(formerDollars) : 0;
+    if (formerOn) {
+      if (Number.isNaN(formerNum) || formerNum <= 0) {
+        setError('Enter a valid former price, or leave it empty.');
         return;
       }
-      if (!(originalNum > 0)) {
-        setError('Enter the original price first, then the discount price.');
+      if (!(priceNum > 0)) {
+        setError('Enter the price first. A former price only shows next to a paid price.');
         return;
       }
-      if (discountNum >= originalNum) {
-        setError('The discount price must be lower than the original price.');
-        return;
-      }
-      if (discountNum < MIN_PRICE_DOLLARS) {
-        setError('The discount price must be $5.00 or more. To offer it free, set the original price to 0 instead.');
+      if (formerNum <= priceNum) {
+        setError('The former price must be higher than the price.');
         return;
       }
     }
-    // What the buyer actually pays: the discount price when there is one.
-    const priceNum = discountOn ? discountNum : originalNum;
+    const launchOn = !isFreeForFamily && priceNum > 0 && launchUntil.trim() !== '';
+    if (launchOn) {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(launchUntil) || launchUntil < todayStr) {
+        setError('The launch price date must be today or later.');
+        return;
+      }
+    }
     if (!isFreeForFamily && priceNum > 0 && priceNum < MIN_PRICE_DOLLARS) {
       setError('Paid items start at $5. Set the price to $5.00 or more, or leave it at 0 to offer it free.');
       return;
@@ -289,7 +296,9 @@ function UploadPageInner() {
       title: title.trim(),
       description,
       price_cents: isFreeForFamily ? 0 : Math.round(priceNum * 100) || 0,
-      original_price_cents: discountOn ? Math.round(originalNum * 100) : null,
+      original_price_cents: formerOn ? Math.round(formerNum * 100) : null,
+      launch_price_until: launchOn ? launchUntil : null,
+      free_preview: type === 'course' && freePreview,
       is_free_for_family: isFreeForFamily,
       cover_path: coverPath,
       calendly_url: type === 'call' ? calendlyUrl : null,
@@ -436,9 +445,9 @@ function UploadPageInner() {
           <div>
             <div className="responsive-2col" style={{ '--col-gap': '12px' }}>
               <div>
-                <label className="field-label" htmlFor="offer-original">Original price (USD)</label>
+                <label className="field-label" htmlFor="offer-price">Price (USD)</label>
                 <input
-                  id="offer-original"
+                  id="offer-price"
                   className="input-field"
                   type="number"
                   min="0"
@@ -450,27 +459,42 @@ function UploadPageInner() {
                 />
               </div>
               <div>
-                <label className="field-label" htmlFor="offer-discount">Discount price (USD)</label>
+                <label className="field-label" htmlFor="offer-former">Former price (USD)</label>
                 <input
-                  id="offer-discount"
+                  id="offer-former"
                   className="input-field"
                   type="number"
                   min="0"
                   step="0.01"
                   disabled={isFreeForFamily}
-                  value={discountDollars}
-                  onChange={(e) => setDiscountDollars(e.target.value)}
+                  value={formerDollars}
+                  onChange={(e) => setFormerDollars(e.target.value)}
                   placeholder="Optional"
                 />
               </div>
             </div>
-            {!isFreeForFamily && parseFloat(discountDollars) > 0 && parseFloat(priceDollars) > parseFloat(discountDollars) ? (
+            {!isFreeForFamily && parseFloat(formerDollars) > 0 && parseFloat(priceDollars) > 0 && parseFloat(formerDollars) > parseFloat(priceDollars) ? (
               <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', borderRadius: 999, background: '#F1E4D3', color: 'var(--brown)', fontSize: 13, fontWeight: 700 }}>
-                {discountPercent(Math.round(parseFloat(priceDollars) * 100), Math.round(parseFloat(discountDollars) * 100))}% off. Buyers pay ${parseFloat(discountDollars).toFixed(2)}.
+                {discountPercent(Math.round(parseFloat(formerDollars) * 100), Math.round(parseFloat(priceDollars) * 100))}% off. Buyers pay ${parseFloat(priceDollars).toFixed(2)}.
               </div>
             ) : (
               <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                Paid items start at $5. Leave the original price at 0 for a free item. Add a discount price to run a sale: buyers pay the discount price, and the original price shows crossed out.
+                Paid items start at $5. Leave the price at 0 for a free item. A crossed-out price and a % off badge only show if you enter a former price.
+              </div>
+            )}
+            {!isFreeForFamily && parseFloat(priceDollars) > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <label className="field-label" htmlFor="offer-launch">Launch price until (optional)</label>
+                <input
+                  id="offer-launch"
+                  className="input-field"
+                  type="date"
+                  value={launchUntil}
+                  onChange={(e) => setLaunchUntil(e.target.value)}
+                />
+                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Shows &ldquo;Launch price until&rdquo; and the date next to the price. The price does not change by itself on that date, so update it then.
+                </div>
               </div>
             )}
             {payoutsReady === false && parseFloat(priceDollars || '0') > 0 && !isFreeForFamily && (
@@ -567,6 +591,20 @@ function UploadPageInner() {
               removed={removedLessons}
               setRemoved={setRemovedLessons}
             />
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={freePreview}
+                onChange={(e) => setFreePreview(e.target.checked)}
+                style={{ marginTop: 3, width: 18, height: 18 }}
+              />
+              <span>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>Offer Lesson 1 as a free preview</span>
+                <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>
+                  Anyone can watch Lesson 1 on the course page without buying or signing in. Works when Lesson 1 is a video. Everything else stays locked.
+                </span>
+              </span>
+            </label>
           </>
         ) : (
           <div>

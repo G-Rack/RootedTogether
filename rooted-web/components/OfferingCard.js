@@ -9,6 +9,7 @@ import { OFFERING_TYPE_BY_KEY } from '@/lib/offeringTypes';
 import StarRating from '@/components/StarRating';
 import ProBadge from '@/components/ProBadge';
 import SaleTag from '@/components/SaleTag';
+import OriginalsTag from '@/components/OriginalsTag';
 
 export default function OfferingCard({ offering, creatorName, stats, isPro = false }) {
   const cover = coverUrl(offering.cover_path);
@@ -34,8 +35,11 @@ export default function OfferingCard({ offering, creatorName, stats, isPro = fal
         </div>
       )}
       <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span className="type-pill" style={{ alignSelf: 'flex-start' }}>
-          {(OFFERING_TYPE_LABELS[offering.type] || offering.type).toUpperCase()}
+        <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, alignSelf: 'flex-start' }}>
+          <span className="type-pill">
+            {(OFFERING_TYPE_LABELS[offering.type] || offering.type).toUpperCase()}
+          </span>
+          {offering.is_original && <OriginalsTag small />}
         </span>
         <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>
           {offering.title}

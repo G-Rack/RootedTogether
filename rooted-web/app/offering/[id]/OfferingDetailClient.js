@@ -15,6 +15,8 @@ import AudiobookPlayer from '@/components/AudiobookPlayer';
 import CoverImage from '@/components/CoverImage';
 import AuthGateModal from '@/components/AuthGateModal';
 import SaleTag from '@/components/SaleTag';
+import OriginalsTag from '@/components/OriginalsTag';
+import FreePreview from '@/components/FreePreview';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 import { trackPurchase } from '@/lib/tracking';
 
@@ -399,7 +401,10 @@ export default function OfferingDetailClient() {
       <div className="responsive-2col" style={{ '--col-a': '1fr', '--col-b': '380px', '--col-gap': '44px' }}>
         {/* Main */}
         <div>
-          <span className="badge">{(OFFERING_TYPE_LABELS[offering.type] || offering.type).toUpperCase()}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <span className="badge">{(OFFERING_TYPE_LABELS[offering.type] || offering.type).toUpperCase()}</span>
+            {offering.is_original && <OriginalsTag />}
+          </span>
           <div className="serif" style={{ fontSize: 32, fontWeight: 700, color: 'var(--brown)', marginTop: 12, lineHeight: 1.25 }}>
             {offering.title}
           </div>
@@ -522,6 +527,21 @@ export default function OfferingDetailClient() {
                 </div>
               )}
             </div>
+          )}
+
+          {offering.type === 'course' && offering.is_original && (
+            <div className="muted" style={{ fontSize: 13, marginTop: 14, fontStyle: 'italic' }}>
+              A Rooted Together team course. Presenter is AI-generated.
+            </div>
+          )}
+
+          {offering.type === 'course' && !(alreadyOwned || session?.user?.id === offering.creator_auth_id) && (
+            <FreePreview
+              offeringId={offering.id}
+              enabled={!!offering.free_preview}
+              onGetFull={handleBuy}
+              buying={buying}
+            />
           )}
 
           {offering.type === 'course' && (

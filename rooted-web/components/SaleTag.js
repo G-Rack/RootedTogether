@@ -2,9 +2,37 @@ import { formatPrice } from '@/lib/roles';
 import { hasDiscount, offeringDiscountPercent } from '@/lib/discount';
 
 // Shows the crossed-out original price and an "X% off" badge next to a price.
-// Renders nothing when the offering has no discount.
+// Only shows when the creator entered a former price. Also shows "Launch price until [date]"
+// when the creator set one and that day hasn't passed. Renders nothing otherwise.
+function launchLabel(offering) {
+  const d = offering?.launch_price_until;
+  if (!d || offering.is_free_for_family || !(Number(offering.price_cents) > 0)) return null;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (String(d) < today) return null;
+  const date = new Date(`${d}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return `Launch price until ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}
+
 export default function SaleTag({ offering, size = 13 }) {
-  if (!hasDiscount(offering)) return null;
+  const launch = launchLabel(offering);
+  const launchPill = launch ? (
+    <span
+      style={{
+        padding: '2px 9px',
+        borderRadius: 999,
+        background: '#2E1B10',
+        color: '#E8C48A',
+        fontSize: Math.max(11, size - 1),
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {launch}
+    </span>
+  ) : null;
+  if (!hasDiscount(offering)) return launchPill;
   const percent = offeringDiscountPercent(offering);
   return (
     <>
@@ -28,6 +56,7 @@ export default function SaleTag({ offering, size = 13 }) {
       >
         {percent}% off
       </span>
+      {launchPill}
     </>
   );
 }
