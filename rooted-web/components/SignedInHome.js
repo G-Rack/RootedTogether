@@ -7,7 +7,7 @@ import MarketSidebar from '@/components/MarketSidebar';
 import OfferingCard from '@/components/OfferingCard';
 import TypeIcon from '@/components/TypeIcon';
 import ProBadge from '@/components/ProBadge';
-import { OFFERING_TYPES, OFFERING_TYPE_BY_KEY, SORT_OPTIONS } from '@/lib/offeringTypes';
+import { BROWSE_TYPES, OFFERING_TYPE_BY_KEY, SORT_OPTIONS } from '@/lib/offeringTypes';
 import { avatarUrl } from '@/lib/storage';
 import { initialsFor } from '@/lib/roles';
 
@@ -65,7 +65,7 @@ export default function SignedInHome({
               Good to see you, {firstName}
             </h1>
             <p style={{ margin: '6px 0 0', fontSize: 15, color: 'var(--text-soft)' }}>
-              Find your next course, printable, audio teaching or call.
+              Find your next course, ebook, audio teaching or call.
             </p>
           </div>
           <form role="search" onSubmit={(e) => e.preventDefault()} style={{ flex: '1 1 280px', maxWidth: 420, position: 'relative' }}>
@@ -86,7 +86,7 @@ export default function SignedInHome({
 
         {/* Phone only: the sidebar is a drawer, so keep the type filters one swipe away. */}
         <div className="home-pills" role="tablist" aria-label="Offering type">
-          {[{ key: 'all', plural: 'All' }, ...OFFERING_TYPES].map((t) => (
+          {[{ key: 'all', plural: 'All' }, ...BROWSE_TYPES].map((t) => (
             <button
               key={t.key}
               type="button"

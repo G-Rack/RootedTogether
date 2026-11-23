@@ -37,9 +37,7 @@ export default function Footer() {
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Marketplace</div>
           <Link href="/?type=course" style={{ fontSize: 13.5 }}>Courses</Link>
           <Link href="/?type=ebook" style={{ fontSize: 13.5 }}>Ebooks</Link>
-          <Link href="/?type=printable" style={{ fontSize: 13.5 }}>Printables</Link>
           <Link href="/?type=audio" style={{ fontSize: 13.5 }}>Audiobooks</Link>
-          <Link href="/?type=template" style={{ fontSize: 13.5 }}>Templates</Link>
           <Link href="/?type=routine" style={{ fontSize: 13.5 }}>Daily Routines</Link>
           <Link href="/?type=call" style={{ fontSize: 13.5 }}>1:1 Calls</Link>
           <Link href="/?type=bundle" style={{ fontSize: 13.5 }}>Bundles</Link>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import OfferingCard from '@/components/OfferingCard';
 import TypeIcon from '@/components/TypeIcon';
-import { OFFERING_TYPES } from '@/lib/offeringTypes';
+import { OFFERING_TYPES, BROWSE_TYPES } from '@/lib/offeringTypes';
 import { OFFERING_TYPE_LABELS, initialsFor } from '@/lib/roles';
 import { avatarUrl } from '@/lib/storage';
 import { ONBOARDING_URL } from '@/lib/config';
@@ -78,7 +78,7 @@ export default function SignedOutHome({
             Find guidance, teaching and encouragement rooted in faith.
           </h1>
           <p style={{ margin: '20px 0 0', maxWidth: 560, fontSize: 18, lineHeight: 1.6, color: '#6F5846' }}>
-            Courses, audiobooks, printables, templates and 1:1 calls from Spiritual Mothers, Pastors and Leaders. Browse freely, and make a free account when you are ready to get something.
+            Courses, ebooks, audiobooks, routines and 1:1 calls from Spiritual Mothers, Pastors and Leaders. Browse freely, and make a free account when you are ready to get something.
           </p>
 
           <form
@@ -102,7 +102,7 @@ export default function SignedOutHome({
           </form>
 
           <div role="group" aria-label="Browse by type" style={{ marginTop: 20, maxWidth: 640, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {OFFERING_TYPES.map((t) => (
+            {BROWSE_TYPES.map((t) => (
               <button
                 key={t.key}
                 type="button"
@@ -178,7 +178,7 @@ export default function SignedOutHome({
 
         <div style={{ marginTop: 18, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div role="group" aria-label="Filter by type" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {['all', ...OFFERING_TYPES.map((t) => t.key)].map((t) => (
+            {['all', ...BROWSE_TYPES.map((t) => t.key)].map((t) => (
               <button
                 key={t}
                 type="button"

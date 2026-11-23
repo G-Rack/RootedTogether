@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import TypeIcon from '@/components/TypeIcon';
-import { OFFERING_TYPES } from '@/lib/offeringTypes';
+import { BROWSE_TYPES } from '@/lib/offeringTypes';
 import { initialsFor } from '@/lib/roles';
 import { ONBOARDING_URL } from '@/lib/config';
 
@@ -43,7 +43,7 @@ export default function MarketSidebar({ filter, onFilter, open, onClose, session
 
         <nav aria-label="Offering types" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ padding: '0 12px 8px', fontSize: 11.5, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#C8923F' }}>Offerings</div>
-          {OFFERING_TYPES.map((t) => (
+          {BROWSE_TYPES.map((t) => (
             <button
               key={t.key}
               type="button"

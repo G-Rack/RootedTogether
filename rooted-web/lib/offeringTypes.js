@@ -29,6 +29,7 @@ export const OFFERING_TYPES = [
   },
   {
     key: 'printable',
+    retired: true,
     label: 'Printable',
     plural: 'Printables',
     blurb: 'Prayer journals, planners, and study sheets to print and keep.',
@@ -51,6 +52,7 @@ export const OFFERING_TYPES = [
   },
   {
     key: 'template',
+    retired: true,
     label: 'Template',
     plural: 'Templates',
     blurb: 'Workbooks, planners, and leader kits you can fill in and reuse.',
@@ -92,6 +94,10 @@ export const OFFERING_TYPES = [
     dot: '#2E1B10',
   },
 ];
+
+// Types shown in marketplace menus and filters. Retired types are hidden there,
+// but offerings that already exist still show under "All" and open normally.
+export const BROWSE_TYPES = OFFERING_TYPES.filter((t) => !t.retired);
 
 export const OFFERING_TYPE_KEYS = OFFERING_TYPES.map((t) => t.key);
 
