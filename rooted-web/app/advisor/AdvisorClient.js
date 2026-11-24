@@ -314,7 +314,6 @@ export default function AdvisorClient() {
                   <a key={o.id} href={offeringHref(o, null, null, 'advisor_offers')} className={styles.offer} onClick={(e) => openOffer(e, o)}>
                     <div className={styles.offerCover}>
                       <CoverImage src={coverUrl(o.cover_path)} alt="" />
-                      {offer && <span className={styles.badge}><AdvisorIcon name={offer.rank <= 1 ? 'tag' : 'gift'} size={15} /> {offer.badge}</span>}
                     </div>
                     <div className={styles.offerBody}>
                       <span className={styles.offerTitle}>{o.title}</span>
