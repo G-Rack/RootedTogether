@@ -57,6 +57,7 @@ function offeringHref(o, sessionId, utm, src = 'advisor') {
 
 function whatYouGet(o) {
   if (o.type === 'call') return '30-minute call';
+  if (o.type === 'audio') return (o.ready_video_lessons || 0) > 0 ? `Audiobook, ${o.ready_video_lessons} tracks` : 'Audiobook';
   if ((o.ready_video_lessons || 0) > 0) return `${o.ready_video_lessons} video lessons`;
   return `${OFFERING_TYPE_LABELS[o.type] || 'Download'}, delivered as a file`;
 }

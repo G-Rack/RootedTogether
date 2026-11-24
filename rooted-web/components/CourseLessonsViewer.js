@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { fetchLessons, pdfSignedUrl, muxPlayerUrl, formatDuration } from '@/lib/lessons';
+import { fetchLessons, pdfSignedUrl, formatDuration } from '@/lib/lessons';
+import MuxVideo from '@/components/MuxVideo';
 
 // The lesson list on a course's page.
 //  - Buyers (and the creator): every lesson, in order. Videos play in the page,
@@ -100,13 +101,7 @@ export default function CourseLessonsViewer({ offeringId, owned, onLoaded }) {
               </div>
               {isOpen && isVideo && lesson.mux_playback_id && (
                 <div style={{ padding: '0 18px 18px' }}>
-                  <iframe
-                    src={muxPlayerUrl(lesson.mux_playback_id)}
-                    title={lesson.title || `Lesson ${i + 1}`}
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-                    allowFullScreen
-                    style={{ width: '100%', aspectRatio: '16 / 9', border: 0, borderRadius: 10, background: '#000' }}
-                  />
+                  <MuxVideo playbackId={lesson.mux_playback_id} title={lesson.title || `Lesson ${i + 1}`} />
                 </div>
               )}
             </div>

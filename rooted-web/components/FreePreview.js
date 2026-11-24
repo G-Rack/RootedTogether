@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { muxPlayerUrl, formatDuration } from '@/lib/lessons';
+import { formatDuration } from '@/lib/lessons';
+import MuxVideo from '@/components/MuxVideo';
 
 // Lesson 1 of a course, free to watch for anyone (signed in or not) when the creator
 // switched the free preview on. The database only ever returns that one video.
@@ -33,13 +34,7 @@ export default function FreePreview({ offeringId, enabled, onGetFull, buying = f
         {' '}· No account needed.
       </div>
       <div className="card" style={{ padding: 14 }}>
-        <iframe
-          src={muxPlayerUrl(preview.mux_playback_id)}
-          title={preview.title || 'Lesson 1 free preview'}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          style={{ width: '100%', aspectRatio: '16 / 9', border: 0, borderRadius: 10, background: '#000', display: 'block' }}
-        />
+        <MuxVideo playbackId={preview.mux_playback_id} title={preview.title || 'Lesson 1 free preview'} />
         <button type="button" className="btn btn-primary" onClick={onGetFull} disabled={buying} style={{ width: '100%', marginTop: 14 }}>
           {buying ? 'Please wait…' : 'Get the full course'}
         </button>

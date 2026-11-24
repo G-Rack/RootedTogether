@@ -43,6 +43,7 @@ export const QUESTIONS = [
     options: [
       { value: 'video', label: 'Short videos', sub: 'Watch and listen', icon: 'play' },
       { value: 'reading', label: 'Reading at my own pace', sub: 'Ebooks, guides and journeys', icon: 'book' },
+      { value: 'audio', label: 'Listening', sub: 'Audiobooks for a walk, a drive or bedtime', icon: 'headphones' },
       { value: 'person', label: 'Talking with a real person', sub: 'A one-to-one call', icon: 'chat' },
     ],
   },
@@ -84,7 +85,7 @@ const NEED_PHRASE = {
 const HELP_PHRASE = {
   comfort: 'comfort', clarity: 'clarity', plan: 'a simple plan to follow', talk: 'someone to talk to',
 };
-const LEARN_PHRASE = { video: 'short videos', reading: 'reading at your own pace', person: 'talking with a real person' };
+const LEARN_PHRASE = { video: 'short videos', reading: 'reading at your own pace', audio: 'listening', person: 'talking with a real person' };
 const TIME_PHRASE = { t15: 'about 15 minutes a week', t60: 'about an hour a week', t120: 'a couple of hours a week' };
 
 // What the buyer actually receives. Anything that would arrive empty is never recommended.
@@ -96,6 +97,7 @@ export function deliverable(o) {
 
 export function format(o) {
   if (o.type === 'call') return 'person';
+  if (o.type === 'audio') return 'audio';
   return (o.ready_video_lessons || 0) > 0 ? 'video' : 'reading';
 }
 
@@ -111,7 +113,7 @@ export function scoreOffering(o, a) {
   else if (t.needs.includes(a.need)) s += 6;
   if (t.helps.includes(a.help)) s += 4;
   if (a.help === 'talk' && o.type === 'call') s += 4;
-  if (t.learn.includes(a.learn)) s += 4;
+  if (t.learn.includes(a.learn) || (a.learn === 'audio' && o.type === 'audio')) s += 4;
   if (a.learn === 'person' && o.type === 'call') s += 3;
   if (t.time.includes(a.time)) s += 2;
   if (t.who.includes(a.who)) s += 3;
