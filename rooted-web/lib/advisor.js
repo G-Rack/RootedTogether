@@ -3,64 +3,66 @@ import { ADVISOR_TAGS } from './advisorTags';
 // Rule-based scoring for the course advisor. No AI, no outside calls: the live catalogue comes from
 // the advisor_catalogue() database function and is scored against the visitor's answers here.
 
+// Each option has a short line under it and an icon name (see app/advisor/AdvisorIcon.js).
 export const QUESTIONS = [
   {
     key: 'need',
     title: 'What brings you here today?',
+    sub: 'Pick the one that fits best.',
     options: [
-      { value: 'new_faith', label: 'I am new to faith, or coming back to it' },
-      { value: 'anxious', label: 'I feel anxious or overwhelmed' },
-      { value: 'hear_god', label: 'I want to hear God more clearly' },
-      { value: 'tired', label: 'I serve or lead, and I am tired' },
-      { value: 'group', label: 'I lead a small group or church team' },
-      { value: 'rhythm', label: 'I want a simple daily rhythm with God' },
-      { value: 'exploring', label: 'I am just exploring' },
-      { value: 'hurting', label: 'I am hurting badly and struggling to cope' },
+      { value: 'new_faith', label: 'I am new to faith, or coming back', sub: 'Start with the basics, gently', icon: 'sunrise' },
+      { value: 'anxious', label: 'I feel anxious or overwhelmed', sub: 'Find calm and comfort in God', icon: 'heart' },
+      { value: 'hear_god', label: 'I want to hear God more clearly', sub: 'Grow in prayer and stillness', icon: 'ear' },
+      { value: 'tired', label: 'I serve or lead, and I am tired', sub: 'Rest, and serve for the long haul', icon: 'leaf' },
+      { value: 'group', label: 'I lead a small group or church team', sub: 'Tools for leading others well', icon: 'users' },
+      { value: 'rhythm', label: 'I want a simple daily rhythm', sub: 'A short habit to start each day with God', icon: 'calendar' },
+      { value: 'exploring', label: 'I am just exploring', sub: 'See what is here, no pressure', icon: 'compass' },
+      { value: 'hurting', label: 'I am hurting badly right now', sub: 'Struggling to cope', icon: 'hand' },
     ],
   },
   {
     key: 'who',
     title: 'Who is this for?',
     options: [
-      { value: 'me', label: 'Me' },
-      { value: 'group', label: 'My group or church' },
+      { value: 'me', label: 'Just me', sub: 'For my own walk with God', icon: 'user' },
+      { value: 'group', label: 'My group or church', sub: 'Something to use with others', icon: 'users' },
     ],
   },
   {
     key: 'time',
     title: 'How much time can you give each week?',
     options: [
-      { value: 't15', label: 'About 15 minutes' },
-      { value: 't60', label: 'About an hour' },
-      { value: 't120', label: 'A couple of hours' },
+      { value: 't15', label: 'About 15 minutes', sub: 'A few quiet minutes', icon: 'clock' },
+      { value: 't60', label: 'About an hour', sub: 'A little each day, or one sitting', icon: 'clock' },
+      { value: 't120', label: 'A couple of hours', sub: 'Ready to go deeper', icon: 'clock' },
     ],
   },
   {
     key: 'learn',
     title: 'How do you like to learn?',
     options: [
-      { value: 'video', label: 'Short videos' },
-      { value: 'reading', label: 'Reading at my own pace' },
-      { value: 'person', label: 'Talking with a real person' },
+      { value: 'video', label: 'Short videos', sub: 'Watch and listen', icon: 'play' },
+      { value: 'reading', label: 'Reading at my own pace', sub: 'Ebooks, guides and journeys', icon: 'book' },
+      { value: 'person', label: 'Talking with a real person', sub: 'A one-to-one call', icon: 'chat' },
     ],
   },
   {
     key: 'help',
     title: 'What would help most right now?',
     options: [
-      { value: 'comfort', label: 'Comfort' },
-      { value: 'clarity', label: 'Clarity and understanding' },
-      { value: 'plan', label: 'A simple plan to follow' },
-      { value: 'talk', label: 'Someone to talk to' },
+      { value: 'comfort', label: 'Comfort', sub: 'To feel held and at peace', icon: 'heart' },
+      { value: 'clarity', label: 'Clarity', sub: 'To understand and see the way', icon: 'sun' },
+      { value: 'plan', label: 'A simple plan to follow', sub: 'Clear steps, one at a time', icon: 'list' },
+      { value: 'talk', label: 'Someone to talk to', sub: 'A person who will listen', icon: 'chat' },
     ],
   },
   {
     key: 'ready',
     title: 'Where are you at today?',
     options: [
-      { value: 'looking', label: 'Just looking for now' },
-      { value: 'small', label: 'I would like to start small' },
-      { value: 'full', label: 'I am ready for a full course' },
+      { value: 'looking', label: 'Just looking for now', sub: 'Show me free ways to start', icon: 'eye' },
+      { value: 'small', label: 'I would like to start small', sub: 'Something simple and low-cost', icon: 'seed' },
+      { value: 'full', label: 'I am ready for a full course', sub: 'I want to go deeper', icon: 'star' },
     ],
   },
 ];

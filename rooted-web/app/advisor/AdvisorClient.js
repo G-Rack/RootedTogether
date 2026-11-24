@@ -4,17 +4,21 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
-import SaleTag from '@/components/SaleTag';
-import styles from './advisor.module.css';
+import { hasDiscount, offeringDiscountPercent } from '@/lib/discount';
+import { coverUrl } from '@/lib/storage';
+import CoverImage from '@/components/CoverImage';
 import { track as trackSite } from '@/lib/analytics';
-import { QUESTIONS, needsCare, recommend, whyItFits, pairLine, previewItem } from '@/lib/advisor';
+import { QUESTIONS, needsCare, recommend, whyItFits, pairLine, previewItem, deliverable } from '@/lib/advisor';
+import AdvisorIcon from './AdvisorIcon';
+import styles from './advisor.module.css';
 
-// rootedtogether.club/advisor: the course advisor ("Sales generator").
-// Six questions plus an optional first name, one per screen, then one honest suggestion, one
-// "pairs well with" offer and, if both are declined, the free gift. Visits are recorded only through
-// the advisor_* database functions. The first name stays in this browser and is never stored.
+// rootedtogether.club/advisor: the course guide ("Sales generator"), styled like the app.
+// First screen: real offers (sale price, launch price, free Lesson 1, free items), then the guide.
+// The guide asks six questions plus an optional first name, one per screen, then gives one honest
+// suggestion, one "pairs well with" offer and, if both are declined, the free gift. Visits are
+// recorded only through the advisor_* database functions. The first name is never stored.
 
-const NAME_STEP = QUESTIONS.length + 1; // screens 1..6 are questions, 7 is the name
+const NAME_STEP = QUESTIONS.length + 1;
 const TOTAL = NAME_STEP;
 const STORE_KEY = 'rt_advisor';
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -33,7 +37,7 @@ function readUtm() {
   }
 }
 
-// Record a step. Never blocks the visitor for long, and a failure never stops the quiz.
+// Record a step. Never blocks the visitor for long, and a failure never stops the guide.
 async function track(sessionId, event, extra = {}) {
   // Site analytics get the step name only (never the care note, which stays anonymous).
   if (event !== 'care_note') trackSite(`advisor_${event}`, extra.p_recommended ? { props: { offering_id: extra.p_recommended } } : {});
@@ -42,8 +46,8 @@ async function track(sessionId, event, extra = {}) {
   await Promise.race([call.then(() => null, () => null), new Promise((r) => setTimeout(r, 900))]);
 }
 
-function offeringHref(o, sessionId, utm) {
-  const q = new URLSearchParams({ src: 'advisor' });
+function offeringHref(o, sessionId, utm, src = 'advisor') {
+  const q = new URLSearchParams({ src });
   if (sessionId) q.set('as', sessionId);
   if (utm?.utm_source) q.set('utm_source', utm.utm_source);
   if (utm?.utm_medium) q.set('utm_medium', utm.utm_medium);
@@ -57,6 +61,26 @@ function whatYouGet(o) {
   return `${OFFERING_TYPE_LABELS[o.type] || 'Download'}, delivered as a file`;
 }
 
+function launchLive(o) {
+  const d = o?.launch_price_until;
+  if (!d || !(Number(o.price_cents) > 0)) return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return String(d) >= today;
+}
+
+// Only real offers, set by the creator: a former price, a launch price, a free Lesson 1, or a free item.
+function offerFor(o) {
+  if (hasDiscount(o)) return { rank: 0, badge: `${offeringDiscountPercent(o)}% off`, cta: 'See the offer' };
+  if (launchLive(o)) {
+    const until = new Date(`${o.launch_price_until}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return { rank: 1, badge: `Launch price until ${until}`, cta: 'See the offer' };
+  }
+  if (o.free_preview && (o.ready_video_lessons || 0) > 0) return { rank: 2, badge: 'Lesson 1 free', cta: 'Watch Lesson 1 free' };
+  if (Number(o.price_cents) === 0 && o.type !== 'call') return { rank: 3, badge: 'Free', cta: 'Get it free' };
+  return null;
+}
+
 function TeamLine({ o, className }) {
   if (!(o?.type === 'course' && o?.is_original)) return null;
   return <p className={className}>A Rooted Together team course. Presenter is AI-generated.</p>;
@@ -66,13 +90,19 @@ function Price({ o, className }) {
   return (
     <div className={className}>
       <span>{formatPrice(o.price_cents)}</span>
-      {Number(o.price_cents) > 0 && <SaleTag offering={o} size={16} />}
+      {hasDiscount(o) && (
+        <>
+          <span className={styles.was} aria-label={`Was ${formatPrice(o.original_price_cents)}`}>{formatPrice(o.original_price_cents)}</span>
+          <span className={styles.badge}>{offeringDiscountPercent(o)}% off</span>
+        </>
+      )}
+      {!hasDiscount(o) && launchLive(o) && <span className={styles.badge}>Launch price</span>}
     </div>
   );
 }
 
 export default function AdvisorClient() {
-  const [screen, setScreen] = useState(0); // 0 intro, 1..7 questions, then 'care' | 'result' | 'upsell' | 'gift' | 'thanks'
+  const [screen, setScreen] = useState(0); // 0 start, 1..7 questions, then 'care' | 'result' | 'upsell' | 'gift' | 'thanks'
   const [answers, setAnswers] = useState({});
   const [name, setName] = useState('');
   const [sessionId, setSessionId] = useState(null);
@@ -102,10 +132,19 @@ export default function AdvisorClient() {
     return () => { active = false; };
   }, []);
 
-  // Move focus to each new screen's heading for keyboard and screen-reader users.
+  // Move focus to each new screen's heading for keyboard and screen-reader users, and back to the top.
   useEffect(() => {
+    if (screen === 0) return;
     headingRef.current?.focus();
+    try { window.scrollTo({ top: 0 }); } catch { /* ignore */ }
   }, [screen]);
+
+  const offers = (catalogue || [])
+    .filter(deliverable)
+    .map((o) => ({ o, offer: offerFor(o) }))
+    .filter((x) => x.offer)
+    .sort((a, b) => a.offer.rank - b.offer.rank || Number(a.o.price_cents) - Number(b.o.price_cents));
+  const anySale = offers.some((x) => x.offer.rank <= 1);
 
   const start = async () => {
     trackSite('advisor_started');
@@ -145,11 +184,11 @@ export default function AdvisorClient() {
 
   const goBack = () => {
     setError('');
-    if (screen === 'care') setScreen(1);
+    if (screen === 1 || screen === 'care') setScreen(screen === 'care' ? 1 : 0);
     else if (screen === 'result') setScreen(NAME_STEP);
     else if (screen === 'upsell') setScreen('result');
     else if (screen === 'gift') setScreen(rec?.upsell ? 'upsell' : 'result');
-    else if (typeof screen === 'number' && screen > 0) setScreen(screen - 1);
+    else if (typeof screen === 'number' && screen > 1) setScreen(screen - 1);
   };
 
   const go = async (e, event) => {
@@ -157,6 +196,13 @@ export default function AdvisorClient() {
     const href = e.currentTarget.getAttribute('href');
     await track(sessionId, event);
     window.location.assign(href);
+  };
+
+  const openOffer = (e, o) => {
+    e.preventDefault();
+    const href = e.currentTarget.getAttribute('href');
+    trackSite('advisor_offer_click', { props: { offering_id: o.id } });
+    setTimeout(() => window.location.assign(href), 150);
   };
 
   const declineLead = () => {
@@ -183,7 +229,7 @@ export default function AdvisorClient() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.ok) { setError(json?.error || 'Something went wrong. Please try again.'); return; }
-      // The email is tied to the quiz answers only when the visitor ticked the box.
+      // The email is tied to the answers only when the visitor ticked the box.
       if (consent && sessionId) {
         try { await supabase.rpc('advisor_save_email', { p_session: sessionId, p_email: clean }); } catch { /* best effort */ }
       }
@@ -198,46 +244,92 @@ export default function AdvisorClient() {
     }
   };
 
-  const progress = typeof screen === 'number' ? Math.round((screen / TOTAL) * 100) : 100;
-  const showBack = screen !== 0 && screen !== 'thanks';
   const first = name.trim().split(/\s+/)[0]?.slice(0, 40) || '';
+  const isQuestion = typeof screen === 'number' && screen >= 1;
+  const step = isQuestion ? screen : TOTAL;
+
+  // ---------- First screen: offers, then the guide ----------
+  if (screen === 0) {
+    return (
+      <div className={styles.page}>
+        <div className={`${styles.wrap} ${styles.wide}`}>
+          <div className={styles.eyebrow}><AdvisorIcon name="compass" size={18} /> Course guide</div>
+          <h1 ref={headingRef} tabIndex={-1} className={`${styles.h1} ${styles.heroTitle}`}>Find your next step with God</h1>
+          <p className={styles.sub} style={{ maxWidth: 620 }}>
+            Courses, books, routines and calls from Spiritual Mothers, pastors and teachers. Start with an offer below, or let us suggest the one that fits you.
+          </p>
+
+          {loadFailed && <div className={styles.error} role="alert">We could not load the marketplace just now. Please refresh the page in a moment.</div>}
+
+          {offers.length > 0 && (
+            <section className={styles.section} aria-labelledby="offers-h">
+              <div className={styles.sectionHead}>
+                <h2 id="offers-h" className={styles.h2}>{anySale ? 'On sale now' : 'Free ways to start'}</h2>
+                <Link href="/" className={styles.inlineLink} style={{ fontSize: 16 }}>See all</Link>
+              </div>
+              <div className={styles.offers}>
+                {offers.map(({ o, offer }) => (
+                  <a key={o.id} href={offeringHref(o, null, null, 'advisor_offers')} className={styles.offer} onClick={(e) => openOffer(e, o)}>
+                    <div className={styles.offerCover}>
+                      <CoverImage src={coverUrl(o.cover_path)} alt="" />
+                      <span className={styles.badge}><AdvisorIcon name={offer.rank <= 1 ? 'tag' : 'gift'} size={15} /> {offer.badge}</span>
+                    </div>
+                    <div className={styles.offerBody}>
+                      <span className={styles.offerTitle}>{o.title}</span>
+                      <span className={styles.small}>{whatYouGet(o)}</span>
+                      {o.type === 'course' && o.is_original && (
+                        <span className={styles.small} style={{ fontStyle: 'italic' }}>A Rooted Together team course. Presenter is AI-generated.</span>
+                      )}
+                      <span className={styles.offerPrice}>
+                        {formatPrice(o.price_cents)}
+                        {hasDiscount(o) && <span className={styles.was}>{formatPrice(o.original_price_cents)}</span>}
+                      </span>
+                      <span className={styles.offerCta}>{offer.cta} →</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className={styles.guide} aria-labelledby="guide-h">
+            <h2 id="guide-h" className={styles.h2} style={{ fontSize: 26 }}>Not sure where to start?</h2>
+            <p className={styles.sub} style={{ margin: 0 }}>Answer six quick questions and we will suggest the course, book or call that fits where you are today.</p>
+            <ul className={styles.guideSteps}>
+              <li><AdvisorIcon name="clock" size={18} /> Under 90 seconds</li>
+              <li><AdvisorIcon name="user" size={18} /> No account needed</li>
+              <li><AdvisorIcon name="gift" size={18} /> A free gift at the end</li>
+            </ul>
+            <button type="button" className={styles.primary} onClick={start} disabled={!catalogue}>
+              {catalogue ? 'Find my next step' : 'Loading…'}
+            </button>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
       <div className={styles.wrap}>
-        {showBack && (
+        {screen !== 'thanks' && (
           <div className={styles.topbar}>
-            <button type="button" className={styles.back} onClick={goBack}>← Back</button>
-            {typeof screen === 'number' && (
-              <div className={styles.progress} role="progressbar" aria-label="Quiz progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-                <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-              </div>
-            )}
+            <button type="button" className={styles.iconBtn} onClick={goBack} aria-label="Back"><AdvisorIcon name="back" size={26} /></button>
+            <div className={styles.segments} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={TOTAL} aria-valuenow={step}>
+              {Array.from({ length: TOTAL }, (_, i) => <div key={i} className={`${styles.segment} ${i < step ? styles.segmentOn : ''}`} />)}
+            </div>
+            {screen === NAME_STEP
+              ? <button type="button" className={styles.skip} onClick={() => { setName(''); finish(answers); }}>Skip</button>
+              : <div className={styles.sideGap} />}
           </div>
         )}
 
-        {screen === 0 && (
-          <>
-            <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Find your next step with God</h1>
-            <p className={styles.lead}>
-              Six short questions, under 90 seconds. We will suggest one course, book, routine or call from our marketplace that fits where you are today. No account needed.
-            </p>
-            {loadFailed ? (
-              <div className={styles.error} role="alert">We could not load the marketplace just now. Please refresh the page in a moment.</div>
-            ) : (
-              <button type="button" className={styles.primary} onClick={start} disabled={!catalogue}>
-                {catalogue ? 'Start' : 'Loading…'}
-              </button>
-            )}
-          </>
-        )}
-
-        {typeof screen === 'number' && screen >= 1 && screen <= QUESTIONS.length && (() => {
+        {isQuestion && screen <= QUESTIONS.length && (() => {
           const q = QUESTIONS[screen - 1];
           return (
             <>
-              <p className={styles.step}>Question {screen} of {TOTAL}</p>
               <h1 ref={headingRef} tabIndex={-1} className={styles.h1} id={`q-${q.key}`}>{q.title}</h1>
+              <p className={styles.sub}>{q.sub || 'Pick the one that fits best.'}</p>
               <div className={styles.options} role="group" aria-labelledby={`q-${q.key}`}>
                 {q.options.map((opt) => (
                   <button
@@ -248,7 +340,12 @@ export default function AdvisorClient() {
                     onClick={() => choose(q.key, opt.value)}
                     {...(opt.value === 'hurting' ? { 'data-track': 'off' } : { 'data-track-label': q.key === 'need' ? 'advisor need' : `advisor ${q.key}: ${opt.value}` })}
                   >
-                    {opt.label}
+                    <span className={styles.optIcon}><AdvisorIcon name={opt.icon} /></span>
+                    <span className={styles.optText}>
+                      <span className={styles.optLabel}>{opt.label}</span>
+                      {opt.sub && <span className={styles.optSub}>{opt.sub}</span>}
+                    </span>
+                    {answers[q.key] === opt.value && <span className={styles.optCheck}><AdvisorIcon name="check" /></span>}
                   </button>
                 ))}
               </div>
@@ -258,14 +355,12 @@ export default function AdvisorClient() {
 
         {screen === NAME_STEP && (
           <form onSubmit={(e) => { e.preventDefault(); finish(answers); }}>
-            <p className={styles.step}>Question {NAME_STEP} of {TOTAL} (optional)</p>
-            <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>What should we call you?</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Last thing. What should we call you?</h1>
+            <p className={styles.sub}>Optional. Only used on the next screen, never saved.</p>
             <label className={styles.label} htmlFor="adv-name">First name</label>
-            <input id="adv-name" className={styles.input} type="text" autoComplete="given-name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
-            <p className={styles.small}>Only used on the next screen. We do not save it.</p>
-            <div className={styles.stack}>
+            <input id="adv-name" className={styles.input} type="text" autoComplete="given-name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your first name" />
+            <div className={styles.stack} style={{ marginTop: 28 }}>
               <button type="submit" className={styles.primary}>See my suggestion</button>
-              <button type="button" className={styles.linkBtn} onClick={() => { setName(''); finish(answers); }}>Skip</button>
             </div>
           </form>
         )}
@@ -273,13 +368,12 @@ export default function AdvisorClient() {
         {screen === 'care' && (
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>We are so sorry you are carrying this</h1>
-            <p>You do not have to carry it alone, and reaching out is a brave and good thing to do.</p>
-            <p>
-              <strong>If you are in danger or thinking about harming yourself, please contact your local emergency services now.</strong>{' '}
-              You can find a free helpline in your country at{' '}
-              <a href="https://findahelpline.com" target="_blank" rel="noreferrer" style={{ color: 'var(--brown)', fontWeight: 700 }}>findahelpline.com</a>.
-            </p>
-            <p>Please also talk today with someone you trust: a pastor, a counselor, a doctor or a close friend.</p>
+            <p className={styles.sub}>You do not have to carry it alone, and reaching out is a brave and good thing to do.</p>
+            <div className={styles.note}>
+              <p style={{ margin: '0 0 10px' }}><strong>If you are in danger or thinking about harming yourself, please contact your local emergency services now.</strong></p>
+              <p style={{ margin: 0 }}>You can find a free helpline in your country at <a href="https://findahelpline.com" target="_blank" rel="noreferrer" className={styles.inlineLink}>findahelpline.com</a>.</p>
+            </div>
+            <p style={{ marginTop: 16 }}>Please also talk today with someone you trust: a pastor, a counselor, a doctor or a close friend.</p>
             <p className={styles.verse}>&ldquo;The LORD is nigh unto them that are of a broken heart.&rdquo; Psalm 34:18 (KJV)</p>
             <p className={styles.small}>This page is not medical or mental-health advice.</p>
           </>
@@ -288,13 +382,14 @@ export default function AdvisorClient() {
         {screen === 'result' && !rec && (
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>We could not find a match just now</h1>
-            <p>Please browse the <Link href="/" style={{ color: 'var(--brown)', fontWeight: 700 }}>marketplace</Link>.</p>
+            <p className={styles.sub}>Please browse the <Link href="/" className={styles.inlineLink}>marketplace</Link>.</p>
           </>
         )}
 
         {screen === 'result' && rec && (
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>{first ? `${first}, here is our suggestion` : 'Here is our suggestion'}</h1>
+            <p className={styles.sub}>Based on your answers.</p>
             <div className={styles.card}>
               <div className={styles.pickLabel}>Best fit for you</div>
               <h2 className={styles.h2}>{rec.lead.title}</h2>
@@ -303,10 +398,10 @@ export default function AdvisorClient() {
               <p className={styles.why}>{whyItFits(rec.lead, answers)}</p>
               <TeamLine o={rec.lead} className={styles.teamLine} />
               {rec.lead.free_preview && (
-                <p className={styles.special}><strong>Lesson 1 is free to watch</strong>, no account needed. Try it before you decide.</p>
+                <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, no account needed. Try it before you decide.</p>
               )}
               <a href={offeringHref(rec.lead, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'lead_clicked')}>
-                {rec.lead.free_preview ? 'Watch Lesson 1 free' : Number(rec.lead.price_cents) === 0 ? 'Get it free' : `See ${OFFERING_TYPE_LABELS[rec.lead.type]?.toLowerCase() || 'it'}`}
+                {rec.lead.free_preview ? 'Watch Lesson 1 free' : Number(rec.lead.price_cents) === 0 ? 'Get it free' : `See the ${OFFERING_TYPE_LABELS[rec.lead.type]?.toLowerCase() || 'offer'}`}
               </a>
             </div>
 
@@ -314,7 +409,7 @@ export default function AdvisorClient() {
               <div className={styles.card} style={{ marginTop: 14 }}>
                 <div className={styles.pickLabel}>Not ready yet? Start free</div>
                 <h2 className={styles.h2}>{rec.freeStep.title}</h2>
-                <p className={styles.why}>{rec.freeStep.free_preview ? 'Lesson 1 is free to watch, no account needed.' : 'Free. '}{pairLine(rec.freeStep)}</p>
+                <p className={styles.why}>{rec.freeStep.free_preview ? 'Lesson 1 is free to watch, no account needed. ' : 'Free. '}{pairLine(rec.freeStep)}</p>
                 <TeamLine o={rec.freeStep} className={styles.teamLine} />
                 <a href={offeringHref(rec.freeStep, sessionId, utm)} className={styles.secondary} onClick={(e) => go(e, 'alternate_clicked')}>
                   {rec.freeStep.free_preview ? 'Watch Lesson 1 free' : 'Get it free'}
@@ -329,9 +424,7 @@ export default function AdvisorClient() {
                   {rec.alternates.filter((o) => o.id !== rec.freeStep?.id).map((o) => (
                     <a key={o.id} href={offeringHref(o, sessionId, utm)} className={`${styles.card} ${styles.alt}`} onClick={(e) => go(e, 'alternate_clicked')}>
                       <span className={styles.altTitle}>{o.title}</span>
-                      <span className={styles.meta} style={{ display: 'block', margin: '2px 0 0' }}>
-                        {formatPrice(o.price_cents)} · {whatYouGet(o)}
-                      </span>
+                      <span className={styles.meta} style={{ display: 'block', margin: '2px 0 0' }}>{formatPrice(o.price_cents)} · {whatYouGet(o)}</span>
                       {o.type === 'course' && o.is_original && (
                         <span className={styles.small} style={{ display: 'block', fontStyle: 'italic' }}>A Rooted Together team course. Presenter is AI-generated.</span>
                       )}
@@ -356,7 +449,7 @@ export default function AdvisorClient() {
               <p className={styles.meta}>{whatYouGet(rec.upsell)}</p>
               <p className={styles.why}>{pairLine(rec.upsell)}</p>
               <TeamLine o={rec.upsell} className={styles.teamLine} />
-              {rec.upsell.free_preview && <p className={styles.special}><strong>Lesson 1 is free to watch</strong>, no account needed.</p>}
+              {rec.upsell.free_preview && <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, no account needed.</p>}
               <a href={offeringHref(rec.upsell, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'upsell_clicked')}>
                 See {rec.upsell.title}
               </a>
@@ -373,6 +466,7 @@ export default function AdvisorClient() {
             {gift ? (
               <form onSubmit={claimGift} noValidate>
                 <div className={styles.card}>
+                  <div className={styles.pickLabel}><AdvisorIcon name="gift" size={16} /> Free</div>
                   <h2 className={styles.h2}>{gift.title}</h2>
                   {gift.subline && <p className={styles.why}>{gift.subline}</p>}
                   <label className={styles.label} htmlFor="adv-email">Your email</label>
@@ -380,19 +474,19 @@ export default function AdvisorClient() {
                   <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className={styles.hidden} value={website} onChange={(e) => setWebsite(e.target.value)} />
                   <label className={styles.check} htmlFor="adv-consent">
                     <input id="adv-consent" type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                    <span>Also send me the daily devotional, and keep my quiz answers with my email so you can suggest courses that fit. I can unsubscribe at any time.</span>
+                    <span>Also send me the daily devotional, and keep my answers with my email so you can suggest courses that fit. I can unsubscribe at any time.</span>
                   </label>
                   {error && <div className={styles.error} role="alert">{error}</div>}
                   <div className={styles.stack}>
-                    <button type="submit" className={styles.primary} disabled={busy}>{busy ? 'Please wait…' : 'Send me the gift'}</button>
+                    <button type="submit" className={`${styles.primary} ${styles.gold}`} disabled={busy}>{busy ? 'Please wait…' : 'Send me the gift'}</button>
                   </div>
                   <p className={styles.small} style={{ marginTop: 12 }}>
-                    We email you this gift because you asked for it. See our <Link href="/privacy" style={{ textDecoration: 'underline' }}>privacy policy</Link>.
+                    We email you this gift because you asked for it. See our <Link href="/privacy" className={styles.inlineLink}>privacy policy</Link>.
                   </p>
                 </div>
               </form>
             ) : (
-              <p>There is no gift available right now.</p>
+              <p className={styles.sub}>There is no gift available right now.</p>
             )}
             <div className={styles.stack}>
               <button type="button" className={styles.linkBtn} onClick={() => setScreen('thanks')}>No thanks, I am done</button>
@@ -404,19 +498,19 @@ export default function AdvisorClient() {
           const preview = previewItem(catalogue, rec);
           return (
             <>
-              <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>{giftSent ? 'Check your inbox' : 'Thank you for stopping by'}</h1>
-              {giftSent && <p>{gift?.title || 'Your gift'} is on its way. If you do not see it in a few minutes, look in your spam or promotions folder.</p>}
+              <h1 ref={headingRef} tabIndex={-1} className={styles.h1} style={{ marginTop: 28 }}>{giftSent ? 'Check your inbox' : 'Thank you for stopping by'}</h1>
+              {giftSent && <p className={styles.sub}>{gift?.title || 'Your gift'} is on its way. If you do not see it in a few minutes, look in your spam or promotions folder.</p>}
               <p className={styles.verse}>&ldquo;Come unto me, all ye that labour and are heavy laden, and I will give you rest.&rdquo; Matthew 11:28 (KJV)</p>
               {preview && (
                 <div className={styles.card}>
                   <h2 className={styles.h2}>Watch Lesson 1 of {preview.title} free</h2>
                   <p className={styles.meta}>No account needed.</p>
                   <TeamLine o={preview} className={styles.teamLine} />
-                  <a href={offeringHref(preview, sessionId, utm)} className={styles.secondary}>Watch Lesson 1 free</a>
+                  <a href={offeringHref(preview, sessionId, utm)} className={styles.primary}>Watch Lesson 1 free</a>
                 </div>
               )}
               <div className={styles.stack}>
-                <Link href="/" className={styles.linkBtn} style={{ textAlign: 'center' }}>Browse the marketplace</Link>
+                <Link href="/" className={styles.secondary}>Browse the marketplace</Link>
               </div>
             </>
           );
