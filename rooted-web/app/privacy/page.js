@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 const CONTACT_EMAIL = 'admin@rootedtogether.club';
-const EFFECTIVE_DATE = 'November 12, 2026';
+const EFFECTIVE_DATE = 'November 24, 2026';
 
 const sections = [
   {
@@ -25,6 +25,9 @@ const sections = [
       'Activity: who you follow, what you like, and the communities and spiritual families you join.',
       'Purchases and payouts: when you buy an offering or a creator receives earnings, payments are handled by Stripe. We receive order details such as what was bought, the amount, and status. We do not see or store your full card number. Creators who receive payouts complete identity and bank verification directly with Stripe.',
       'App subscriptions: if you subscribe to Rooted Together Premium in the mobile app, the purchase is made and billed through Google Play (or the Apple App Store on iPhone). Google or Apple handles your payment details and we never see your card number. We use a subscription management service, RevenueCat, which receives an account identifier, your subscription status, and your purchase and renewal history from the app store so we can unlock Premium features for you and keep your access up to date.',
+      'Buying without an account: on our website you can buy an offering without signing up first. Stripe asks for your email address at checkout. After payment we create a free Rooted Together account with that email (or add the purchase to your existing account if you already have one), so you can open what you bought, and we email you how to get back to it.',
+      'Course advisor: if you use our course advisor (rootedtogether.club/advisor), we record your answers to its questions, which items it suggested and which buttons you pressed, without your name. The optional first name you type there is never saved. If you ask for the free gift and tick the box to receive the daily devotional, we also keep your email address with your answers so we can suggest courses that fit. Without that tick, your email is used only to send the gift.',
+      'Website activity: we keep our own statistics of how our website is used: the pages you visit, the links and buttons you press, how far down a page you scroll, how long you stay, the type of device (phone, tablet or computer), the website or advert that brought you, and, if you are signed in, your account. We never record what you type into forms. See "Cookies and advertising" below.',
       'Referral information: if you take part in our referral program, we record who referred whom and the resulting commissions.',
       'Support messages: anything you send us when you contact us.',
     ],
@@ -36,7 +39,8 @@ const sections = [
       'To process payments, subscriptions, and payouts, prevent fraud and misuse, and keep the community safe.',
       'To send essential messages such as email confirmation, password resets, receipts, and important changes to the service.',
       'If you ask for our free daily devotional, to email it to you each morning until you unsubscribe. Every devotional email has an unsubscribe link, and you can also write to us at the address below.',
-      'To understand and improve how the app and marketplace work.',
+      'To understand and improve how the app and marketplace work, including which pages, offerings and adverts help people find what they need and where people get stuck.',
+      'To suggest offerings that may suit you, based on the answers you give in our course advisor.',
       'To meet our legal obligations.',
     ],
   },
@@ -76,6 +80,7 @@ const sections = [
     body: [
       'We advertise on Google, and our websites (rootedtogether.club and joinrootedtogether.club) use the Google tag to measure how those adverts perform. When you arrive from an advert and then create an account, join our email list or make a purchase, the tag tells Google that it happened, together with the purchase amount, so we can see which adverts work and avoid paying for ones that do not. It uses cookies and similar technology and receives details such as your device, browser and the pages you visit. We do not send Google your name, email address or payment details.',
       'We also advertise on Meta (Facebook and Instagram) and TikTok, and our websites use the Meta Pixel and the TikTok Pixel to measure how those adverts perform. When you arrive from one of those adverts and then join our waiting list, the pixel tells Meta or TikTok that a sign-up happened, together with details such as your device, browser and the pages you visit, so we can see which adverts work. We do not send them your name or email address. These pixels also use cookies and similar technology.',
+      'Our own website statistics (described under "Information we collect") are kept by us in our own database and are not shared with advertisers. To recognise a returning visitor we keep a random number in your browser. If you are in the European Union, the European Economic Area, the United Kingdom or Switzerland, or your browser sends a Global Privacy Control signal, we only keep that number after you choose Allow; until then your visit is counted on its own and nothing is kept after you close the tab.',
       'If you are in the European Union, the European Economic Area, the United Kingdom or Switzerland, we ask first and these cookies stay off until you choose Allow. Everywhere else they are on unless your browser sends a Global Privacy Control signal, which we treat as a request to opt out. The website works the same whichever you choose.',
       'You can change your choice at any time below, clear the cookies in your browser, or manage how Google, Meta and TikTok use advertising data in your account settings with them.',
     ],
