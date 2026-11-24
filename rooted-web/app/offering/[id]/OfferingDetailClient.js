@@ -613,12 +613,6 @@ export default function OfferingDetailClient() {
             </div>
           )}
 
-          <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
-            <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
-              Share this
-            </div>
-            <ShareButtons url={pageUrl} title={offering.title} />
-          </div>
         </div>
 
         {/* Sidebar */}
@@ -732,6 +726,14 @@ export default function OfferingDetailClient() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Share buttons sit at the very bottom, below the price / gift panel (on phones too). */}
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+        <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
+          Share this
+        </div>
+        <ShareButtons url={pageUrl} title={offering.title} />
       </div>
     </div>
   );
