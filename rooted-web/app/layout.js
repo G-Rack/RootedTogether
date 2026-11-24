@@ -13,7 +13,7 @@ import TrackingExtras from '@/components/TrackingExtras';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const playfair = Playfair_Display({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-playfair', display: 'swap' });
 
-const SITE_URL = 'https://rootedtogether.club';
+const SITE_URL = 'https://www.rootedtogether.club'; // rootedtogether.club sends visitors here
 const SITE_TITLE = 'Rooted Together — Marketplace';
 const SITE_DESCRIPTION =
   'Courses, ebooks, printables, audiobooks, templates, routines, and 1:1 calls from Rooted Together Mothers, Pastors, and Spiritual Leaders.';

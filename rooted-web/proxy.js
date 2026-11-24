@@ -15,6 +15,8 @@ const OPEN = [
   /^\/gift(\/pdf)?\/?$/,
   /^\/creators\/?$/,
   /^\/advisor\/?$/,
+  /^\/devotional(\/\d{4}-\d{2}-\d{2})?\/?$/,
+  /^\/sitemap\.xml$/,
   /^\/unsubscribe\/?$/,
   /^\/reset-password\/?$/,
   /^\/(icon|apple-icon)\.png$/,
