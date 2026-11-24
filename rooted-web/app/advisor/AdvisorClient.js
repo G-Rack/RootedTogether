@@ -7,8 +7,6 @@ import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import { hasDiscount, offeringDiscountPercent } from '@/lib/discount';
 import { coverUrl } from '@/lib/storage';
 import CoverImage from '@/components/CoverImage';
-import OfferingCard from '@/components/OfferingCard';
-import { fetchProIds } from '@/lib/pro';
 import { track as trackSite } from '@/lib/analytics';
 import { QUESTIONS, needsCare, recommend, whyItFits, pairLine, previewItem, deliverable } from '@/lib/advisor';
 import AdvisorIcon from './AdvisorIcon';
@@ -118,10 +116,9 @@ export default function AdvisorClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [giftSent, setGiftSent] = useState(false);
-  // Featured courses: the marketplace cards, with the creator's name and Pro badge.
-  const [featured, setFeatured] = useState([]);
+  // Latest courses for the first screen (newest first), with the creator's name.
+  const [latest, setLatest] = useState([]);
   const [creatorNames, setCreatorNames] = useState({});
-  const [proIds, setProIds] = useState(new Set());
   const headingRef = useRef(null);
 
   useEffect(() => {
@@ -135,11 +132,8 @@ export default function AdvisorClient() {
       if (active) setGift(data?.[0] || null);
     });
     (async () => {
-      const [{ data: rows }, pro] = await Promise.all([
-        supabase.from('offerings').select('*').eq('status', 'published').eq('type', 'course').eq('is_original', true)
-          .order('price_cents', { ascending: false }).limit(4),
-        fetchProIds().catch(() => new Set()),
-      ]);
+      const { data: rows } = await supabase.from('offerings').select('id, creator_auth_id, created_at')
+        .eq('status', 'published').eq('type', 'course').order('created_at', { ascending: false }).limit(8);
       const list = rows || [];
       const ids = Array.from(new Set(list.map((o) => o.creator_auth_id)));
       let names = {};
@@ -148,9 +142,8 @@ export default function AdvisorClient() {
         names = Object.fromEntries((profiles || []).map((p) => [p.auth_user_id, p.name]));
       }
       if (!active) return;
-      setFeatured(list);
+      setLatest(list);
       setCreatorNames(names);
-      setProIds(pro instanceof Set ? pro : new Set());
     })();
     return () => { active = false; };
   }, []);
@@ -162,12 +155,13 @@ export default function AdvisorClient() {
     try { window.scrollTo({ top: 0 }); } catch { /* ignore */ }
   }, [screen]);
 
-  const offers = (catalogue || [])
-    .filter(deliverable)
-    .map((o) => ({ o, offer: offerFor(o) }))
-    .filter((x) => x.offer)
-    .sort((a, b) => a.offer.rank - b.offer.rank || Number(a.o.price_cents) - Number(b.o.price_cents));
-  const anySale = offers.some((x) => x.offer.rank <= 1);
+  // The newest published courses that actually have content, with any real offer as a badge.
+  const byId = new Map((catalogue || []).map((o) => [o.id, o]));
+  const offers = latest
+    .map((row) => byId.get(row.id))
+    .filter((o) => o && deliverable(o))
+    .slice(0, 6)
+    .map((o) => ({ o, offer: offerFor(o), creator: creatorNames[latest.find((r) => r.id === o.id)?.creator_auth_id] }));
 
   const start = async () => {
     trackSite('advisor_started');
@@ -304,42 +298,27 @@ export default function AdvisorClient() {
           <div className={styles.eyebrow}><AdvisorIcon name="compass" size={18} /> Course guide</div>
           <h1 ref={headingRef} tabIndex={-1} className={`${styles.h1} ${styles.heroTitle}`}>Find your next step with God</h1>
           <p className={styles.sub} style={{ maxWidth: 620 }}>
-            Courses, books, routines and calls from Spiritual Mothers, pastors and teachers. Start with an offer below, or let us suggest the one that fits you.
+            Courses, books, routines and calls from Spiritual Mothers, pastors and teachers. Start with one of our latest courses, or let us suggest the one that fits you.
           </p>
 
           {loadFailed && <div className={styles.error} role="alert">We could not load the marketplace just now. Please refresh the page in a moment.</div>}
 
-          {featured.filter((o) => (catalogue || []).some((c) => c.id === o.id && deliverable(c))).length > 0 && (
-            <section className={styles.section} aria-labelledby="featured-h">
-              <div className={styles.sectionHead}>
-                <h2 id="featured-h" className={styles.h2}>Featured courses</h2>
-                <Link href="/?type=course" className={styles.inlineLink} style={{ fontSize: 16 }}>See all</Link>
-              </div>
-              <div className={styles.featuredGrid}>
-                {featured
-                  .filter((o) => (catalogue || []).some((c) => c.id === o.id && deliverable(c)))
-                  .map((o) => (
-                    <OfferingCard key={o.id} offering={o} creatorName={creatorNames[o.creator_auth_id]} isPro={proIds.has(o.creator_auth_id)} />
-                  ))}
-              </div>
-            </section>
-          )}
-
           {offers.length > 0 && (
             <section className={styles.section} aria-labelledby="offers-h">
               <div className={styles.sectionHead}>
-                <h2 id="offers-h" className={styles.h2}>{anySale ? 'On sale now' : 'Free ways to start'}</h2>
-                <Link href="/" className={styles.inlineLink} style={{ fontSize: 16 }}>See all</Link>
+                <h2 id="offers-h" className={styles.h2}>Latest courses</h2>
+                <Link href="/?type=course" className={styles.inlineLink} style={{ fontSize: 16 }}>See all</Link>
               </div>
               <div className={styles.offers}>
-                {offers.map(({ o, offer }) => (
+                {offers.map(({ o, offer, creator }) => (
                   <a key={o.id} href={offeringHref(o, null, null, 'advisor_offers')} className={styles.offer} onClick={(e) => openOffer(e, o)}>
                     <div className={styles.offerCover}>
                       <CoverImage src={coverUrl(o.cover_path)} alt="" />
-                      <span className={styles.badge}><AdvisorIcon name={offer.rank <= 1 ? 'tag' : 'gift'} size={15} /> {offer.badge}</span>
+                      {offer && <span className={styles.badge}><AdvisorIcon name={offer.rank <= 1 ? 'tag' : 'gift'} size={15} /> {offer.badge}</span>}
                     </div>
                     <div className={styles.offerBody}>
                       <span className={styles.offerTitle}>{o.title}</span>
+                      {creator && <span className={styles.small} style={{ color: 'var(--gold)' }}>{creator}</span>}
                       <span className={styles.small}>{whatYouGet(o)}</span>
                       {o.type === 'course' && o.is_original && (
                         <span className={styles.small} style={{ fontStyle: 'italic' }}>A Rooted Together team course. Presenter is AI-generated.</span>
@@ -348,7 +327,7 @@ export default function AdvisorClient() {
                         {formatPrice(o.price_cents)}
                         {hasDiscount(o) && <span className={styles.was}>{formatPrice(o.original_price_cents)}</span>}
                       </span>
-                      <span className={styles.offerCta}>{offer.cta} →</span>
+                      <span className={styles.offerCta}>{offer ? offer.cta : 'See the course'} →</span>
                     </div>
                   </a>
                 ))}
