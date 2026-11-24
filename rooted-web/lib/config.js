@@ -54,7 +54,7 @@ export const CREATOR_SIGNUP_OPEN = false;
 // Shown on the coming-soon page. Leave a link empty to hide its button.
 export const SOCIAL_LINKS = { instagram: '', tiktok: '' };
 
-// Buying without an account (guest checkout). Keep false until the guest-checkout-claim,
-// create-checkout-session and stripe-webhook functions are deployed and the SQL has run.
+// Buying without an account (guest checkout). Needs the guest-checkout-claim, create-checkout-session and
+// stripe-webhook functions deployed (done 24 Nov 2026). Set to false to turn it off again.
 // While false, signed-out visitors see the usual "Almost there" sign-up window before paying.
-export const GUEST_CHECKOUT = false;
+export const GUEST_CHECKOUT = true;
