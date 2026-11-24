@@ -14,6 +14,7 @@ const OPEN = [
   /^\/api\/(gate|waitlist|gift)$/,
   /^\/gift(\/pdf)?\/?$/,
   /^\/creators\/?$/,
+  /^\/advisor\/?$/,
   /^\/unsubscribe\/?$/,
   /^\/reset-password\/?$/,
   /^\/(icon|apple-icon)\.png$/,

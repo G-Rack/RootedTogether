@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@17?target=deno";
 import { membershipEmail } from "./email.ts";
+import { ensureGuestBuyer, sendGuestAccessEmail } from "../_shared/guest.ts";
 
 // Stripe calls this directly — there's no Supabase user session involved,
 // so this function must be deployed with verify_jwt = false. The ONLY
@@ -19,6 +20,9 @@ import { membershipEmail } from "./email.ts";
 //
 // Handles:
 //   - checkout.session.completed: writes the real offering_purchases row.
+//     Guest checkouts (metadata guest = "1", no buyer_auth_id) get their account from the
+//     checkout email first (_shared/guest.ts), and a brand-new account gets one email
+//     explaining how to open the purchase.
 //     Sessions that come from a Payment Link (no offering metadata) are the
 //     $49 creator membership: they are recorded in creator_memberships and
 //     the buyer is emailed their one-time sign-up link (best effort).
@@ -144,7 +148,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const offeringId = session.metadata?.offering_id;
-    const buyerAuthId = session.metadata?.buyer_auth_id;
+    let buyerAuthId = session.metadata?.buyer_auth_id;
+    let guestCreatedNew = false;
+    const guestEmail = (session.customer_details?.email || session.customer_email || "").trim();
+    if (offeringId && !buyerAuthId && session.metadata?.guest === "1") {
+      if (session.payment_status !== "paid") {
+        console.log("Guest session not paid yet, ignoring:", session.id, session.payment_status);
+        return new Response("ok", { status: 200 });
+      }
+      try {
+        const g = await ensureGuestBuyer(supabase, session.id, guestEmail, session.customer_details?.name ?? null);
+        buyerAuthId = g.userId;
+        guestCreatedNew = g.createdNew;
+      } catch (e) {
+        console.error("Guest account step failed:", session.id, e);
+        // Non-2xx so Stripe retries instead of dropping a paid guest purchase.
+        return new Response("Failed to set up guest buyer.", { status: 500 });
+      }
+    }
     if (!offeringId || !buyerAuthId) {
       console.error("checkout.session.completed missing metadata", session.id);
       return new Response("ok", { status: 200 });
@@ -191,6 +212,11 @@ Deno.serve(async (req: Request) => {
       } else {
         console.log("Purchase recorded for session", session.id);
       }
+    }
+
+    if (guestCreatedNew) {
+      const { data: off } = await supabase.from("offerings").select("title").eq("id", offeringId).maybeSingle();
+      await sendGuestAccessEmail(supabase, session.id, guestEmail, offeringId, off?.title || "your purchase");
     }
   }
 

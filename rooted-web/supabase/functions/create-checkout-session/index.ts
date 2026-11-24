@@ -9,6 +9,10 @@ import Stripe from "https://esm.sh/stripe@17?target=deno";
 // RLS only allows when price_paid_cents is actually 0 (see the
 // add_stripe_connect_and_checkout migration).
 //
+// Guest checkout: a visitor who is not signed in can still buy. The page sends guest: true with
+// the public key instead of a login token. Stripe then asks for their email, and after payment
+// stripe-webhook / guest-checkout-claim make their account from that email (see _shared/guest.ts).
+//
 // Fee schedule (US cents). Stripe charges us its card fee on every sale, so each
 // creator tier adds an estimate of it on top of our own cut:
 //   Creator            10% + Stripe's card fee
@@ -52,11 +56,8 @@ Deno.serve(async (req: Request) => {
   );
 
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData?.user) {
-    return jsonResponse({ error: "Not signed in." }, 401);
-  }
-  const buyerAuthId = userData.user.id;
+  const { data: userData } = await supabase.auth.getUser(token);
+  const buyer = userData?.user ?? null;
 
   let payload: any;
   try {
@@ -64,6 +65,12 @@ Deno.serve(async (req: Request) => {
   } catch {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
+  // Not signed in: only allowed when the page asked for a guest checkout.
+  const isGuest = !buyer && payload?.guest === true;
+  if (!buyer && !isGuest) {
+    return jsonResponse({ error: "Not signed in." }, 401);
+  }
+  const buyerAuthId = buyer?.id ?? null;
   const { offeringId, origin: rawOrigin } = payload || {};
   if (!offeringId) return jsonResponse({ error: "Missing offeringId." }, 400);
   const origin = typeof rawOrigin === "string" && rawOrigin.startsWith("https://") ? rawOrigin : "https://rootedtogether.club";
@@ -77,17 +84,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "This offering isn't available." }, 404);
   }
 
-  const { data: existingPurchase } = await supabase
-    .from("offering_purchases")
-    .select("id")
-    .eq("offering_id", offeringId)
-    .eq("buyer_auth_id", buyerAuthId)
-    .maybeSingle();
-  if (existingPurchase) return jsonResponse({ error: "You already own this." }, 409);
+  if (buyerAuthId) {
+    const { data: existingPurchase } = await supabase
+      .from("offering_purchases")
+      .select("id")
+      .eq("offering_id", offeringId)
+      .eq("buyer_auth_id", buyerAuthId)
+      .maybeSingle();
+    if (existingPurchase) return jsonResponse({ error: "You already own this." }, 409);
+  }
 
   // Free-for-family unlocks never touch Stripe — same check the RLS policy
   // enforces for the direct-insert path the client still uses for these.
-  if (offering.is_free_for_family) {
+  if (buyerAuthId && offering.is_free_for_family) {
     const { data: isFamily } = await supabase.rpc("is_accepted_family_member_of_creator", {
       creator_id: offering.creator_auth_id,
     });
@@ -160,9 +169,14 @@ Deno.serve(async (req: Request) => {
         },
       ],
       payment_intent_data: paymentIntentData,
-      customer_email: userData.user.email || undefined,
-      metadata: { offering_id: offering.id, buyer_auth_id: buyerAuthId },
-      success_url: `${origin}/offering/${offering.id}?purchase=success`,
+      customer_email: buyer?.email || undefined,
+      metadata: isGuest
+        ? { offering_id: offering.id, guest: "1" }
+        : { offering_id: offering.id, buyer_auth_id: buyerAuthId as string },
+      // {CHECKOUT_SESSION_ID} is filled in by Stripe. A guest needs it to be signed in on return.
+      success_url: isGuest
+        ? `${origin}/offering/${offering.id}?purchase=success&guest=1&session_id={CHECKOUT_SESSION_ID}`
+        : `${origin}/offering/${offering.id}?purchase=success`,
       cancel_url: `${origin}/offering/${offering.id}?purchase=cancelled`,
     });
     return jsonResponse({ url: session.url });

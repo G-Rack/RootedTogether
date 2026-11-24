@@ -65,6 +65,8 @@ export function trackPurchase({ value, currency = 'USD', transactionId, kind = '
 
 // method: 'creator' | 'buyer' | 'social' | 'waitlist'
 export function trackSignUp(method) {
+  // Our own site analytics (lib/analytics.js), loaded lazily to avoid a circular import.
+  import('./analytics').then((m) => m.track('sign_up', { props: { method } })).catch(() => {});
   if (!gtagReady()) return;
   window.gtag('event', 'sign_up', { method });
   if (SIGNUP_LABEL) window.gtag('event', 'conversion', { send_to: `${GOOGLE_TAG_ID}/${SIGNUP_LABEL}` });

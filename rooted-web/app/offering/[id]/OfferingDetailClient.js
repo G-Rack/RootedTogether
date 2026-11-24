@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { coverUrl, avatarUrl } from '@/lib/storage';
-import { FUNCTIONS_URL } from '@/lib/config';
+import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
 import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
@@ -19,6 +19,7 @@ import OriginalsTag from '@/components/OriginalsTag';
 import FreePreview from '@/components/FreePreview';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 import { trackPurchase } from '@/lib/tracking';
+import { track as trackSite } from '@/lib/analytics';
 
 // Files live on another domain (Supabase Storage), where a plain <a download>
 // is ignored by the browser. Storage honours a ?download=<name> parameter that
@@ -184,6 +185,15 @@ export default function OfferingDetailClient() {
     if (searchParams.get('purchase') !== 'success' || !offering || !purchase?.id) return;
     const cents = purchase.price_paid_cents ?? offering.price_cents;
     trackPurchase({ value: (cents || 0) / 100, currency: 'USD', transactionId: purchase.id, kind: 'offering' });
+    try {
+      const key = `rt_site_purchase_${purchase.id}`;
+      if (!window.localStorage.getItem(key)) {
+        window.localStorage.setItem(key, '1');
+        trackSite('purchase', { props: { offering_id: offering.id, value_cents: cents || 0 } });
+      }
+    } catch {
+      trackSite('purchase', { props: { offering_id: offering.id, value_cents: cents || 0 } });
+    }
   }, [searchParams, offering, purchase]);
 
   useEffect(() => {
@@ -259,7 +269,12 @@ export default function OfferingDetailClient() {
   };
 
   const handleBuy = async () => {
-    if (!session) {
+    trackSite('buy_click', { props: { offering_id: offering.id, price_cents: offering.price_cents || 0, signed_in: !!session } });
+    // Paid items can be bought without an account (guest checkout): Stripe asks for the email and
+    // the account is made after payment. Free items and free-for-family unlocks still need an
+    // account first, because they are added to the account straight away.
+    const guest = !session;
+    if (guest && (!offering.price_cents || offering.is_free_for_family)) {
       setGateOpen(true);
       return;
     }
@@ -267,8 +282,8 @@ export default function OfferingDetailClient() {
     setNotice('');
     setBuying(true);
 
-    const freeForYou = offering.is_free_for_family && isFamily;
-    const isFreeItem = offering.type !== 'call' && (freeForYou || !offering.price_cents);
+    const freeForYou = !guest && offering.is_free_for_family && isFamily;
+    const isFreeItem = !guest && offering.type !== 'call' && (freeForYou || !offering.price_cents);
 
     // Free items skip checkout entirely: record the claim (so it lands in
     // "My purchases" and unlocks the file), then download it straight away.
@@ -312,8 +327,12 @@ export default function OfferingDetailClient() {
     try {
       const res = await fetch(`${FUNCTIONS_URL}/create-checkout-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ offeringId: offering.id, origin: window.location.origin }),
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${guest ? SUPABASE_ANON_KEY : session.access_token}`,
+        },
+        body: JSON.stringify({ offeringId: offering.id, origin: window.location.origin, guest }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
@@ -322,6 +341,7 @@ export default function OfferingDetailClient() {
         setBuying(false);
         return;
       }
+      trackSite('checkout_start', { props: { offering_id: offering.id, price_cents: offering.price_cents || 0, guest } });
       if (checkoutTab) {
         checkoutTab.location.href = data.url;
         setNotice('Checkout opened in a new tab. Finish paying there — this page will update on its own.');

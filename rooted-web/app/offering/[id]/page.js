@@ -2,6 +2,8 @@ import { supabaseServer } from '@/lib/supabaseServer';
 import { coverUrl } from '@/lib/storage';
 import { OFFERING_TYPE_LABELS } from '@/lib/roles';
 import OfferingDetailClient from './OfferingDetailClient';
+import AdvisorAttribution from '@/components/AdvisorAttribution';
+import GuestCheckoutReturn from '@/components/GuestCheckoutReturn';
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -43,5 +45,11 @@ export async function generateMetadata({ params }) {
 }
 
 export default function OfferingDetailPage() {
-  return <OfferingDetailClient />;
+  return (
+    <>
+      <GuestCheckoutReturn />
+      <OfferingDetailClient />
+      <AdvisorAttribution />
+    </>
+  );
 }

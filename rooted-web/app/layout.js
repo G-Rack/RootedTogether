@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import GoogleTag from '@/components/GoogleTag';
 import Pixels from '@/components/Pixels';
 import ConsentBanner from '@/components/ConsentBanner';
+import SiteTracker from '@/components/SiteTracker';
 
 // Same typefaces as the onboarding site, exposed as CSS variables (see globals.css).
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -50,6 +51,7 @@ export default function RootLayout({ children }) {
         <GoogleTag />
         <Pixels />
         <SessionProvider>
+          <SiteTracker />
           <Header />
           {children}
           <Footer />
