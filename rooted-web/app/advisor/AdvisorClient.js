@@ -14,12 +14,11 @@ import styles from './advisor.module.css';
 
 // rootedtogether.club/advisor: the course guide ("Sales generator"), styled like the app.
 // First screen: real offers (sale price, launch price, free Lesson 1, free items), then the guide.
-// The guide asks six questions plus an optional first name, one per screen, then gives one honest
+// The guide asks six questions, one per screen, then gives one honest
 // suggestion, one "pairs well with" offer and, if both are declined, the free gift. Visits are
-// recorded only through the advisor_* database functions. The first name is never stored.
+// recorded only through the advisor_* database functions.
 
-const NAME_STEP = QUESTIONS.length + 1;
-const TOTAL = NAME_STEP;
+const TOTAL = QUESTIONS.length;
 const STORE_KEY = 'rt_advisor';
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const tidy = (v) => String(v || '').replace(/[^\w .+-]/g, '').trim().slice(0, 100);
@@ -103,9 +102,8 @@ function Price({ o, className }) {
 }
 
 export default function AdvisorClient() {
-  const [screen, setScreen] = useState(0); // 0 start, 1..7 questions, then 'care' | 'result' | 'upsell' | 'gift' | 'thanks'
+  const [screen, setScreen] = useState(0); // 0 start, 1..6 questions, then 'care' | 'result' | 'upsell' | 'gift' | 'thanks'
   const [answers, setAnswers] = useState({});
-  const [name, setName] = useState('');
   const [sessionId, setSessionId] = useState(null);
   const [utm, setUtm] = useState(null);
   const [catalogue, setCatalogue] = useState(null);
@@ -180,13 +178,15 @@ export default function AdvisorClient() {
       track(sessionId, 'care_note');
       return;
     }
+    // The last question goes straight to the suggestion.
+    if (screen >= TOTAL) { finish(next); return; }
     setScreen((s) => s + 1);
   };
 
   const goBack = () => {
     setError('');
     if (screen === 1 || screen === 'care') setScreen(screen === 'care' ? 1 : 0);
-    else if (screen === 'result') setScreen(NAME_STEP);
+    else if (screen === 'result') setScreen(TOTAL);
     else if (screen === 'upsell') setScreen('result');
     else if (screen === 'gift') setScreen(rec?.upsell ? 'upsell' : 'result');
     else if (typeof screen === 'number' && screen > 1) setScreen(screen - 1);
@@ -245,7 +245,6 @@ export default function AdvisorClient() {
     }
   };
 
-  const first = name.trim().split(/\s+/)[0]?.slice(0, 40) || '';
   const isQuestion = typeof screen === 'number' && screen >= 1;
   const step = isQuestion ? screen : TOTAL;
 
@@ -319,9 +318,7 @@ export default function AdvisorClient() {
             <div className={styles.segments} role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={TOTAL} aria-valuenow={step}>
               {Array.from({ length: TOTAL }, (_, i) => <div key={i} className={`${styles.segment} ${i < step ? styles.segmentOn : ''}`} />)}
             </div>
-            {screen === NAME_STEP
-              ? <button type="button" className={styles.skip} onClick={() => { setName(''); finish(answers); }}>Skip</button>
-              : <div className={styles.sideGap} />}
+            <div className={styles.sideGap} />
           </div>
         )}
 
@@ -354,18 +351,6 @@ export default function AdvisorClient() {
           );
         })()}
 
-        {screen === NAME_STEP && (
-          <form onSubmit={(e) => { e.preventDefault(); finish(answers); }}>
-            <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Last thing. What should we call you?</h1>
-            <p className={styles.sub}>Optional. Only used on the next screen, never saved.</p>
-            <label className={styles.label} htmlFor="adv-name">First name</label>
-            <input id="adv-name" className={styles.input} type="text" autoComplete="given-name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your first name" />
-            <div className={styles.stack} style={{ marginTop: 28 }}>
-              <button type="submit" className={styles.primary}>See my suggestion</button>
-            </div>
-          </form>
-        )}
-
         {screen === 'care' && (
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>We are so sorry you are carrying this</h1>
@@ -389,7 +374,7 @@ export default function AdvisorClient() {
 
         {screen === 'result' && rec && (
           <>
-            <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>{first ? `${first}, here is our suggestion` : 'Here is our suggestion'}</h1>
+            <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Here is our suggestion</h1>
             <p className={styles.sub}>Based on your answers.</p>
             <div className={styles.card}>
               <div className={styles.pickLabel}>Best fit for you</div>
