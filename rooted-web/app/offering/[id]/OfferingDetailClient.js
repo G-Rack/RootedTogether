@@ -450,7 +450,7 @@ export default function OfferingDetailClient() {
           )}
 
           {creatorProfile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
               {avatarUrl(storefront?.avatar_path) ? (
                 <div
                   style={{ width: 28, height: 28, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatarUrl(storefront.avatar_path)})` }}
@@ -466,6 +466,15 @@ export default function OfferingDetailClient() {
                 </Link>
               ) : (
                 <span style={{ fontSize: 13.5, fontWeight: 700 }}>{creatorProfile.name}</span>
+              )}
+              {storefront && (
+                <Link
+                  href={`/creator/${storefront.handle}`}
+                  className="btn btn-outline btn-small"
+                  style={{ marginLeft: 'auto' }}
+                >
+                  View storefront
+                </Link>
               )}
             </div>
           )}
