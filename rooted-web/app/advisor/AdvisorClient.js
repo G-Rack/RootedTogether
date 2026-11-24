@@ -208,9 +208,9 @@ export default function AdvisorClient() {
 
   const declineLead = () => {
     if (rec?.upsell) setScreen('upsell');
-    else { setScreen('gift'); track(sessionId, 'declined'); }
+    else { setScreen(giftSent ? 'thanks' : 'gift'); track(sessionId, 'declined'); }
   };
-  const declineUpsell = () => { setScreen('gift'); track(sessionId, 'declined'); };
+  const declineUpsell = () => { setScreen(giftSent ? 'thanks' : 'gift'); track(sessionId, 'declined'); };
 
   const claimGift = async (e) => {
     e.preventDefault();
@@ -237,7 +237,7 @@ export default function AdvisorClient() {
       await track(sessionId, 'gift_claimed');
       if (json.saved && typeof window.fbq === 'function') { try { window.fbq('track', 'Lead'); } catch { /* ignore */ } }
       setGiftSent(true);
-      setScreen('thanks');
+      if (screen === 'gift') setScreen('thanks');
     } catch {
       setError('Something went wrong. Please check your connection and try again.');
     } finally {
@@ -246,6 +246,30 @@ export default function AdvisorClient() {
   };
 
   const isQuestion = typeof screen === 'number' && screen >= 1;
+
+  // Deborah's gift: email + unticked consent box. Shown under the suggestions and on the gift step.
+  const giftForm = (idPrefix) => (giftSent ? (
+    <div className={styles.note} role="status">
+      <strong>{gift?.title || 'Your gift'} is on its way.</strong> Check your inbox in a few minutes, and your spam or promotions folder if you do not see it.
+    </div>
+  ) : gift ? (
+    <form onSubmit={claimGift} noValidate>
+      <label className={styles.label} htmlFor={`${idPrefix}-email`}>Your email</label>
+      <input id={`${idPrefix}-email`} className={styles.input} type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+      <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className={styles.hidden} value={website} onChange={(e) => setWebsite(e.target.value)} />
+      <label className={styles.check} htmlFor={`${idPrefix}-consent`}>
+        <input id={`${idPrefix}-consent`} type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+        <span>Also send me the daily devotional, and keep my answers with my email so you can suggest courses that fit. I can unsubscribe at any time.</span>
+      </label>
+      {error && <div className={styles.error} role="alert">{error}</div>}
+      <div className={styles.stack}>
+        <button type="submit" className={`${styles.primary} ${styles.gold}`} disabled={busy}>{busy ? 'Please wait…' : 'Send me the free gift'}</button>
+      </div>
+      <p className={styles.small} style={{ marginTop: 12 }}>
+        We email you this gift because you asked for it. See our <Link href="/privacy" className={styles.inlineLink}>privacy policy</Link>.
+      </p>
+    </form>
+  ) : null);
   const step = isQuestion ? screen : TOTAL;
 
   // ---------- First screen: offers, then the guide ----------
@@ -376,48 +400,61 @@ export default function AdvisorClient() {
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Here is our suggestion</h1>
             <p className={styles.sub}>Based on your answers.</p>
-            <div className={styles.card}>
-              <div className={styles.pickLabel}>Best fit for you</div>
-              <h2 className={styles.h2}>{rec.lead.title}</h2>
-              <Price o={rec.lead} className={styles.priceRow} />
-              <p className={styles.meta}>{whatYouGet(rec.lead)}</p>
-              <p className={styles.why}>{whyItFits(rec.lead, answers)}</p>
-              <TeamLine o={rec.lead} className={styles.teamLine} />
-              {rec.lead.free_preview && (
-                <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, no account needed. Try it before you decide.</p>
-              )}
-              <a href={offeringHref(rec.lead, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'lead_clicked')}>
-                {rec.lead.free_preview ? 'Watch Lesson 1 free' : Number(rec.lead.price_cents) === 0 ? 'Get it free' : `See the ${OFFERING_TYPE_LABELS[rec.lead.type]?.toLowerCase() || 'offer'}`}
-              </a>
-            </div>
-
-            {rec.freeStep && (
-              <div className={styles.card} style={{ marginTop: 14 }}>
-                <div className={styles.pickLabel}>Not ready yet? Start free</div>
-                <h2 className={styles.h2}>{rec.freeStep.title}</h2>
-                <p className={styles.why}>{rec.freeStep.free_preview ? 'Lesson 1 is free to watch, no account needed. ' : 'Free. '}{pairLine(rec.freeStep)}</p>
-                <TeamLine o={rec.freeStep} className={styles.teamLine} />
-                <a href={offeringHref(rec.freeStep, sessionId, utm)} className={styles.secondary} onClick={(e) => go(e, 'alternate_clicked')}>
-                  {rec.freeStep.free_preview ? 'Watch Lesson 1 free' : 'Get it free'}
+            <div className={`${styles.card} ${styles.coverCard}`}>
+              <div className={styles.offerCover}>
+                <CoverImage src={coverUrl(rec.lead.cover_path)} alt="" />
+                <span className={styles.badge}><AdvisorIcon name="star" size={15} /> Best fit for you</span>
+              </div>
+              <div className={styles.coverBody}>
+                <h2 className={styles.h2}>{rec.lead.title}</h2>
+                <Price o={rec.lead} className={styles.priceRow} />
+                <p className={styles.meta}>{whatYouGet(rec.lead)}</p>
+                <p className={styles.why}>{whyItFits(rec.lead, answers)}</p>
+                <TeamLine o={rec.lead} className={styles.teamLine} />
+                {rec.lead.free_preview && (
+                  <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, no account needed. Try it before you decide.</p>
+                )}
+                <a href={offeringHref(rec.lead, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'lead_clicked')}>
+                  {rec.lead.free_preview ? 'Watch Lesson 1 free' : Number(rec.lead.price_cents) === 0 ? 'Get it free' : `See the ${OFFERING_TYPE_LABELS[rec.lead.type]?.toLowerCase() || 'offer'}`}
                 </a>
               </div>
-            )}
+            </div>
 
-            {rec.alternates.filter((o) => o.id !== rec.freeStep?.id).length > 0 && (
-              <>
-                <h2 className={styles.h2} style={{ fontSize: 19, marginTop: 26 }}>Also a good fit</h2>
-                <div className={styles.stack} style={{ marginTop: 10 }}>
-                  {rec.alternates.filter((o) => o.id !== rec.freeStep?.id).map((o) => (
-                    <a key={o.id} href={offeringHref(o, sessionId, utm)} className={`${styles.card} ${styles.alt}`} onClick={(e) => go(e, 'alternate_clicked')}>
-                      <span className={styles.altTitle}>{o.title}</span>
-                      <span className={styles.meta} style={{ display: 'block', margin: '2px 0 0' }}>{formatPrice(o.price_cents)} · {whatYouGet(o)}</span>
-                      {o.type === 'course' && o.is_original && (
-                        <span className={styles.small} style={{ display: 'block', fontStyle: 'italic' }}>A Rooted Together team course. Presenter is AI-generated.</span>
-                      )}
+            {rec.alternates.length > 0 && (
+              <section className={styles.section} aria-labelledby="alt-h" style={{ marginTop: 28 }}>
+                <h2 id="alt-h" className={styles.h2} style={{ marginBottom: 14 }}>Also a good fit</h2>
+                <div className={styles.offers}>
+                  {rec.alternates.map((o) => (
+                    <a key={o.id} href={offeringHref(o, sessionId, utm)} className={styles.offer} onClick={(e) => go(e, 'alternate_clicked')}>
+                      <div className={styles.offerCover}>
+                        <CoverImage src={coverUrl(o.cover_path)} alt="" />
+                        {o.free_preview && <span className={styles.badge}><AdvisorIcon name="gift" size={15} /> Lesson 1 free</span>}
+                      </div>
+                      <div className={styles.offerBody}>
+                        <span className={styles.offerTitle}>{o.title}</span>
+                        <span className={styles.small}>{whatYouGet(o)}</span>
+                        {o.type === 'course' && o.is_original && (
+                          <span className={styles.small} style={{ fontStyle: 'italic' }}>A Rooted Together team course. Presenter is AI-generated.</span>
+                        )}
+                        <span className={styles.offerPrice}>
+                          {formatPrice(o.price_cents)}
+                          {hasDiscount(o) && <span className={styles.was}>{formatPrice(o.original_price_cents)}</span>}
+                        </span>
+                        <span className={styles.offerCta}>See it →</span>
+                      </div>
                     </a>
                   ))}
                 </div>
-              </>
+              </section>
+            )}
+
+            {gift && (
+              <section className={styles.guide} aria-labelledby="gift-h">
+                <div className={styles.eyebrow} style={{ margin: 0 }}><AdvisorIcon name="gift" size={18} /> Free gift</div>
+                <h2 id="gift-h" className={styles.h2} style={{ fontSize: 24 }}>Not ready yet? Start with {gift.title}</h2>
+                {gift.subline && <p className={styles.sub} style={{ margin: '0 0 14px' }}>{gift.subline}</p>}
+                {giftForm('res')}
+              </section>
             )}
 
             <div className={styles.stack}>
@@ -429,7 +466,9 @@ export default function AdvisorClient() {
         {screen === 'upsell' && rec?.upsell && (
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Pairs well with {rec.lead.title}</h1>
-            <div className={styles.card}>
+            <div className={`${styles.card} ${styles.coverCard}`}>
+              <div className={styles.offerCover}><CoverImage src={coverUrl(rec.upsell.cover_path)} alt="" /></div>
+              <div className={styles.coverBody}>
               <h2 className={styles.h2}>{rec.upsell.title}</h2>
               <Price o={rec.upsell} className={styles.priceRow} />
               <p className={styles.meta}>{whatYouGet(rec.upsell)}</p>
@@ -439,6 +478,7 @@ export default function AdvisorClient() {
               <a href={offeringHref(rec.upsell, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'upsell_clicked')}>
                 See {rec.upsell.title}
               </a>
+              </div>
             </div>
             <div className={styles.stack}>
               <button type="button" className={styles.linkBtn} onClick={declineUpsell}>No thanks</button>
@@ -450,27 +490,12 @@ export default function AdvisorClient() {
           <>
             <h1 ref={headingRef} tabIndex={-1} className={styles.h1}>Before you go, a free gift</h1>
             {gift ? (
-              <form onSubmit={claimGift} noValidate>
-                <div className={styles.card}>
-                  <div className={styles.pickLabel}><AdvisorIcon name="gift" size={16} /> Free</div>
-                  <h2 className={styles.h2}>{gift.title}</h2>
-                  {gift.subline && <p className={styles.why}>{gift.subline}</p>}
-                  <label className={styles.label} htmlFor="adv-email">Your email</label>
-                  <input id="adv-email" className={styles.input} type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-                  <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className={styles.hidden} value={website} onChange={(e) => setWebsite(e.target.value)} />
-                  <label className={styles.check} htmlFor="adv-consent">
-                    <input id="adv-consent" type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-                    <span>Also send me the daily devotional, and keep my answers with my email so you can suggest courses that fit. I can unsubscribe at any time.</span>
-                  </label>
-                  {error && <div className={styles.error} role="alert">{error}</div>}
-                  <div className={styles.stack}>
-                    <button type="submit" className={`${styles.primary} ${styles.gold}`} disabled={busy}>{busy ? 'Please wait…' : 'Send me the gift'}</button>
-                  </div>
-                  <p className={styles.small} style={{ marginTop: 12 }}>
-                    We email you this gift because you asked for it. See our <Link href="/privacy" className={styles.inlineLink}>privacy policy</Link>.
-                  </p>
-                </div>
-              </form>
+              <div className={styles.card}>
+                <div className={styles.pickLabel}><AdvisorIcon name="gift" size={16} /> Free</div>
+                <h2 className={styles.h2}>{gift.title}</h2>
+                {gift.subline && <p className={styles.why}>{gift.subline}</p>}
+                {giftForm('gift')}
+              </div>
             ) : (
               <p className={styles.sub}>There is no gift available right now.</p>
             )}

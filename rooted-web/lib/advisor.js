@@ -157,18 +157,24 @@ export function pairLine(o) {
 export function recommend(catalogue, a) {
   const list = (catalogue || []).filter(deliverable);
   if (list.length === 0) return null;
-  const scored = list.map((o) => ({ o, s: scoreOffering(o, a) })).sort((x, y) => y.s - x.s || Number(x.o.price_cents) - Number(y.o.price_cents));
-  const lead = scored[0].o;
+  const scored = list.map((o) => ({ o, s: scoreOffering(o, a) })).sort((x, y) => y.s - x.s || Number(y.o.price_cents) - Number(x.o.price_cents));
+  // Among the close fits (within 3 points of the best), lead with the most complete, higher-priced item.
+  const best = scored[0].s;
+  const close = scored.filter((x) => x.s >= best - 3)
+    .sort((x, y) => Number(y.o.price_cents) - Number(x.o.price_cents) || y.s - x.s);
+  const lead = close[0].o;
 
   const pairs = tagsFor(lead).pairs || [];
   const live = new Map(list.map((o) => [o.id, o]));
   const upsellId = pairs.find((id) => id !== lead.id && live.has(id));
   const upsell = upsellId ? live.get(upsellId) : null;
 
+  // Up to two more good fits, higher-priced first.
   const alternates = scored
     .filter(({ o, s }) => o.id !== lead.id && o.id !== upsell?.id && s >= 6)
     .slice(0, 2)
-    .map(({ o }) => o);
+    .map(({ o }) => o)
+    .sort((x, y) => Number(y.price_cents) - Number(x.price_cents));
 
   // Real specials only: a free Lesson 1 preview, or a free item, as the gentle first step.
   let freeStep = null;

@@ -110,3 +110,7 @@
   .heroRow { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
   .heroRow .guide { margin-top: 0; }
 }
+
+/* Suggestion cards with the cover picture on top */
+.coverCard { padding: 0; overflow: hidden; }
+.coverBody { padding: 18px 20px 20px; }
