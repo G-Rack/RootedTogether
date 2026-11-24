@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GOOGLE_TAG_ID, readConsent, setConsent } from '@/lib/tracking';
+import { GOOGLE_ENABLED, readConsent, setConsent } from '@/lib/tracking';
 
 // On the Privacy page: shows the current advert-measurement choice and lets the visitor change it.
 export default function CookieChoices() {
@@ -9,7 +9,7 @@ export default function CookieChoices() {
   useEffect(() => {
     setState(readConsent() || 'default');
   }, []);
-  if (!GOOGLE_TAG_ID || !state) return null;
+  if (!GOOGLE_ENABLED || !state) return null;
   const choose = (granted) => {
     setConsent(granted);
     setState(granted ? 'granted' : 'denied');

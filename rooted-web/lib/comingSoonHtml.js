@@ -2,7 +2,7 @@
 // while the site is locked, so none of the real site is loaded for them.
 // Tapping the logo five times reveals a small box for the secret code (handled in /api/gate).
 
-import { GOOGLE_TAG_ID, CONSENT_INIT, PIXELS_INIT, SIGNUP_LABEL, CONSENT_KEY } from './tracking';
+import { GOOGLE_TAG_ID, GOOGLE_ENABLED, GOOGLE_PRIMARY_ID, googleConfigJs, CONSENT_INIT, PIXELS_INIT, SIGNUP_LABEL, CONSENT_KEY } from './tracking';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -58,12 +58,12 @@ export function comingSoonHtml({ blurb, social = {}, privacyHref = '/privacy', v
     ? `<div class="social"><span>Follow along</span><div>${links.join('')}</div></div>`
     : '';
 
-  const googleHead = GOOGLE_TAG_ID
+  const googleHead = GOOGLE_ENABLED
     ? `<script>${CONSENT_INIT}</script>
-<script async src="https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}"></script>
-<script>gtag('js',new Date());gtag('config','${GOOGLE_TAG_ID}',{linker:{domains:['rootedtogether.club','joinrootedtogether.club']}});</script>`
+<script async src="https://www.googletagmanager.com/gtag/js?id=${GOOGLE_PRIMARY_ID}"></script>
+<script>${googleConfigJs(['rootedtogether.club', 'joinrootedtogether.club'])}</script>`
     : '';
-  const consentBar = GOOGLE_TAG_ID
+  const consentBar = GOOGLE_ENABLED
     ? `<div id="consent" role="dialog" aria-label="Cookie choices" hidden><p>We use cookies to measure how our adverts perform. You can say no and everything still works. <a href="${esc(privacyHref)}">Privacy Policy</a></p><div><button type="button" id="consentNo" class="c-no">Decline</button><button type="button" id="consentYes" class="c-yes">Allow</button></div></div>`
     : '';
 
@@ -236,7 +236,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     if (typeof window.gtag !== 'function') return;
     var p = { method: ${isGift ? "'gift'" : "'waitlist'"}, utm_source: utm || '(direct)', utm_campaign: ${isGift ? JSON.stringify(campLabel) : "'' + (utmCamp || '(none)')"} };
     window.gtag('event', 'sign_up', p);
-    ${SIGNUP_LABEL ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}', utm_source: p.utm_source, utm_campaign: p.utm_campaign });` : ''}
+    ${SIGNUP_LABEL && GOOGLE_TAG_ID ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}', utm_source: p.utm_source, utm_campaign: p.utm_campaign });` : ''}
   }
   var bar = document.getElementById('consent');
   if (bar && window.__rtAskConsent) {

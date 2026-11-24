@@ -39,6 +39,24 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Ad tags and Meta browser ids the page sends along with the checkout. Everything is cut down to
+// short plain text. The Meta ids and the visitor's address are kept only when the page says the
+// visitor allowed the Meta pixel (marketing_consent), so no sale is ever reported for someone who said no.
+function cleanAttribution(a: any) {
+  const txt = (v: unknown, max: number, bad: RegExp) => String(v ?? "").replace(bad, "").trim().slice(0, max);
+  const tag = (v: unknown) => txt(v, 100, /[^\w .+-]/g);
+  const consent = a?.marketing_consent === true;
+  return {
+    utm_source: tag(a?.utm_source),
+    utm_medium: tag(a?.utm_medium),
+    utm_campaign: tag(a?.utm_campaign),
+    marketing_consent: consent,
+    fbp: consent ? txt(a?.fbp, 120, /[^\w.\-]/g) : "",
+    fbc: consent ? txt(a?.fbc, 200, /[^\w.\-]/g) : "",
+    source_url: consent ? txt(a?.source_url, 300, /[^\x21-\x7e]/g) : "",
+  };
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -72,6 +90,7 @@ Deno.serve(async (req: Request) => {
   }
   const buyerAuthId = buyer?.id ?? null;
   const { offeringId, origin: rawOrigin } = payload || {};
+  const attr = cleanAttribution(payload?.attribution);
   if (!offeringId) return jsonResponse({ error: "Missing offeringId." }, 400);
   const origin = typeof rawOrigin === "string" && rawOrigin.startsWith("https://") ? rawOrigin : "https://rootedtogether.club";
 
@@ -170,15 +189,42 @@ Deno.serve(async (req: Request) => {
       ],
       payment_intent_data: paymentIntentData,
       customer_email: buyer?.email || undefined,
-      metadata: isGuest
-        ? { offering_id: offering.id, guest: "1" }
-        : { offering_id: offering.id, buyer_auth_id: buyerAuthId as string },
+      metadata: {
+        ...(isGuest
+          ? { offering_id: offering.id, guest: "1" }
+          : { offering_id: offering.id, buyer_auth_id: buyerAuthId as string }),
+        // Saved on the purchase record by stripe-webhook.
+        ...(attr.utm_source ? { utm_source: attr.utm_source } : {}),
+        ...(attr.utm_medium ? { utm_medium: attr.utm_medium } : {}),
+        ...(attr.utm_campaign ? { utm_campaign: attr.utm_campaign } : {}),
+      },
       // {CHECKOUT_SESSION_ID} is filled in by Stripe. A guest needs it to be signed in on return.
       success_url: isGuest
         ? `${origin}/offering/${offering.id}?purchase=success&guest=1&session_id={CHECKOUT_SESSION_ID}`
         : `${origin}/offering/${offering.id}?purchase=success`,
       cancel_url: `${origin}/offering/${offering.id}?purchase=cancelled`,
     });
+    // What stripe-webhook needs to report the sale to Meta later (server only, never readable from the
+    // website). Never blocks the checkout.
+    try {
+      const ip = (req.headers.get("cf-connecting-ip") || (req.headers.get("x-forwarded-for") || "").split(",")[0] || "").trim();
+      const { error: attrError } = await supabase.from("checkout_attribution").upsert({
+        stripe_session_id: session.id,
+        offering_id: offering.id,
+        utm_source: attr.utm_source || null,
+        utm_medium: attr.utm_medium || null,
+        utm_campaign: attr.utm_campaign || null,
+        marketing_consent: attr.marketing_consent,
+        fbp: attr.fbp || null,
+        fbc: attr.fbc || null,
+        source_url: attr.source_url || null,
+        client_ip: attr.marketing_consent && ip ? ip.slice(0, 64) : null,
+        client_ua: attr.marketing_consent ? (req.headers.get("user-agent") || "").slice(0, 300) || null : null,
+      }, { onConflict: "stripe_session_id" });
+      if (attrError) console.error("checkout_attribution save failed:", attrError.message);
+    } catch (e) {
+      console.error("checkout_attribution save error:", e);
+    }
     return jsonResponse({ url: session.url });
   } catch (e) {
     console.error("Checkout session creation error:", e);

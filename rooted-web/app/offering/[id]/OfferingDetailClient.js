@@ -18,7 +18,7 @@ import SaleTag from '@/components/SaleTag';
 import OriginalsTag from '@/components/OriginalsTag';
 import FreePreview from '@/components/FreePreview';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
-import { trackPurchase } from '@/lib/tracking';
+import { trackPurchase, trackViewContent, trackBeginCheckout, getAttribution } from '@/lib/tracking';
 import { track as trackSite } from '@/lib/analytics';
 
 // Files live on another domain (Supabase Storage), where a plain <a download>
@@ -184,7 +184,7 @@ export default function OfferingDetailClient() {
   useEffect(() => {
     if (searchParams.get('purchase') !== 'success' || !offering || !purchase?.id) return;
     const cents = purchase.price_paid_cents ?? offering.price_cents;
-    trackPurchase({ value: (cents || 0) / 100, currency: 'USD', transactionId: purchase.id, kind: 'offering' });
+    trackPurchase({ value: (cents || 0) / 100, currency: 'USD', transactionId: purchase.id, kind: 'offering', contentId: offering.id, contentName: offering.title });
     try {
       const key = `rt_site_purchase_${purchase.id}`;
       if (!window.localStorage.getItem(key)) {
@@ -195,6 +195,13 @@ export default function OfferingDetailClient() {
       trackSite('purchase', { props: { offering_id: offering.id, value_cents: cents || 0 } });
     }
   }, [searchParams, offering, purchase]);
+
+  // Meta ViewContent and Google view_item: once each time an offering page is opened.
+  useEffect(() => {
+    if (!offering?.id) return;
+    trackViewContent({ id: offering.id, title: offering.title, value: (offering.price_cents || 0) / 100 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offering?.id]);
 
   useEffect(() => {
     if (!offering) return;
@@ -322,6 +329,8 @@ export default function OfferingDetailClient() {
     // Open the new tab synchronously inside the click so the browser
     // doesn't treat it as a blocked popup, then point it at Stripe once
     // the checkout URL is ready.
+    // Meta InitiateCheckout and Google begin_checkout: Buy Now was pressed on a paid item.
+    trackBeginCheckout({ id: offering.id, title: offering.title, value: (offering.price_cents || 0) / 100 });
     const checkoutTab = window.open('', '_blank');
     if (checkoutTab) checkoutTab.opener = null;
     try {
@@ -332,7 +341,7 @@ export default function OfferingDetailClient() {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${guest ? SUPABASE_ANON_KEY : session.access_token}`,
         },
-        body: JSON.stringify({ offeringId: offering.id, origin: window.location.origin, guest }),
+        body: JSON.stringify({ offeringId: offering.id, origin: window.location.origin, guest, attribution: getAttribution() }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {

@@ -44,6 +44,8 @@ import { ensureGuestBuyer, sendGuestAccessEmail } from "../_shared/guest.ts";
 const STRIPE_API = "https://api.stripe.com";
 const STRIPE_V2_VERSION = "2026-09-30.preview";
 const MEMBERSHIP_MIN_CENTS = 4900;
+// Meta (Facebook / Instagram) pixel id. Public by design, the same one the website uses.
+const META_PIXEL_ID = "2170035307059187";
 
 function envList(name: string): string[] {
   return (Deno.env.get(name) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -186,15 +188,17 @@ Deno.serve(async (req: Request) => {
     // that slips between the two hits the unique index (23505) and is ignored.
     const { data: existing, error: lookupError } = await supabase
       .from("offering_purchases")
-      .select("id")
+      .select("id, meta_event_sent_at")
       .eq("stripe_checkout_session_id", session.id)
       .maybeSingle();
     if (lookupError) console.error("Purchase lookup failed:", lookupError);
+    let purchaseId: string | null = existing?.id ?? null;
+    const metaAlreadySent = !!existing?.meta_event_sent_at;
 
     if (existing) {
       console.log("Purchase already recorded for session", session.id);
     } else {
-      const { error } = await supabase.from("offering_purchases").insert({
+      const purchaseRow = {
         offering_id: offeringId,
         buyer_auth_id: buyerAuthId,
         price_paid_cents: amountTotal,
@@ -202,7 +206,20 @@ Deno.serve(async (req: Request) => {
         stripe_fee_cents: fees.stripeFee,
         stripe_checkout_session_id: session.id,
         stripe_payment_intent_id: paymentIntentId,
-      });
+        // Which advert or link brought the buyer (set by create-checkout-session).
+        utm_source: session.metadata?.utm_source || null,
+        utm_medium: session.metadata?.utm_medium || null,
+        utm_campaign: session.metadata?.utm_campaign || null,
+      };
+      let insertResult = await supabase.from("offering_purchases").insert(purchaseRow).select("id").maybeSingle();
+      if (insertResult.error && insertResult.error.code === "42703") {
+        // The tracking columns are not in the database yet: record the sale without them rather than lose it.
+        console.error("offering_purchases has no utm columns yet, recording without them.");
+        const { utm_source: _a, utm_medium: _b, utm_campaign: _c, ...plainRow } = purchaseRow;
+        insertResult = await supabase.from("offering_purchases").insert(plainRow).select("id").maybeSingle();
+      }
+      const { data: insertedRow, error } = insertResult;
+      if (insertedRow?.id) purchaseId = insertedRow.id;
       if (error && error.code === "23505") {
         console.log("Purchase already recorded (duplicate ignored) for session", session.id, error.message);
       } else if (error) {
@@ -217,6 +234,12 @@ Deno.serve(async (req: Request) => {
     if (guestCreatedNew) {
       const { data: off } = await supabase.from("offerings").select("title").eq("id", offeringId).maybeSingle();
       await sendGuestAccessEmail(supabase, session.id, guestEmail, offeringId, off?.title || "your purchase");
+    }
+
+    // Tell Meta about the sale from here (server side). The website sends the same Purchase with the same
+    // event_id (the purchase row id), so Meta counts it once. Never fails the webhook.
+    if (purchaseId && !metaAlreadySent && session.payment_status === "paid") {
+      await sendMetaPurchase(supabase, purchaseId, session, offeringId);
     }
   }
 
@@ -292,6 +315,74 @@ Deno.serve(async (req: Request) => {
 
   return new Response("ok", { status: 200 });
 });
+
+// Meta Conversions API: one Purchase event for a paid marketplace sale. Only sent when the buyer allowed
+// the Meta pixel at checkout, and only when META_CAPI_ACCESS_TOKEN is set. No name or email is sent.
+// The buyer's address and browser details are kept just long enough for this call, then wiped.
+async function sendMetaPurchase(
+  supabase: ReturnType<typeof createClient>,
+  purchaseId: string,
+  session: Stripe.Checkout.Session,
+  offeringId: string,
+) {
+  try {
+    const { data: attr } = await supabase
+      .from("checkout_attribution")
+      .select("marketing_consent, fbp, fbc, client_ip, client_ua, source_url")
+      .eq("stripe_session_id", session.id)
+      .maybeSingle();
+    await supabase.from("checkout_attribution").update({ client_ip: null, client_ua: null }).eq("stripe_session_id", session.id);
+    const token = Deno.env.get("META_CAPI_ACCESS_TOKEN");
+    if (!token) {
+      console.log("META_CAPI_ACCESS_TOKEN not set, skipping the Meta Purchase event for", session.id);
+      return;
+    }
+    if (!attr?.marketing_consent) {
+      console.log("Buyer did not allow the Meta pixel, no Meta Purchase event for", session.id);
+      return;
+    }
+    const amount = (session.amount_total ?? 0) / 100;
+    if (!(amount > 0)) return;
+    const userData: Record<string, string> = {};
+    if (attr.client_ip) userData.client_ip_address = attr.client_ip;
+    if (attr.client_ua) userData.client_user_agent = attr.client_ua;
+    if (attr.fbp) userData.fbp = attr.fbp;
+    if (attr.fbc) userData.fbc = attr.fbc;
+    const body: Record<string, unknown> = {
+      access_token: token,
+      data: [{
+        event_name: "Purchase",
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: purchaseId,
+        action_source: "website",
+        ...(attr.source_url ? { event_source_url: attr.source_url } : {}),
+        user_data: userData,
+        custom_data: {
+          value: amount,
+          currency: String(session.currency || "usd").toUpperCase(),
+          content_type: "product",
+          content_ids: [offeringId],
+          num_items: 1,
+        },
+      }],
+    };
+    const testCode = Deno.env.get("META_TEST_EVENT_CODE");
+    if (testCode) body.test_event_code = testCode;
+    const res = await fetch(`https://graph.facebook.com/v21.0/${META_PIXEL_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      console.error("Meta Conversions API refused the Purchase event:", res.status, (await res.text()).slice(0, 400));
+      return;
+    }
+    await supabase.from("offering_purchases").update({ meta_event_sent_at: new Date().toISOString() }).eq("id", purchaseId);
+    console.log("Meta Purchase event sent for purchase", purchaseId);
+  } catch (e) {
+    console.error("Meta Purchase event failed:", e);
+  }
+}
 
 // The platform's cut (application fee) and Stripe's own processing fee for a
 // payment. Both default to 0 if Stripe can't be reached, so a lookup problem

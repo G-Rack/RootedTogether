@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GOOGLE_TAG_ID, setConsent } from '@/lib/tracking';
+import { GOOGLE_ENABLED, setConsent } from '@/lib/tracking';
 
 // A small bar at the bottom of the page, shown only to visitors who must be asked first
 // (EU/EEA, UK, Switzerland). Everyone else is not interrupted. The choice is remembered on this
@@ -10,7 +10,7 @@ export default function ConsentBanner({ privacyHref = '/privacy' }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (GOOGLE_TAG_ID && window.__rtAskConsent) setShow(true);
+    if (GOOGLE_ENABLED && window.__rtAskConsent) setShow(true);
   }, []);
 
   if (!show) return null;

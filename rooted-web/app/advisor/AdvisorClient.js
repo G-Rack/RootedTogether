@@ -8,6 +8,7 @@ import { hasDiscount, offeringDiscountPercent } from '@/lib/discount';
 import { coverUrl } from '@/lib/storage';
 import CoverImage from '@/components/CoverImage';
 import { track as trackSite } from '@/lib/analytics';
+import { trackQuizComplete, sendMeta } from '@/lib/tracking';
 import { QUESTIONS, needsCare, recommend, whyItFits, pairLine, previewItem, deliverable } from '@/lib/advisor';
 import AdvisorIcon from './AdvisorIcon';
 import styles from './advisor.module.css';
@@ -116,6 +117,14 @@ export default function AdvisorClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [giftSent, setGiftSent] = useState(false);
+  // Devotional sign-up on the first screen: Deborah's gift (ticked) and the daily devotional (left
+  // for the visitor to tick). Same gift-signup flow as rootedtogether.club/gift.
+  const [joinEmail, setJoinEmail] = useState('');
+  const [joinGift, setJoinGift] = useState(true);
+  const [joinDevotional, setJoinDevotional] = useState(false);
+  const [joinBusy, setJoinBusy] = useState(false);
+  const [joinError, setJoinError] = useState('');
+  const [joinDone, setJoinDone] = useState('');
   // Latest courses for the first screen (newest first), with the creator's name.
   const [latest, setLatest] = useState([]);
   const [creatorNames, setCreatorNames] = useState({});
@@ -186,6 +195,8 @@ export default function AdvisorClient() {
     setRec(r);
     setScreen('result');
     track(sessionId, 'completed', { p_answers: finalAnswers, p_recommended: r?.lead?.id || null, p_upsell: r?.upsell?.id || null });
+    // Meta Lead (once per person, with the recommended course) and Google quiz_complete.
+    if (r?.lead) trackQuizComplete({ id: r.lead.id, title: r.lead.title, eventId: sessionId ? `lead_${sessionId}` : '' });
   };
 
   const choose = (key, value) => {
@@ -224,6 +235,38 @@ export default function AdvisorClient() {
     setTimeout(() => window.location.assign(href), 150);
   };
 
+  const joinList = async (e) => {
+    e.preventDefault();
+    setJoinError('');
+    const clean = joinEmail.trim().toLowerCase();
+    if (!EMAIL.test(clean)) { setJoinError('Please enter a valid email address.'); return; }
+    if (!joinGift && !joinDevotional) { setJoinError('Please tick at least one.'); return; }
+    if (!gift) { setJoinError('Sign-up is not available just now. Please try again later.'); return; }
+    setJoinBusy(true);
+    try {
+      const tags = readUtm();
+      const res = await fetch('/api/gift', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: clean, website, campaign: gift.slug, send_gift: joinGift, devotional: joinDevotional,
+          utm_source: tags.utm_source || 'advisor', utm_campaign: tags.utm_campaign || '',
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) { setJoinError(json?.error || 'Something went wrong. Please try again.'); return; }
+      trackSite('advisor_devotional_signup', { props: { gift: joinGift, devotional: joinDevotional } });
+      if (json.saved && typeof window.rtTrackSignup === 'function') { try { window.rtTrackSignup(); } catch { /* ignore */ } }
+      setJoinDone(joinGift && joinDevotional
+        ? `${gift.title} is on its way, and your first devotional arrives tomorrow morning.`
+        : joinGift ? `${gift.title} is on its way.` : 'Your first devotional arrives tomorrow morning.');
+    } catch {
+      setJoinError('Something went wrong. Please check your connection and try again.');
+    } finally {
+      setJoinBusy(false);
+    }
+  };
+
   const declineLead = () => {
     if (rec?.upsell) setScreen('upsell');
     else { setScreen(giftSent ? 'thanks' : 'gift'); track(sessionId, 'declined'); }
@@ -253,7 +296,8 @@ export default function AdvisorClient() {
         try { await supabase.rpc('advisor_save_email', { p_session: sessionId, p_email: clean }); } catch { /* best effort */ }
       }
       await track(sessionId, 'gift_claimed');
-      if (json.saved && typeof window.fbq === 'function') { try { window.fbq('track', 'Lead'); } catch { /* ignore */ } }
+      // The free gift is its own Meta event now; Lead is reserved for finishing the quiz.
+      if (json.saved) sendMeta('GiftClaimed', { content_name: gift?.slug || '' }, '', true);
       setGiftSent(true);
       if (screen === 'gift') setScreen('thanks');
     } catch {
@@ -346,6 +390,42 @@ export default function AdvisorClient() {
               {catalogue ? 'Find my next step' : 'Loading…'}
             </button>
           </section>
+
+          {gift && (
+            <section className={`${styles.card} ${styles.section}`} aria-labelledby="devo-h" style={{ padding: 24 }}>
+              <div className={styles.eyebrow} style={{ margin: 0 }}><AdvisorIcon name="sunrise" size={18} /> Free, every morning</div>
+              <h2 id="devo-h" className={styles.h2} style={{ fontFamily: 'var(--serif)', fontSize: 28, margin: '10px 0 8px' }}>A free daily devotional</h2>
+              <p className={styles.sub} style={{ margin: '0 0 16px' }}>
+                A verse, a short reflection and a prayer in your inbox each morning. Welcome bonus: {gift.title}.{gift.subline ? ` ${gift.subline}` : ''}
+              </p>
+              {joinDone ? (
+                <div className={styles.note} role="status"><strong>Thank you.</strong> {joinDone} If you do not see it, check your spam or promotions folder.</div>
+              ) : (
+                <form onSubmit={joinList} noValidate>
+                  <label className={styles.label} htmlFor="devo-email">Your email</label>
+                  <input id="devo-email" className={styles.input} type="email" inputMode="email" autoComplete="email" required value={joinEmail} onChange={(e) => setJoinEmail(e.target.value)} placeholder="you@example.com" />
+                  <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className={styles.hidden} value={website} onChange={(e) => setWebsite(e.target.value)} />
+                  <label className={styles.check} htmlFor="devo-gift">
+                    <input id="devo-gift" type="checkbox" checked={joinGift} onChange={(e) => setJoinGift(e.target.checked)} />
+                    <span>Send me {gift.title}</span>
+                  </label>
+                  <label className={styles.check} htmlFor="devo-daily">
+                    <input id="devo-daily" type="checkbox" checked={joinDevotional} onChange={(e) => setJoinDevotional(e.target.checked)} />
+                    <span>Send me the free daily devotional (a verse, a short reflection and a prayer each morning)</span>
+                  </label>
+                  {joinError && <div className={styles.error} role="alert">{joinError}</div>}
+                  <div className={styles.stack}>
+                    <button type="submit" className={`${styles.primary} ${styles.gold}`} disabled={joinBusy}>
+                      {joinBusy ? 'Please wait…' : joinDevotional && !joinGift ? 'Send me the devotional' : joinDevotional ? 'Send me the gift and the devotional' : 'Send me the free gift'}
+                    </button>
+                  </div>
+                  <p className={styles.small} style={{ marginTop: 12 }}>
+                    Unsubscribe any time. See our <Link href="/privacy" className={styles.inlineLink}>privacy policy</Link>.
+                  </p>
+                </form>
+              )}
+            </section>
+          )}
         </div>
       </div>
     );
