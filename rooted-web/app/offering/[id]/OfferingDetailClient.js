@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { coverUrl, avatarUrl } from '@/lib/storage';
-import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
+import { FUNCTIONS_URL, SUPABASE_ANON_KEY, GUEST_CHECKOUT } from '@/lib/config';
 import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
@@ -274,7 +274,7 @@ export default function OfferingDetailClient() {
     // the account is made after payment. Free items and free-for-family unlocks still need an
     // account first, because they are added to the account straight away.
     const guest = !session;
-    if (guest && (!offering.price_cents || offering.is_free_for_family)) {
+    if (guest && (!GUEST_CHECKOUT || !offering.price_cents || offering.is_free_for_family)) {
       setGateOpen(true);
       return;
     }
