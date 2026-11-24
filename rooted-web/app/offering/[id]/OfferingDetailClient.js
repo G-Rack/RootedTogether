@@ -17,6 +17,7 @@ import AuthGateModal from '@/components/AuthGateModal';
 import SaleTag from '@/components/SaleTag';
 import OriginalsTag from '@/components/OriginalsTag';
 import FreePreview from '@/components/FreePreview';
+import GiftEmailForm from '@/components/GiftEmailForm';
 import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitReview, deleteReview } from '@/lib/reviews';
 import { trackPurchase, trackViewContent, trackBeginCheckout, getAttribution } from '@/lib/tracking';
 import { track as trackSite } from '@/lib/analytics';
@@ -669,6 +670,8 @@ export default function OfferingDetailClient() {
             <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
               Free call unlocked
             </div>
+          ) : offering.gift_slug ? (
+            <GiftEmailForm offering={offering} />
           ) : (
             <button
               onClick={handleBuy}
@@ -685,7 +688,7 @@ export default function OfferingDetailClient() {
               : freeForYou
                 ? 'No payment needed — this one’s free for you.'
                 : isFreeItem
-                  ? (session ? 'Free — no payment needed.' : 'Free — a free account saves it to your library.')
+                  ? (offering.gift_slug && !alreadyOwned ? 'Free — we email it to you.' : session ? 'Free — no payment needed.' : 'Free — a free account saves it to your library.')
                   : 'Secure checkout powered by Stripe.'}
           </div>
 

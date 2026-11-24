@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { SUPABASE_URL } from './config';
+import { SITE_URL } from './seo';
 
 // Both buckets are public (see the create_marketplace_schema migration),
 // so a plain public URL works for anyone — no signed URL, no auth needed.
@@ -30,6 +31,9 @@ export function communityImageUrl(path) {
 }
 
 export function coverUrl(path) {
+  // A picture that ships with the website itself (for example /gifts/deborahs-gift-banner.jpg in the
+  // public folder) is saved as a path starting with "/". Everything else is a file in the covers bucket.
+  if (typeof path === 'string' && path.startsWith('/')) return `${SITE_URL}${path}`;
   return publicStorageUrl('offering-covers', path);
 }
 
