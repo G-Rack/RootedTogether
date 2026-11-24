@@ -140,7 +140,13 @@ export default function AdvisorClient() {
       else setCatalogue(data);
     });
     supabase.from('gifts').select('slug, title, subline').eq('active', true).limit(1).then(({ data }) => {
-      if (active) setGift(data?.[0] || null);
+      if (!active) return;
+      setGift(data?.[0] || null);
+      // Links ending in #devotional (the devotional campaign) open straight at the sign-up box,
+      // which only appears once the gift has loaded.
+      if (data?.[0] && window.location.hash === '#devotional') {
+        setTimeout(() => document.getElementById('devotional')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+      }
     });
     (async () => {
       const { data: rows } = await supabase.from('offerings').select('id, creator_auth_id, created_at')
@@ -395,7 +401,7 @@ export default function AdvisorClient() {
           </section>
 
           {gift && (
-            <section className={`${styles.card} ${styles.section}`} aria-labelledby="devo-h" style={{ padding: 24 }}>
+            <section id="devotional" className={`${styles.card} ${styles.section}`} aria-labelledby="devo-h" style={{ padding: 24, scrollMarginTop: 16 }}>
               <div className={styles.eyebrow} style={{ margin: 0 }}><AdvisorIcon name="sunrise" size={18} /> Free, every morning</div>
               <h2 id="devo-h" className={styles.h2} style={{ fontFamily: 'var(--serif)', fontSize: 28, margin: '10px 0 8px' }}>A free daily devotional</h2>
               <p className={styles.sub} style={{ margin: '0 0 16px' }}>
