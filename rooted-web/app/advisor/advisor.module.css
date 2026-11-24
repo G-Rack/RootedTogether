@@ -114,3 +114,8 @@
 /* Suggestion cards with the cover picture on top */
 .coverCard { padding: 0; overflow: hidden; }
 .coverBody { padding: 18px 20px 20px; }
+
+/* Featured courses: the marketplace's own cards (white), two across on tablets, four on wide screens */
+.featuredGrid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 620px) { .featuredGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .featuredGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
