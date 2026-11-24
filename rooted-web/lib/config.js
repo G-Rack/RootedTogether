@@ -26,7 +26,9 @@ export const ONBOARDING_URL = 'https://joinrootedtogether.club';
 
 // Creator Pro. Paste the Stripe Payment Link URLs here once they exist (see the
 // setup steps). While they are empty, the upgrade buttons show "Coming soon".
-export const PRO_UPGRADE_URL = 'https://buy.stripe.com/4gMeVeaY8cxzgWTg9c0gw04'; // $39 a year, for existing members
+// Creator Pro is coming soon, so the upgrade link is switched off (the buttons show "Upgrade coming soon").
+// To switch it back on, set this to 'https://buy.stripe.com/4gMeVeaY8cxzgWTg9c0gw04' ($39 a year, for existing members).
+export const PRO_UPGRADE_URL = '';
 // Stripe's customer portal: paying Creator Pro members log in with their email to see receipts,
 // update their card or cancel. Invited creators (free Pro) have no billing, so it finds nothing for them.
 export const BILLING_PORTAL_URL = 'https://billing.stripe.com/p/login/00w14o9U45573639KO0gw00';
@@ -41,7 +43,13 @@ export const SOCIAL_LOGIN = { google: false, apple: false };
 // the coming-soon page. On launch day change it to true and run `ship`; the whole site opens.
 // You get in before then by tapping the logo five times and typing the secret code, which is
 // the SITE_ACCESS_CODE environment variable in Vercel.
-export const SITE_LAUNCHED = false;
+export const SITE_LAUNCHED = true;
+
+// Creator sign-up (the $49 membership and Creator Pro) stays "coming soon" while this is false.
+// Buying is open to everyone; only becoming a creator is paused. Every "become a creator" button
+// points to the /creators waitlist instead. Already-paid and invited creators can still finish
+// setting up their account. Flip to true when creator sign-up opens.
+export const CREATOR_SIGNUP_OPEN = false;
 
 // Shown on the coming-soon page. Leave a link empty to hide its button.
 export const SOCIAL_LINKS = { instagram: '', tiktok: '' };

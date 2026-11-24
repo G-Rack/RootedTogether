@@ -6,7 +6,6 @@ import TypeIcon from '@/components/TypeIcon';
 import { OFFERING_TYPES, BROWSE_TYPES } from '@/lib/offeringTypes';
 import { OFFERING_TYPE_LABELS, initialsFor } from '@/lib/roles';
 import { avatarUrl } from '@/lib/storage';
-import { ONBOARDING_URL } from '@/lib/config';
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -309,15 +308,14 @@ export default function SignedOutHome({
               </Link>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 'clamp(24px, 3vw, 36px)', borderRadius: 28, background: '#3B2517', border: '1px solid rgba(232,205,168,0.28)', color: '#FBF6EF' }}>
-              <span style={{ alignSelf: 'flex-start', padding: '5px 14px', borderRadius: 999, background: '#C8923F', color: '#2E1B10', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em' }}>FOR CREATORS · $49 ONCE</span>
+              <span style={{ alignSelf: 'flex-start', padding: '5px 14px', borderRadius: 999, background: '#C8923F', color: '#2E1B10', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em' }}>FOR CREATORS · COMING SOON</span>
               <h3 className="serif" style={{ margin: 0, fontWeight: 700, fontSize: 30, lineHeight: 1.15 }}>I want to share what I teach</h3>
               <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.6, color: '#E8CDA8' }}>
                 Open your own storefront, sell eight kinds of offerings and be paid to your bank through Stripe. Churches and ministries too.
               </p>
-              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" style={{ marginTop: 8, alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, padding: '0 28px', borderRadius: 999, background: '#C8923F', color: '#2E1B10', fontSize: 15, fontWeight: 700 }}>
-                See how creators earn
-                <Icon size={17}><path d="M7 17L17 7M9 7h8v8" /></Icon>
-              </a>
+              <Link href="/creators" style={{ marginTop: 8, alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 48, padding: '0 28px', borderRadius: 999, background: '#C8923F', color: '#2E1B10', fontSize: 15, fontWeight: 700 }}>
+                Join the creator waitlist
+              </Link>
             </div>
           </div>
         </div>

@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from './SessionProvider';
 import { initialsFor } from '@/lib/roles';
 import { avatarUrl } from '@/lib/storage';
-import { ONBOARDING_URL } from '@/lib/config';
 
 // Purpose-based instead of listing offering types: the homepage already has
 // filter pills (All / Course / Ebook / Daily Routine / 1:1 Call) right above
@@ -84,10 +83,9 @@ export default function Header() {
                 Create free account
               </Link>
               <span aria-hidden="true" style={{ width: 1, height: 28, background: '#E8CDA8' }} />
-              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--brown)' }}>
+              <Link href="/creators" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--brown)' }}>
                 Sell on Rooted Together
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-              </a>
+              </Link>
             </>
           )}
 
@@ -174,9 +172,9 @@ export default function Header() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
               <Link href="/login?tab=signup" onClick={() => setMenuOpen(false)} className="btn btn-primary">Create free account</Link>
               <Link href="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline">Log In</Link>
-              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, marginTop: 4, fontSize: 14.5, fontWeight: 600, color: 'var(--brown)' }}>
-                Sell on Rooted Together ↗
-              </a>
+              <Link href="/creators" onClick={() => setMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, marginTop: 4, fontSize: 14.5, fontWeight: 600, color: 'var(--brown)' }}>
+                Sell on Rooted Together
+              </Link>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>

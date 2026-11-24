@@ -1,9 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL, PRO_JOIN_URL } from '@/lib/config';
+import { SUBMIT_ENDPOINT, SUPABASE_ANON_KEY, FUNCTIONS_URL, ONBOARDING_URL, PRO_JOIN_URL, CREATOR_SIGNUP_OPEN } from '@/lib/config';
 import { ROLE_LABELS } from '@/lib/roles';
 import PasswordField from '@/components/PasswordField';
 import StoreBadges from '@/components/StoreBadges';
@@ -357,13 +358,21 @@ function JoinFirst({ gate }) {
   };
 
   const heading =
-    gate === 'claimed' ? 'This payment has already been used' : gate === 'error' ? "We couldn't confirm your payment" : 'Join first, then create your account';
+    gate === 'claimed'
+      ? 'This payment has already been used'
+      : gate === 'error'
+        ? "We couldn't confirm your payment"
+        : CREATOR_SIGNUP_OPEN
+          ? 'Join first, then create your account'
+          : 'Creator sign-up is coming soon';
   const intro =
     gate === 'claimed'
       ? 'Each membership creates one account. If you already created yours, log in instead.'
       : gate === 'error'
         ? 'Something went wrong on our side. Please refresh this page, or use the box below to get a fresh link by email.'
-        : 'Choose how you want to start. Pay once on our secure checkout, and you will land right back here to set up your account. We also email you a sign-up link.';
+        : CREATOR_SIGNUP_OPEN
+          ? 'Choose how you want to start. Pay once on our secure checkout, and you will land right back here to set up your account. We also email you a sign-up link.'
+          : 'We are opening creator accounts and Creator Pro soon. Join the waitlist and we will email you the moment it opens. Shopping is open to everyone now.';
 
   const deep = '#2E1B10';
   const gold = '#C8923F';
@@ -380,7 +389,19 @@ function JoinFirst({ gate }) {
         <p style={{ margin: '18px 0 0', fontSize: 18, lineHeight: 1.65, color: muted }}>{intro}</p>
       </div>
 
-      {gate !== 'claimed' && (
+      {gate !== 'claimed' && !CREATOR_SIGNUP_OPEN && (
+        <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', textAlign: 'center' }}>
+          <Link href="/creators" className="btn btn-primary" style={{ minHeight: 54, padding: '0 32px', fontSize: 16.5 }}>
+            Join the creator waitlist
+          </Link>
+          <p style={{ margin: '14px 0 0', fontSize: 14.5, color: muted }}>
+            Want to buy instead?{' '}
+            <Link href="/login?tab=signup&path=buyer" style={{ textDecoration: 'underline', color: deep }}>Create a free account</Link>
+          </p>
+        </div>
+      )}
+
+      {gate !== 'claimed' && CREATOR_SIGNUP_OPEN && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 24, alignItems: 'stretch' }}>
           {/* Creator membership */}
           <section style={{ display: 'flex', flexDirection: 'column', background: '#F1E4D3', borderRadius: 28, padding: 'clamp(24px, 4vw, 36px)' }}>

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import TypeIcon from '@/components/TypeIcon';
 import { BROWSE_TYPES } from '@/lib/offeringTypes';
 import { initialsFor } from '@/lib/roles';
-import { ONBOARDING_URL } from '@/lib/config';
 
 // The signed-in marketplace's left navigation. Desktop: a fixed dark column.
 // Phone: the same content as a slide-over drawer (open/onClose come from the page).
@@ -70,8 +69,8 @@ export default function MarketSidebar({ filter, onFilter, open, onClose, session
           ) : (
             <>
               <div className="serif" style={{ fontWeight: 700, fontSize: 17, color: '#FBF6EF' }}>Share what God has given you</div>
-              <p style={{ margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.5 }}>Open your own storefront with a one-time $49 membership.</p>
-              <a href={ONBOARDING_URL} target="_blank" rel="noopener noreferrer" className="home-promo-btn">Become a Creator</a>
+              <p style={{ margin: '6px 0 0', fontSize: 13.5, lineHeight: 1.5 }}>Creator sign-up is coming soon. Join the waitlist and we will email you when it opens.</p>
+              <Link href="/creators" className="home-promo-btn">Join the creator waitlist</Link>
             </>
           )}
         </div>
