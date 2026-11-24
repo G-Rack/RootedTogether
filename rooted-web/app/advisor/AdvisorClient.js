@@ -21,6 +21,8 @@ import styles from './advisor.module.css';
 
 const TOTAL = QUESTIONS.length;
 const STORE_KEY = 'rt_advisor';
+// Always shown first in "Latest courses": Hearing God in the Quiet (Mother Deborah).
+const PINNED_FIRST = ['1be447fd-d6aa-49bb-a6b0-ecc057bf2180'];
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const tidy = (v) => String(v || '').replace(/[^\w .+-]/g, '').trim().slice(0, 100);
 
@@ -166,7 +168,8 @@ export default function AdvisorClient() {
 
   // The newest published courses that actually have content, with any real offer as a badge.
   const byId = new Map((catalogue || []).map((o) => [o.id, o]));
-  const offers = latest
+  const offers = [...latest]
+    .sort((a, b) => Number(PINNED_FIRST.includes(b.id)) - Number(PINNED_FIRST.includes(a.id)))
     .map((row) => byId.get(row.id))
     .filter((o) => o && deliverable(o))
     .slice(0, 6)
