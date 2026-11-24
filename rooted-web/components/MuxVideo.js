@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { muxPlayerUrl } from '@/lib/lessons';
 
 // A Mux lesson video in a fixed 16:9 black frame that fills the width on every screen.
@@ -21,21 +21,48 @@ function canPlayHls() {
 
 export default function MuxVideo({ playbackId, title }) {
   const native = useSyncExternalStore(noop, canPlayHls, () => false);
+  // Before the first play we show our own centred play button (the phone's own button sits
+  // off-centre because of the page zoom). After that, the phone's normal controls take over.
+  const [started, setStarted] = useState(false);
+  const videoRef = useRef(null);
+  const play = () => {
+    setStarted(true);
+    const v = videoRef.current;
+    if (v) v.play().catch(() => {});
+  };
   const frame = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0, display: 'block', background: '#000' };
 
   return (
     <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000', borderRadius: 10, overflow: 'hidden' }}>
       {native ? (
+        <>
         <video
+          ref={videoRef}
           src={`https://stream.mux.com/${playbackId}.m3u8`}
           poster={`https://image.mux.com/${playbackId}/thumbnail.webp?width=1280`}
           title={title}
           aria-label={title}
-          controls
+          controls={started}
           playsInline
           preload="none"
+          onPlay={() => setStarted(true)}
           style={{ ...frame, objectFit: 'contain' }}
         />
+        {!started && (
+          <button
+            type="button"
+            onClick={play}
+            aria-label={`Play ${title || 'video'}`}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 0, padding: 0, cursor: 'pointer' }}
+          >
+            <span style={{ width: 76, height: 76, borderRadius: 999, background: 'rgba(107,66,38,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 22px rgba(0,0,0,0.35)' }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ marginLeft: 4 }}>
+                <path d="M7 4.5v15l13-7.5z" fill="#FFFFFF" />
+              </svg>
+            </span>
+          </button>
+        )}
+        </>
       ) : (
         <iframe
           src={muxPlayerUrl(playbackId)}
