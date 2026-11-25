@@ -114,6 +114,18 @@ export default function FreePreview({ offeringId, offeringTitle = '', enabled, o
               {buying ? 'Please wait…' : 'Get the full course'}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              try { localStorage.removeItem(storeKey(offeringId)); } catch { /* storage blocked */ }
+              setLesson(null);
+              setEmail('');
+            }}
+            className="muted"
+            style={{ background: 'none', border: 0, padding: 0, marginTop: 10, fontSize: 12.5, textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Not you? Use a different email
+          </button>
         </>
       ) : (
         <>
