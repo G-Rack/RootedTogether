@@ -37,6 +37,10 @@ export const metadata = {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
   },
+  // Lets Meta (Facebook) confirm that this domain belongs to Rooted Together (Business Settings > Domains).
+  verification: {
+    other: { 'facebook-domain-verification': 'nyq5gf1l038x2dmriizyoc8vkfvam7' },
+  },
 };
 
 export const viewport = {
