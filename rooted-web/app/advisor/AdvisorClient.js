@@ -21,8 +21,9 @@ import styles from './advisor.module.css';
 
 const TOTAL = QUESTIONS.length;
 const STORE_KEY = 'rt_advisor';
-// Always shown first in "Latest courses": Hearing God in the Quiet (Mother Deborah).
-const PINNED_FIRST = ['1be447fd-d6aa-49bb-a6b0-ecc057bf2180'];
+// Always shown first in "Latest courses", in this order (they may be any type, not only courses):
+// Hearing God in the Quiet (Mother Deborah), then The Night Prayer Routine (Anastassia).
+const PINNED_FIRST = ['1be447fd-d6aa-49bb-a6b0-ecc057bf2180', 'ac33a855-9989-425e-9f6f-a219c7122fd7'];
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const tidy = (v) => String(v || '').replace(/[^\w .+-]/g, '').trim().slice(0, 100);
 
@@ -150,7 +151,8 @@ export default function AdvisorClient() {
     });
     (async () => {
       const { data: rows } = await supabase.from('offerings').select('id, creator_auth_id, created_at')
-        .eq('status', 'published').eq('type', 'course').order('created_at', { ascending: false }).limit(8);
+        .eq('status', 'published').or(`type.eq.course,id.in.(${PINNED_FIRST.join(',')})`)
+        .order('created_at', { ascending: false }).limit(10);
       const list = rows || [];
       const ids = Array.from(new Set(list.map((o) => o.creator_auth_id)));
       let names = {};
@@ -175,7 +177,11 @@ export default function AdvisorClient() {
   // The newest published courses that actually have content, with any real offer as a badge.
   const byId = new Map((catalogue || []).map((o) => [o.id, o]));
   const offers = [...latest]
-    .sort((a, b) => Number(PINNED_FIRST.includes(b.id)) - Number(PINNED_FIRST.includes(a.id)))
+    .sort((a, b) => {
+      const pa = PINNED_FIRST.indexOf(a.id);
+      const pb = PINNED_FIRST.indexOf(b.id);
+      return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
+    })
     .map((row) => byId.get(row.id))
     .filter((o) => o && deliverable(o))
     .slice(0, 6)
@@ -381,7 +387,7 @@ export default function AdvisorClient() {
                         {formatPrice(o.price_cents)}
                         {hasDiscount(o) && <span className={styles.was}>{formatPrice(o.original_price_cents)}</span>}
                       </span>
-                      <span className={styles.offerCta}>{offer ? offer.cta : 'See the course'} →</span>
+                      <span className={styles.offerCta}>{offer ? offer.cta : `See the ${(OFFERING_TYPE_LABELS[o.type] || 'course').toLowerCase()}`} →</span>
                     </div>
                   </a>
                 ))}
