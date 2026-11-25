@@ -22,6 +22,10 @@ import { fetchOfferingReviewStats, fetchOfferingReviews, fetchMyReview, submitRe
 import { trackPurchase, trackViewContent, trackBeginCheckout, getAttribution } from '@/lib/tracking';
 import { track as trackSite } from '@/lib/analytics';
 
+// The database lives in Sydney. Running the checkout function in that same region keeps its database
+// calls short, which makes Buy Now about twice as fast. Used for the warm-up ping and the real call.
+const CHECKOUT_FN_URL = `${FUNCTIONS_URL}/create-checkout-session?forceFunctionRegion=ap-southeast-2`;
+
 // Files live on another domain (Supabase Storage), where a plain <a download>
 // is ignored by the browser. Storage honours a ?download=<name> parameter that
 // makes it send the file as an attachment, so the page stays put and the file
@@ -197,6 +201,23 @@ export default function OfferingDetailClient() {
     }
   }, [searchParams, offering, purchase]);
 
+  // Wake the checkout function while the visitor reads the page, so Buy Now doesn't wait for a cold start.
+  useEffect(() => {
+    if (!offering?.id || !offering.price_cents) return;
+    fetch(CHECKOUT_FN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ warm: true }),
+    }).catch(() => {});
+  }, [offering?.id, offering?.price_cents]);
+
+  // Coming back from Stripe with the Back button restores this page as it was: un-stick the button.
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) setBuying(false); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, []);
+
   // Meta ViewContent and Google view_item: once each time an offering page is opened.
   useEffect(() => {
     if (!offering?.id) return;
@@ -327,15 +348,12 @@ export default function OfferingDetailClient() {
     // the server (create-checkout-session) verifies the creator has
     // payouts set up and computes the platform fee; this function only
     // redirects to the hosted checkout page it returns.
-    // Open the new tab synchronously inside the click so the browser
-    // doesn't treat it as a blocked popup, then point it at Stripe once
-    // the checkout URL is ready.
+    // Go to Stripe in this same tab the moment the link is ready. (We used to open an empty second
+    // tab first and fill it in later; on phones that tab was slow to fill and sometimes stayed blank.)
     // Meta InitiateCheckout and Google begin_checkout: Buy Now was pressed on a paid item.
     trackBeginCheckout({ id: offering.id, title: offering.title, value: (offering.price_cents || 0) / 100 });
-    const checkoutTab = window.open('', '_blank');
-    if (checkoutTab) checkoutTab.opener = null;
     try {
-      const res = await fetch(`${FUNCTIONS_URL}/create-checkout-session`, {
+      const res = await fetch(CHECKOUT_FN_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -346,23 +364,14 @@ export default function OfferingDetailClient() {
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
-        if (checkoutTab) checkoutTab.close();
         setError(data.error || "Couldn't start checkout — please try again.");
         setBuying(false);
         return;
       }
       trackSite('checkout_start', { props: { offering_id: offering.id, price_cents: offering.price_cents || 0, guest } });
-      if (checkoutTab) {
-        checkoutTab.location.href = data.url;
-        setNotice('Checkout opened in a new tab. Finish paying there — this page will update on its own.');
-        setCheckoutOpen(true);
-        setBuying(false);
-      } else {
-        // Popup blocked — fall back to this tab.
-        window.location.href = data.url;
-      }
+      // The button keeps saying "Opening secure checkout…" while the browser leaves for Stripe.
+      window.location.href = data.url;
     } catch {
-      if (checkoutTab) checkoutTab.close();
       setError("Couldn't start checkout — please try again.");
       setBuying(false);
     }
@@ -682,7 +691,7 @@ export default function OfferingDetailClient() {
               disabled={buying || (offering.is_free_for_family && !isFamily && !session)}
               className="btn btn-primary"
             >
-              {buying ? 'Please wait…' : isCall ? 'Reserve & Pay' : isFreeItem ? 'Download' : 'Buy Now'}
+              {buying ? (isFreeItem ? 'Please wait…' : 'Opening secure checkout…') : isCall ? 'Reserve & Pay' : isFreeItem ? 'Download' : 'Buy Now'}
             </button>
           )}
 

@@ -37,6 +37,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 };
 
 // Ad tags and Meta browser ids the page sends along with the checkout. Everything is cut down to
@@ -69,21 +70,27 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed." }, 405);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-
-  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  const { data: userData } = await supabase.auth.getUser(token);
-  const buyer = userData?.user ?? null;
-
   let payload: any;
   try {
     payload = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
+  // Warm-up ping the page sends when an offering opens: starts this function and the connection
+  // so the real Buy Now is fast. Does nothing else.
+  if (payload?.warm === true) return jsonResponse({ ok: true });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  // A guest sends the public key, which can never belong to a signed-in user, so skip the login lookup.
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const skipLoginLookup = payload?.guest === true && !!anonKey && token === anonKey;
+  const userData = skipLoginLookup ? null : (await supabase.auth.getUser(token)).data;
+  const buyer = userData?.user ?? null;
   // Not signed in: only allowed when the page asked for a guest checkout.
   const isGuest = !buyer && payload?.guest === true;
   if (!buyer && !isGuest) {
@@ -104,36 +111,32 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "This offering isn't available." }, 404);
   }
 
-  if (buyerAuthId) {
-    const { data: existingPurchase } = await supabase
-      .from("offering_purchases")
-      .select("id")
-      .eq("offering_id", offeringId)
-      .eq("buyer_auth_id", buyerAuthId)
-      .maybeSingle();
-    if (existingPurchase) return jsonResponse({ error: "You already own this." }, 409);
-  }
+  // These lookups don't depend on each other, so run them together instead of one after another.
+  const [purchaseRes, familyRes, profileRes, proRes] = await Promise.all([
+    buyerAuthId
+      ? supabase.from("offering_purchases").select("id").eq("offering_id", offeringId).eq("buyer_auth_id", buyerAuthId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    buyerAuthId && offering.is_free_for_family
+      ? supabase.rpc("is_accepted_family_member_of_creator", { creator_id: offering.creator_auth_id })
+      : Promise.resolve({ data: false }),
+    supabase.from("profiles").select("stripe_account_id, stripe_payouts_enabled, is_team_account").eq("id", offering.creator_auth_id).maybeSingle(),
+    Promise.resolve(supabase.from("creator_pro").select("auth_user_id").eq("auth_user_id", offering.creator_auth_id).maybeSingle())
+      .catch((e: unknown) => { console.error("Pro lookup failed, using standard fee:", e); return { data: null }; }),
+  ]);
+
+  if (purchaseRes.data) return jsonResponse({ error: "You already own this." }, 409);
 
   // Free-for-family unlocks never touch Stripe — same check the RLS policy
   // enforces for the direct-insert path the client still uses for these.
-  if (buyerAuthId && offering.is_free_for_family) {
-    const { data: isFamily } = await supabase.rpc("is_accepted_family_member_of_creator", {
-      creator_id: offering.creator_auth_id,
-    });
-    if (isFamily) {
-      return jsonResponse({ error: "This is free for you — no checkout needed." }, 400);
-    }
+  if (familyRes.data) {
+    return jsonResponse({ error: "This is free for you — no checkout needed." }, 400);
   }
 
   if (!offering.price_cents || offering.price_cents <= 0) {
     return jsonResponse({ error: "This offering has no price set." }, 400);
   }
 
-  const { data: creatorProfile } = await supabase
-    .from("profiles")
-    .select("stripe_account_id, stripe_payouts_enabled, is_team_account")
-    .eq("id", offering.creator_auth_id)
-    .maybeSingle();
+  const creatorProfile = profileRes.data;
 
   // Rooted Together team accounts have no connected Stripe account: the sale is a plain charge on
   // our own Stripe account, so the money lands in the platform balance with no transfer or fee.
@@ -156,17 +159,7 @@ Deno.serve(async (req: Request) => {
   // Creator 10% + Stripe's card fee; Creator Pro (paid, or free for founding creators
   // invited via /chosen) 5% + Stripe's card fee. If the Pro lookup itself fails we
   // fall back to the standard fee, never to a discount.
-  let isPro = false;
-  try {
-    const { data: proRow } = await supabase
-      .from("creator_pro")
-      .select("auth_user_id")
-      .eq("auth_user_id", offering.creator_auth_id)
-      .maybeSingle();
-    isPro = !!proRow;
-  } catch (e) {
-    console.error("Pro lookup failed, using standard fee:", e);
-  }
+  const isPro = !!proRes.data;
   const applicationFeeAmount = platformFeeCents(offering.price_cents, isPro);
   const paymentIntentData = isTeamAccount
     ? {}
@@ -208,7 +201,7 @@ Deno.serve(async (req: Request) => {
     });
     // What stripe-webhook needs to report the sale to Meta later (server only, never readable from the
     // website). Never blocks the checkout.
-    try {
+    const saveAttribution = (async () => { try {
       const ip = (req.headers.get("cf-connecting-ip") || (req.headers.get("x-forwarded-for") || "").split(",")[0] || "").trim();
       const { error: attrError } = await supabase.from("checkout_attribution").upsert({
         stripe_session_id: session.id,
@@ -227,7 +220,10 @@ Deno.serve(async (req: Request) => {
       if (attrError) console.error("checkout_attribution save failed:", attrError.message);
     } catch (e) {
       console.error("checkout_attribution save error:", e);
-    }
+    } })();
+    // Finishes in the background (the buyer is paying, long before the webhook needs this row).
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (edgeRuntime?.waitUntil) edgeRuntime.waitUntil(saveAttribution); else await saveAttribution;
     return jsonResponse({ url: session.url });
   } catch (e) {
     console.error("Checkout session creation error:", e);
