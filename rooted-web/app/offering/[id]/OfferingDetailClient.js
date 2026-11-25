@@ -577,6 +577,7 @@ export default function OfferingDetailClient() {
           {offering.type === 'course' && !(alreadyOwned || session?.user?.id === offering.creator_auth_id) && (
             <FreePreview
               offeringId={offering.id}
+              offeringTitle={offering.title}
               enabled={!!offering.free_preview}
               onGetFull={handleBuy}
               buying={buying}

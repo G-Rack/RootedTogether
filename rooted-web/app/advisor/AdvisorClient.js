@@ -519,7 +519,7 @@ export default function AdvisorClient() {
                 <p className={styles.why}>{whyItFits(rec.lead, answers)}</p>
                 <TeamLine o={rec.lead} className={styles.teamLine} />
                 {rec.lead.free_preview && (
-                  <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, no account needed. Try it before you decide.</p>
+                  <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, just enter your email. Try it before you decide.</p>
                 )}
                 <a href={offeringHref(rec.lead, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'lead_clicked')}>
                   {rec.lead.free_preview ? 'Watch Lesson 1 free' : Number(rec.lead.price_cents) === 0 ? 'Get it free' : `See the ${OFFERING_TYPE_LABELS[rec.lead.type]?.toLowerCase() || 'offer'}`}
@@ -581,7 +581,7 @@ export default function AdvisorClient() {
               <p className={styles.meta}>{whatYouGet(rec.upsell)}</p>
               <p className={styles.why}>{pairLine(rec.upsell)}</p>
               <TeamLine o={rec.upsell} className={styles.teamLine} />
-              {rec.upsell.free_preview && <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, no account needed.</p>}
+              {rec.upsell.free_preview && <p className={styles.note} style={{ marginBottom: 14 }}><strong>Lesson 1 is free to watch</strong>, just enter your email.</p>}
               <a href={offeringHref(rec.upsell, sessionId, utm)} className={styles.primary} onClick={(e) => go(e, 'upsell_clicked')}>
                 See {rec.upsell.title}
               </a>
@@ -622,7 +622,7 @@ export default function AdvisorClient() {
               {preview && (
                 <div className={styles.card}>
                   <h2 className={styles.h2}>Watch Lesson 1 of {preview.title} free</h2>
-                  <p className={styles.meta}>No account needed.</p>
+                  <p className={styles.meta}>Just enter your email to unlock it.</p>
                   <TeamLine o={preview} className={styles.teamLine} />
                   <a href={offeringHref(preview, sessionId, utm)} className={styles.primary}>Watch Lesson 1 free</a>
                 </div>

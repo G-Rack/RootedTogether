@@ -601,7 +601,7 @@ function UploadPageInner() {
               <span>
                 <span style={{ display: 'block', fontSize: 14, fontWeight: 700 }}>Offer Lesson 1 as a free preview</span>
                 <span className="muted" style={{ display: 'block', fontSize: 12.5, marginTop: 2 }}>
-                  Anyone can watch Lesson 1 on the course page without buying or signing in. Works when Lesson 1 is a video. Everything else stays locked.
+                  Anyone can watch Lesson 1 on the course page by entering their email (no purchase or account needed). They are also subscribed to the daily devotional. Works when Lesson 1 is a video. Everything else stays locked.
                 </span>
               </span>
             </label>
