@@ -696,6 +696,13 @@ export default function OfferingDetailClient() {
                   : 'Secure checkout powered by Stripe.'}
           </div>
 
+          {!session && !alreadyOwned && !isFreeItem && !offering.gift_slug && (
+            <div className="muted" style={{ fontSize: 13, textAlign: 'center' }}>
+              Already bought this?{' '}
+              <Link href={`/login?next=${encodeURIComponent(`/offering/${offering.id}`)}`} style={{ fontWeight: 700, textDecoration: 'underline' }}>Log in to open it</Link>
+            </div>
+          )}
+
           <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />
 
           <FeatureList isCall={isCall} offering={offering} />

@@ -66,6 +66,7 @@ Deno.serve(async (req: Request) => {
   // Same purchase row the webhook writes. Safe if the webhook already wrote it.
   const { data: existing } = await admin.from("offering_purchases").select("id")
     .eq("stripe_checkout_session_id", session.id).maybeSingle();
+  let purchaseId: string | null = existing?.id ?? null;
   if (!existing) {
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
     let applicationFee = 0;
@@ -83,7 +84,7 @@ Deno.serve(async (req: Request) => {
         console.error("guest-checkout-claim: fee lookup failed", e);
       }
     }
-    const { error } = await admin.from("offering_purchases").insert({
+    const { data: inserted, error } = await admin.from("offering_purchases").insert({
       offering_id: offeringId,
       buyer_auth_id: buyer.userId,
       price_paid_cents: session.amount_total ?? 0,
@@ -91,14 +92,27 @@ Deno.serve(async (req: Request) => {
       stripe_fee_cents: stripeFee,
       stripe_checkout_session_id: session.id,
       stripe_payment_intent_id: paymentIntentId,
-    });
+    }).select("id").maybeSingle();
+    purchaseId = inserted?.id ?? null;
     if (error && (error as { code?: string }).code !== "23505") {
       console.error("guest-checkout-claim: purchase insert failed", error);
       return json({ error: "Your payment went through, but we couldn't open it yet. Check your email, or try again in a minute." }, 502);
     }
   }
 
-  if (!buyer.createdNew) return json({ ok: true, paid: true, signin: false, existing: true });
+  // Same row the webhook sent to Meta, so the page can report the sale with the matching event id.
+  if (!purchaseId) {
+    const { data: again } = await admin.from("offering_purchases").select("id")
+      .eq("stripe_checkout_session_id", session.id).maybeSingle();
+    purchaseId = again?.id ?? null;
+  }
+  const sale = {
+    purchase_id: purchaseId,
+    amount_cents: session.amount_total ?? 0,
+    currency: String(session.currency || "usd").toUpperCase(),
+  };
+
+  if (!buyer.createdNew) return json({ ok: true, paid: true, signin: false, existing: true, ...sale });
 
   // One sign-in per payment: claim it atomically.
   const { data: claimed } = await admin.from("guest_checkouts")
@@ -107,14 +121,14 @@ Deno.serve(async (req: Request) => {
     .is("signin_issued_at", null)
     .select("stripe_session_id")
     .maybeSingle();
-  if (!claimed) return json({ ok: true, paid: true, signin: false, used: true });
+  if (!claimed) return json({ ok: true, paid: true, signin: false, used: true, ...sale });
 
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email });
   const tokenHash = link?.properties?.hashed_token;
   if (linkError || !tokenHash) {
     console.error("guest-checkout-claim: generateLink failed", linkError);
     await admin.from("guest_checkouts").update({ signin_issued_at: null }).eq("stripe_session_id", session.id);
-    return json({ ok: true, paid: true, signin: false });
+    return json({ ok: true, paid: true, signin: false, ...sale });
   }
-  return json({ ok: true, paid: true, signin: true, token_hash: tokenHash });
+  return json({ ok: true, paid: true, signin: true, token_hash: tokenHash, ...sale });
 });

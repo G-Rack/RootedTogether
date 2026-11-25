@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
 import { track as trackSite } from '@/lib/analytics';
+import { trackPurchase } from '@/lib/tracking';
 
 // On an offering page, for people who bought without an account (guest checkout).
 //  - Back from Stripe (?purchase=success&guest=1&session_id=...): asks guest-checkout-claim to
@@ -59,6 +60,19 @@ export default function GuestCheckoutReturn() {
         }
         if (!active) return;
         if (body?.paid === false || !body) { await sleep(2000); continue; }
+        // Paid. Report the sale to Meta (same event id the server sends: the purchase row id) and
+        // to Google. Repeats are ignored by trackPurchase, so the offering page can safely do it too.
+        if (body.purchase_id) {
+          const cents = Number(body.amount_cents) || 0;
+          trackPurchase({ value: cents / 100, currency: body.currency || 'USD', transactionId: body.purchase_id, kind: 'offering', contentId: id });
+          try {
+            const key = `rt_site_purchase_${body.purchase_id}`;
+            if (!window.localStorage.getItem(key)) {
+              window.localStorage.setItem(key, '1');
+              trackSite('purchase', { props: { offering_id: id, value_cents: cents } });
+            }
+          } catch { /* analytics only */ }
+        }
         if (body.signin && body.token_hash) {
           const { error } = await supabase.auth.verifyOtp({ token_hash: body.token_hash, type: 'magiclink' });
           if (!active) return;
