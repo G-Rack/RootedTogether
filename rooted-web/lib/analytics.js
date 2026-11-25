@@ -80,12 +80,18 @@ const tidy = (v) => String(v || '').replace(/[^\w .+-]/g, '').trim().slice(0, 10
 function utmTags() {
   if (utm) return utm;
   const p = new URLSearchParams(window.location.search);
+  const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
+  const fromUrl = {};
+  keys.forEach((k) => { fromUrl[k] = tidy(p.get(k)); });
+  // A link with tags in the address is a new arrival: its tags replace the whole set from any earlier
+  // link in this visit, so a tag from one link (say utm_content) is never mixed into another link's.
+  if (keys.some((k) => fromUrl[k])) {
+    try { keys.forEach((k) => { if (fromUrl[k]) window.sessionStorage.setItem(`rt_${k}`, fromUrl[k]); else window.sessionStorage.removeItem(`rt_${k}`); }); } catch { /* storage blocked */ }
+    utm = fromUrl;
+    return utm;
+  }
   const read = (k) => {
-    const fromUrl = tidy(p.get(k));
-    try {
-      if (fromUrl) { window.sessionStorage.setItem(`rt_${k}`, fromUrl); return fromUrl; }
-      return tidy(window.sessionStorage.getItem(`rt_${k}`));
-    } catch { return fromUrl; }
+    try { return tidy(window.sessionStorage.getItem(`rt_${k}`)); } catch { return null; }
   };
   utm = { utm_source: read('utm_source'), utm_medium: read('utm_medium'), utm_campaign: read('utm_campaign'), utm_content: read('utm_content') };
   return utm;

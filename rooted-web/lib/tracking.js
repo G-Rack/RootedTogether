@@ -268,7 +268,8 @@ export function rememberAttribution() {
     const found = {};
     UTM_KEYS.forEach((k) => { const v = tidyTag(p.get(k)); if (v) found[k] = v; });
     if (!Object.keys(found).length) return;
-    UTM_KEYS.forEach((k) => { if (found[k]) window.sessionStorage.setItem(`rt_${k}`, found[k]); });
+    // A new link replaces the whole set from any earlier link, so tags from two links are never mixed.
+    UTM_KEYS.forEach((k) => { if (found[k]) window.sessionStorage.setItem(`rt_${k}`, found[k]); else window.sessionStorage.removeItem(`rt_${k}`); });
     if (pixelsMayLoad()) window.localStorage.setItem(ATTR_KEY, JSON.stringify({ ...found, at: Date.now() }));
   } catch { /* storage blocked */ }
 }
@@ -286,11 +287,14 @@ export function getAttribution() {
       saved = JSON.parse(window.localStorage.getItem(ATTR_KEY) || '{}') || {};
       if (Date.now() - Number(saved.at || 0) > ATTR_DAYS * 86400000) saved = {};
     } catch { saved = {}; }
-    UTM_KEYS.forEach((k) => {
-      let v = tidyTag(p.get(k));
-      if (!v) { try { v = tidyTag(window.sessionStorage.getItem(`rt_${k}`)); } catch { /* ignore */ } }
-      out[k] = v || tidyTag(saved[k]);
-    });
+    // One set of tags, never a mix: the address first, then this visit, then the last 30 days.
+    const sets = [
+      (k) => tidyTag(p.get(k)),
+      (k) => { try { return tidyTag(window.sessionStorage.getItem(`rt_${k}`)); } catch { return ''; } },
+      (k) => tidyTag(saved[k]),
+    ];
+    const chosen = sets.find((get) => UTM_KEYS.some((k) => get(k))) || sets[2];
+    UTM_KEYS.forEach((k) => { out[k] = chosen(k); });
     out.source_url = `${window.location.origin}${window.location.pathname}`.slice(0, 300);
     if (typeof window.fbq === 'function') {
       out.marketing_consent = true;
