@@ -38,17 +38,24 @@ export default function FreePreview({ offeringId, offeringTitle = '', enabled, o
   useEffect(() => {
     if (!enabled) return undefined;
     let active = true;
-    supabase.rpc('has_free_preview', { p_offering: offeringId }).then(({ data }) => {
-      if (active) setAvailable(data === true);
-    });
-    // Same device as before: show the lesson again without asking.
+    // The box only appears once we know the answer. If this device unlocked the lesson before, that check
+    // finishes first, so a returning visitor goes straight to the video and never sees the email form flash
+    // up and then disappear while they are about to type.
     let remembered = '';
     try { remembered = localStorage.getItem(storeKey(offeringId)) || ''; } catch { /* storage blocked */ }
-    if (remembered) {
-      ask({ email: remembered, offering_id: offeringId, returning: true }).then(({ ok, json }) => {
-        if (active && ok) setLesson(json.lesson);
-      });
-    }
+    supabase.rpc('has_free_preview', { p_offering: offeringId })
+      .then(({ data }) => {
+        if (data !== true) return null;
+        if (!remembered) return true;
+        return ask({ email: remembered, offering_id: offeringId, returning: true }).then(({ ok, json }) => {
+          if (ok) { if (active) setLesson(json.lesson); } else {
+            try { localStorage.removeItem(storeKey(offeringId)); } catch { /* storage blocked */ }
+          }
+          return true;
+        });
+      })
+      .then((show) => { if (active && show) setAvailable(true); })
+      .catch(() => {});
     return () => { active = false; };
   }, [offeringId, enabled]);
 
