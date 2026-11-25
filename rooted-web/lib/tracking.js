@@ -93,6 +93,7 @@ export function trackPurchase({ value, currency = 'USD', transactionId, kind = '
       value: amount, currency, content_type: 'product', num_items: 1,
       ...(contentId ? { content_ids: [String(contentId)] } : {}),
       ...(contentName ? { content_name: contentName } : {}),
+      ...utmParams(),
     }, String(transactionId));
   }
 }
@@ -139,7 +140,8 @@ export const PIXELS_INIT = `
     if(loaded)return;loaded=true;
     try{
       !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init','${META_PIXEL_ID}');fbq('track','PageView');
+      var u={};try{var sp=new URLSearchParams(location.search);['utm_source','utm_medium','utm_campaign','utm_content'].forEach(function(k){var v=(sp.get(k)||'').trim().slice(0,100);if(v&&/^[A-Za-z0-9 _.+-]+$/.test(v))u[k]=v})}catch(e){}
+      fbq('init','${META_PIXEL_ID}');fbq('track','PageView',u);
       var q=window.__rtMetaQ||[];window.__rtMetaQ=[];
       q.forEach(function(x){try{fbq(x.c?'trackCustom':'track',x.n,x.p||{},x.id?{eventID:x.id}:undefined)}catch(e){}});
     }catch(e){}
@@ -184,11 +186,20 @@ export function sendMeta(name, params = {}, eventId = '', custom = false) {
   }
 }
 
+// The ad tags of this visit (utm_source, utm_medium, utm_campaign, utm_content), sent with the Meta events
+// below as custom parameters so Events Manager can break results down by link. Empty tags are left out.
+function utmParams() {
+  const a = getAttribution();
+  const out = {};
+  UTM_KEYS.forEach((k) => { if (a[k]) out[k] = a[k]; });
+  return out;
+}
+
 // A course (or any offering) page was opened.
 export function trackViewContent({ id, title, value, currency = 'USD' }) {
   if (!id) return;
   const amount = Math.max(0, Number(value) || 0);
-  sendMeta('ViewContent', { content_ids: [String(id)], content_type: 'product', content_name: title || '', value: amount, currency });
+  sendMeta('ViewContent', { content_ids: [String(id)], content_type: 'product', content_name: title || '', value: amount, currency, ...utmParams() });
   if (gtagReady()) {
     window.gtag('event', 'view_item', { currency, value: amount, items: [{ item_id: String(id), item_name: title || '', price: amount, quantity: 1 }] });
   }
@@ -198,7 +209,7 @@ export function trackViewContent({ id, title, value, currency = 'USD' }) {
 export function trackBeginCheckout({ id, title, value, currency = 'USD' }) {
   if (!id) return;
   const amount = Math.max(0, Number(value) || 0);
-  sendMeta('InitiateCheckout', { content_ids: [String(id)], content_type: 'product', content_name: title || '', value: amount, currency, num_items: 1 });
+  sendMeta('InitiateCheckout', { content_ids: [String(id)], content_type: 'product', content_name: title || '', value: amount, currency, num_items: 1, ...utmParams() });
   if (gtagReady()) {
     window.gtag('event', 'begin_checkout', { currency, value: amount, items: [{ item_id: String(id), item_name: title || '', price: amount, quantity: 1 }] });
   }
@@ -214,7 +225,7 @@ export function newEventId() {
 }
 export function trackLead({ source, contentName = '', eventId = '' }) {
   const name = contentName || source;
-  sendMeta('Lead', { content_name: name, content_category: 'lead', lead_source: source }, eventId);
+  sendMeta('Lead', { content_name: name, content_category: 'lead', lead_source: source, ...utmParams() }, eventId);
   if (gtagReady()) {
     window.gtag('event', 'generate_lead', { lead_source: source, content_name: name });
     if (LEAD_LABEL && GOOGLE_TAG_ID) window.gtag('event', 'conversion', { send_to: `${GOOGLE_TAG_ID}/${LEAD_LABEL}` });
