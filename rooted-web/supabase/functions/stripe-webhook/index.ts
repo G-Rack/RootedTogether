@@ -210,12 +210,13 @@ Deno.serve(async (req: Request) => {
         utm_source: session.metadata?.utm_source || null,
         utm_medium: session.metadata?.utm_medium || null,
         utm_campaign: session.metadata?.utm_campaign || null,
+        utm_content: session.metadata?.utm_content || null,
       };
       let insertResult = await supabase.from("offering_purchases").insert(purchaseRow).select("id").maybeSingle();
       if (insertResult.error && insertResult.error.code === "42703") {
         // The tracking columns are not in the database yet: record the sale without them rather than lose it.
         console.error("offering_purchases has no utm columns yet, recording without them.");
-        const { utm_source: _a, utm_medium: _b, utm_campaign: _c, ...plainRow } = purchaseRow;
+        const { utm_source: _a, utm_medium: _b, utm_campaign: _c, utm_content: _d, ...plainRow } = purchaseRow;
         insertResult = await supabase.from("offering_purchases").insert(plainRow).select("id").maybeSingle();
       }
       const { data: insertedRow, error } = insertResult;

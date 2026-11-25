@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
 import { SLUG } from '@/lib/gifts';
+import { sendLeadToMeta } from '@/lib/metaServer';
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const tidy = (v) => String(v || '').replace(/[^\w .+\-]/g, '').trim().slice(0, 100) || null;
@@ -30,7 +31,11 @@ export async function POST(request) {
       cache: 'no-store',
     });
     const j = await res.json().catch(() => ({}));
-    if (res.ok && j.ok) return NextResponse.json({ ok: true, saved: j.saved === true });
+    if (res.ok && j.ok) {
+      // A brand-new email is a Lead: send Meta its server copy (same event_id as the browser's).
+      if (j.saved === true) sendLeadToMeta(request, body, { source: tidy(body?.lead_source) || 'gift', contentName: tidy(body?.content_name) || campaign });
+      return NextResponse.json({ ok: true, saved: j.saved === true });
+    }
     return NextResponse.json({ ok: false, error: j.error || 'Something went wrong. Please try again.' }, { status: res.status === 404 ? 404 : 502 });
   } catch { /* fall through */ }
   return NextResponse.json({ ok: false, error: 'Something went wrong. Please try again.' }, { status: 502 });

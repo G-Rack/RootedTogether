@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY } from '@/lib/config';
+import { sendLeadToMeta } from '@/lib/metaServer';
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,12 +25,17 @@ export async function POST(request) {
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
       body: JSON.stringify({
         email, offering_id: offeringId, returning: body?.returning === true,
-        utm_source: tidy(body?.utm_source), utm_campaign: tidy(body?.utm_campaign),
+        utm_source: tidy(body?.utm_source), utm_medium: tidy(body?.utm_medium),
+        utm_campaign: tidy(body?.utm_campaign), utm_content: tidy(body?.utm_content),
       }),
       cache: 'no-store',
     });
     const j = await res.json().catch(() => ({}));
-    if (res.ok && j.ok) return NextResponse.json({ ok: true, saved: j.saved === true, lesson: j.lesson });
+    if (res.ok && j.ok) {
+      // A brand-new email for this course is a Lead: send Meta its server copy (same event_id as the browser's).
+      if (j.saved === true) sendLeadToMeta(request, body, { source: 'free_lesson', contentName: tidy(body?.content_name) || '' });
+      return NextResponse.json({ ok: true, saved: j.saved === true, lesson: j.lesson });
+    }
     return NextResponse.json({ ok: false, error: j.error || 'Something went wrong. Please try again.' }, { status: res.status === 404 ? 404 : 502 });
   } catch { /* fall through */ }
   return NextResponse.json({ ok: false, error: 'Something went wrong. Please try again.' }, { status: 502 });

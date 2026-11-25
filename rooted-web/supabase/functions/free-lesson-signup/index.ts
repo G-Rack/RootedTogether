@@ -58,12 +58,14 @@ Deno.serve(async (req: Request) => {
   }
 
   const utmSource = tidy(p?.utm_source);
+  const utmMedium = tidy(p?.utm_medium);
   const utmCampaign = tidy(p?.utm_campaign) || "free_lesson";
+  const utmContent = tidy(p?.utm_content);
 
   let saved = false;
   const ins = await admin.from("free_lesson_leads").insert({
-    offering_id: offeringId, email, utm_source: utmSource, utm_campaign: utmCampaign,
-    devotional_consent: true, last_viewed_at: now,
+    offering_id: offeringId, email, utm_source: utmSource, utm_medium: utmMedium, utm_campaign: utmCampaign,
+    utm_content: utmContent, devotional_consent: true, last_viewed_at: now,
   });
   const insErr = ins.error as { code?: string } | null;
   if (!insErr) saved = true;

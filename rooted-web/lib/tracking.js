@@ -9,6 +9,7 @@
 //   NEXT_PUBLIC_GADS_QUIZ_LABEL               conversion label for the "quiz_complete" conversion
 //   NEXT_PUBLIC_GADS_PURCHASE_LABEL           conversion label for the "purchase" conversion
 //   NEXT_PUBLIC_GADS_SIGNUP_LABEL             conversion label for the "sign_up" conversion
+//   NEXT_PUBLIC_GADS_LEAD_LABEL               conversion label for the "generate_lead" conversion (email forms)
 //   (optional) NEXT_PUBLIC_GADS_PURCHASE_LABEL_MEMBERSHIP / _PRO / _OFFERING
 //             a separate label for one kind of purchase; it wins over the general purchase label.
 
@@ -40,6 +41,7 @@ const PURCHASE_LABELS = {
 export const SIGNUP_LABEL = clean(process.env.NEXT_PUBLIC_GADS_SIGNUP_LABEL);
 // Conversion label for the "quiz_complete" conversion (NEXT_PUBLIC_GADS_QUIZ_LABEL).
 export const QUIZ_LABEL = clean(process.env.NEXT_PUBLIC_GADS_QUIZ_LABEL);
+export const LEAD_LABEL = clean(process.env.NEXT_PUBLIC_GADS_LEAD_LABEL);
 
 // Meta (Facebook / Instagram) and TikTok advert pixels. These IDs are public by design.
 export const META_PIXEL_ID = '2170035307059187';
@@ -202,6 +204,23 @@ export function trackBeginCheckout({ id, title, value, currency = 'USD' }) {
   }
 }
 
+// A new email was collected on one of our forms (free Lesson 1, the /advisor devotional box, a gift on an
+// offering page): Meta Lead and Google generate_lead (plus its Google Ads conversion when a label is set).
+// Call it only when the sign-up is brand new, with an eventId made by newEventId() and also sent to the
+// server in the same request, so the server-side copy of this Lead (lib/metaServer.js) is counted once.
+// source: 'free_lesson' | 'advisor_devotional' | 'offering_gift'.
+export function newEventId() {
+  try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
+}
+export function trackLead({ source, contentName = '', eventId = '' }) {
+  const name = contentName || source;
+  sendMeta('Lead', { content_name: name, content_category: 'lead', lead_source: source }, eventId);
+  if (gtagReady()) {
+    window.gtag('event', 'generate_lead', { lead_source: source, content_name: name });
+    if (LEAD_LABEL && GOOGLE_TAG_ID) window.gtag('event', 'conversion', { send_to: `${GOOGLE_TAG_ID}/${LEAD_LABEL}` });
+  }
+}
+
 // The course-advisor quiz was finished. Counted once per person (per device): Meta Lead with the
 // recommended course, Google quiz_complete (and its Google Ads conversion when a label is set).
 export function trackQuizComplete({ id, title, eventId }) {
@@ -220,7 +239,7 @@ export function trackQuizComplete({ id, title, eventId }) {
 // ---- Ad tags and Meta browser ids, kept through the quiz and checkout ----------------------------
 const ATTR_KEY = 'rt_attr';
 const ATTR_DAYS = 30;
-const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign'];
+const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
 const tidyTag = (v) => String(v || '').replace(/[^\w .+-]/g, '').trim().slice(0, 100);
 const readCookie = (name) => {
   try {
@@ -243,11 +262,11 @@ export function rememberAttribution() {
   } catch { /* storage blocked */ }
 }
 
-// The tags to send with a checkout: utm_source / utm_medium / utm_campaign (address, then this visit,
+// The tags to send with a checkout: utm_source / utm_medium / utm_campaign / utm_content (address, then this visit,
 // then the last 30 days), plus Meta's _fbp / _fbc ids and consent flag. Meta ids are sent only when the
 // Meta pixel is running for this visitor, so the server never reports a sale for someone who said no.
 export function getAttribution() {
-  const out = { utm_source: '', utm_medium: '', utm_campaign: '', fbp: '', fbc: '', marketing_consent: false, source_url: '' };
+  const out = { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', fbp: '', fbc: '', marketing_consent: false, source_url: '' };
   if (typeof window === 'undefined') return out;
   try {
     const p = new URLSearchParams(window.location.search);

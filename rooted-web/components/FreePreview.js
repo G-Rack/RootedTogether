@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { formatDuration } from '@/lib/lessons';
-import { getAttribution, sendMeta } from '@/lib/tracking';
+import { getAttribution, trackLead, newEventId } from '@/lib/tracking';
 import { track as trackSite } from '@/lib/analytics';
 import MuxVideo from '@/components/MuxVideo';
 
@@ -62,17 +62,24 @@ export default function FreePreview({ offeringId, offeringTitle = '', enabled, o
     setBusy(true);
     try {
       const attr = getAttribution();
+      const eventId = newEventId();
       const { ok, json } = await ask({
         email: clean,
+        event_id: eventId,
+        lead_source: 'free_lesson',
+        content_name: offeringTitle,
+        attribution: attr,
         website,
         offering_id: offeringId,
         utm_source: attr.utm_source || 'offering_page',
+        utm_medium: attr.utm_medium || '',
         utm_campaign: attr.utm_campaign || '',
+        utm_content: attr.utm_content || '',
       });
       if (!ok) { setError(json?.error || 'Something went wrong. Please try again.'); return; }
       try { localStorage.setItem(storeKey(offeringId), clean); } catch { /* storage blocked */ }
       trackSite('free_lesson_unlocked', { props: { offering_id: offeringId } });
-      if (json.saved) sendMeta('FreeLessonUnlocked', { content_name: offeringTitle, content_ids: [offeringId] }, '', true);
+      if (json.saved) trackLead({ source: 'free_lesson', contentName: offeringTitle, eventId });
       setLesson(json.lesson);
     } catch {
       setError('Something went wrong. Please check your connection and try again.');

@@ -8,7 +8,7 @@ import { hasDiscount, offeringDiscountPercent } from '@/lib/discount';
 import { coverUrl } from '@/lib/storage';
 import CoverImage from '@/components/CoverImage';
 import { track as trackSite } from '@/lib/analytics';
-import { trackQuizComplete, sendMeta } from '@/lib/tracking';
+import { trackQuizComplete, trackLead, newEventId, getAttribution } from '@/lib/tracking';
 import { QUESTIONS, needsCare, recommend, whyItFits, pairLine, previewItem, deliverable } from '@/lib/advisor';
 import AdvisorIcon from './AdvisorIcon';
 import styles from './advisor.module.css';
@@ -289,6 +289,7 @@ export default function AdvisorClient() {
     if (!EMAIL.test(clean)) { setError('Please enter a valid email address.'); return; }
     if (!gift) { setError('The gift is not available just now. Please try again later.'); return; }
     setBusy(true);
+    const eventId = newEventId();
     try {
       const res = await fetch('/api/gift', {
         method: 'POST',
@@ -296,6 +297,7 @@ export default function AdvisorClient() {
         body: JSON.stringify({
           email: clean, website, campaign: gift.slug, send_gift: true, devotional: consent === true,
           utm_source: utm?.utm_source || 'advisor', utm_campaign: utm?.utm_campaign || '',
+          event_id: eventId, lead_source: 'advisor_devotional', content_name: gift?.slug || '', attribution: getAttribution(),
         }),
       });
       const json = await res.json().catch(() => null);
@@ -305,8 +307,8 @@ export default function AdvisorClient() {
         try { await supabase.rpc('advisor_save_email', { p_session: sessionId, p_email: clean }); } catch { /* best effort */ }
       }
       await track(sessionId, 'gift_claimed');
-      // The free gift is its own Meta event now; Lead is reserved for finishing the quiz.
-      if (json.saved) sendMeta('GiftClaimed', { content_name: gift?.slug || '' }, '', true);
+      // A new email on this form is a Lead (Meta Lead + Google generate_lead, server copy sent by /api/gift).
+      if (json.saved) trackLead({ source: 'advisor_devotional', contentName: gift?.slug || '', eventId });
       setGiftSent(true);
       if (screen === 'gift') setScreen('thanks');
     } catch {

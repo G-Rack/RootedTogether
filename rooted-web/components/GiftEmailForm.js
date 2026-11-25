@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { getAttribution, sendMeta } from '@/lib/tracking';
+import { getAttribution, trackLead, newEventId } from '@/lib/tracking';
 import { track as trackSite } from '@/lib/analytics';
 
 // The "Download" box for a free gift (an offering with a gift_slug, such as Deborah's Gift). Instead of
@@ -26,6 +26,7 @@ export default function GiftEmailForm({ offering }) {
     setBusy(true);
     try {
       const attr = getAttribution();
+      const eventId = newEventId();
       const res = await fetch('/api/gift', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,6 +36,10 @@ export default function GiftEmailForm({ offering }) {
           campaign: offering.gift_slug,
           send_gift: true,
           devotional: true,
+          event_id: eventId,
+          lead_source: 'offering_gift',
+          content_name: offering.gift_slug,
+          attribution: attr,
           utm_source: attr.utm_source || 'offering_page',
           utm_campaign: attr.utm_campaign || '',
         }),
@@ -42,7 +47,7 @@ export default function GiftEmailForm({ offering }) {
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.ok) { setError(json?.error || 'Something went wrong. Please try again.'); return; }
       trackSite('gift_claimed', { props: { offering_id: offering.id, gift: offering.gift_slug } });
-      if (json.saved) sendMeta('GiftClaimed', { content_name: offering.gift_slug }, '', true);
+      if (json.saved) trackLead({ source: 'offering_gift', contentName: offering.gift_slug, eventId });
       setDone(true);
     } catch {
       setError('Something went wrong. Please check your connection and try again.');

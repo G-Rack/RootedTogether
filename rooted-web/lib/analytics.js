@@ -87,7 +87,7 @@ function utmTags() {
       return tidy(window.sessionStorage.getItem(`rt_${k}`));
     } catch { return fromUrl; }
   };
-  utm = { utm_source: read('utm_source'), utm_medium: read('utm_medium'), utm_campaign: read('utm_campaign') };
+  utm = { utm_source: read('utm_source'), utm_medium: read('utm_medium'), utm_campaign: read('utm_campaign'), utm_content: read('utm_content') };
   return utm;
 }
 

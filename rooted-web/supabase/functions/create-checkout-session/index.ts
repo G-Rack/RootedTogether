@@ -50,6 +50,7 @@ function cleanAttribution(a: any) {
     utm_source: tag(a?.utm_source),
     utm_medium: tag(a?.utm_medium),
     utm_campaign: tag(a?.utm_campaign),
+    utm_content: tag(a?.utm_content),
     marketing_consent: consent,
     fbp: consent ? txt(a?.fbp, 120, /[^\w.\-]/g) : "",
     fbc: consent ? txt(a?.fbc, 200, /[^\w.\-]/g) : "",
@@ -197,6 +198,7 @@ Deno.serve(async (req: Request) => {
         ...(attr.utm_source ? { utm_source: attr.utm_source } : {}),
         ...(attr.utm_medium ? { utm_medium: attr.utm_medium } : {}),
         ...(attr.utm_campaign ? { utm_campaign: attr.utm_campaign } : {}),
+        ...(attr.utm_content ? { utm_content: attr.utm_content } : {}),
       },
       // {CHECKOUT_SESSION_ID} is filled in by Stripe. A guest needs it to be signed in on return.
       success_url: isGuest
@@ -214,6 +216,7 @@ Deno.serve(async (req: Request) => {
         utm_source: attr.utm_source || null,
         utm_medium: attr.utm_medium || null,
         utm_campaign: attr.utm_campaign || null,
+        utm_content: attr.utm_content || null,
         marketing_consent: attr.marketing_consent,
         fbp: attr.fbp || null,
         fbc: attr.fbc || null,

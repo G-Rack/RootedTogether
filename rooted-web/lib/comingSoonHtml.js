@@ -236,6 +236,7 @@ footer{margin-top:44px;font-size:12.5px;color:var(--soft);opacity:.85}
     if (typeof window.gtag !== 'function') return;
     var p = { method: ${isGift ? "'gift'" : "'waitlist'"}, utm_source: utm || '(direct)', utm_campaign: ${isGift ? JSON.stringify(campLabel) : "'' + (utmCamp || '(none)')"} };
     window.gtag('event', 'sign_up', p);
+    ${isGift ? "window.gtag('event', 'generate_lead', { lead_source: 'gift_page', content_name: p.utm_campaign });" : ''}
     ${SIGNUP_LABEL && GOOGLE_TAG_ID ? `window.gtag('event', 'conversion', { send_to: '${GOOGLE_TAG_ID}/${SIGNUP_LABEL}', utm_source: p.utm_source, utm_campaign: p.utm_campaign });` : ''}
   }
   var bar = document.getElementById('consent');
