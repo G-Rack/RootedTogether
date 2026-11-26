@@ -19,7 +19,7 @@ function canPlayHls() {
   }
 }
 
-export default function MuxVideo({ playbackId, title }) {
+export default function MuxVideo({ playbackId, title, onEnded }) {
   const native = useSyncExternalStore(noop, canPlayHls, () => false);
   // Before the first play we show our own centred play button (the phone's own button sits
   // off-centre because of the page zoom). After that, the phone's normal controls take over.
@@ -46,6 +46,7 @@ export default function MuxVideo({ playbackId, title }) {
           playsInline
           preload="none"
           onPlay={() => setStarted(true)}
+          onEnded={onEnded}
           style={{ ...frame, objectFit: 'contain' }}
         />
         {!started && (
@@ -67,6 +68,7 @@ export default function MuxVideo({ playbackId, title }) {
         <iframe
           src={muxPlayerUrl(playbackId)}
           title={title}
+          loading="lazy"
           allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
           style={frame}

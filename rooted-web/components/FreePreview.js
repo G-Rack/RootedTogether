@@ -27,13 +27,15 @@ async function ask(body) {
   return { ok: res.ok && !!json?.ok, json };
 }
 
-export default function FreePreview({ offeringId, offeringTitle = '', enabled, onGetFull, buying = false }) {
+export default function FreePreview({ offeringId, offeringTitle = '', enabled, onGetFull, buying = false, priceLabel = '', priceCents = 0 }) {
   const [available, setAvailable] = useState(false);
   const [lesson, setLesson] = useState(null);
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState(''); // hidden field: real people leave it empty
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // True once the free lesson has played to the end (only phones and Safari can tell us; see MuxVideo).
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -60,6 +62,12 @@ export default function FreePreview({ offeringId, offeringTitle = '', enabled, o
   }, [offeringId, enabled]);
 
   if (!enabled || !available) return null;
+
+  const lessonDone = () => {
+    if (finished) return;
+    setFinished(true);
+    trackSite('free_lesson_completed', { props: { offering_id: offeringId } });
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -96,7 +104,7 @@ export default function FreePreview({ offeringId, offeringTitle = '', enabled, o
   };
 
   return (
-    <div style={{ marginTop: 28 }}>
+    <div id="free-lesson" style={{ marginTop: 28, scrollMarginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
         <div className="serif" style={{ fontSize: 18, fontWeight: 700, color: 'var(--brown)' }}>Watch Lesson 1 free</div>
         <span className="badge">FREE PREVIEW</span>
@@ -109,9 +117,24 @@ export default function FreePreview({ offeringId, offeringTitle = '', enabled, o
             {lesson.duration_seconds ? ` · ${formatDuration(lesson.duration_seconds)}` : ''}
           </div>
           <div className="card" style={{ padding: 14 }}>
-            <MuxVideo playbackId={lesson.mux_playback_id} title={lesson.title || 'Lesson 1 free preview'} />
-            <button type="button" className="btn btn-primary" onClick={onGetFull} disabled={buying} style={{ width: '100%', marginTop: 14 }}>
-              {buying ? 'Please wait…' : 'Get the full course'}
+            <MuxVideo playbackId={lesson.mux_playback_id} title={lesson.title || 'Lesson 1 free preview'} onEnded={lessonDone} />
+          </div>
+          {/* Upgrade panel: shown as soon as the lesson is unlocked, so a viewer who watches a little, or all of it, always has the next step in front of them. */}
+          <div id="upgrade-panel" className="card" style={{ padding: 18, marginTop: 12, background: 'var(--cream-dark, #F3ECE3)' }}>
+            <div className="serif" style={{ fontSize: 17, fontWeight: 700, color: 'var(--brown)', lineHeight: 1.3 }}>
+              {finished ? 'You finished Lesson 1. ' : ''}Continue with Lesson 2{priceLabel ? ` – get the full course for ${priceLabel}` : ''}
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={buying}
+              onClick={() => {
+                trackSite('upgrade_panel_click', { props: { offering_id: offeringId, price_cents: priceCents || 0, finished } });
+                if (onGetFull) onGetFull('upgrade');
+              }}
+              style={{ width: '100%', marginTop: 12 }}
+            >
+              {buying ? 'Opening secure checkout…' : `Get the full course${priceLabel ? ` – ${priceLabel}` : ''}`}
             </button>
           </div>
           <button

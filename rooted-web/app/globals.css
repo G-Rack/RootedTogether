@@ -868,3 +868,51 @@ a.sf-connect-row:hover, button.sf-connect-row:hover { background: #F7EFE4; color
   .sf-sort { flex: 1; }
   .sf-sort select { width: 100%; }
 }
+
+/* ===== Offering page: buy block first on phones ====================================
+   Phones (and anything narrower than 861px) read top to bottom: title and promise, then the
+   price and buy buttons, then everything else. On wide screens the buy card sits beside the text. */
+.offer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-areas: "head side" "body side";
+  column-gap: 44px;
+  row-gap: 0;
+  align-items: start;
+}
+.offer-head { grid-area: head; min-width: 0; }
+.offer-side { grid-area: side; min-width: 0; }
+.offer-body { grid-area: body; min-width: 0; }
+.offer-cover { margin-top: 22px; }
+@media (max-width: 860px) {
+  .offer-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "side" "body"; }
+  .offer-side { margin-top: 18px; }
+  .offer-body { margin-top: 26px; }
+  .offer-cover { margin-top: 0; }
+}
+
+/* Sticky buy bar: phones only. It slides up once the main buy button has scrolled out of view. */
+.offer-sticky-bar { display: none; }
+.offer-bottom-space { display: none; }
+@media (max-width: 860px) {
+  .offer-sticky-bar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--white);
+    border-top: 1px solid rgba(107, 66, 38, 0.14);
+    box-shadow: 0 -6px 18px rgba(43, 33, 24, 0.08);
+    transform: translateY(110%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0.2s;
+  }
+  .offer-sticky-bar.is-visible { transform: none; visibility: visible; }
+  .offer-bottom-space { display: block; height: 76px; }
+}
+@media (prefers-reduced-motion: reduce) { .offer-sticky-bar { transition: none; } }

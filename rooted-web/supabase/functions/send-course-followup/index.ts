@@ -10,7 +10,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // so nobody can receive it twice. Test mode (email_settings.test_mode) works like the other emails.
 
 const OFFERING_ID = "1be447fd-d6aa-49bb-a6b0-ecc057bf2180";
-const CAMPAIGN = "deborah_course";
+const CAMPAIGN = "deborah_course"; // who gets the email (their sign-up was tagged with this); do not change
+const LINK_CAMPAIGN = "free_lesson_followup"; // the tag on the button link in the email
 const TEMPLATE = "course_followup1";
 const DELAY = "48 hours";
 const MAX_AGE = "14 days";
@@ -40,7 +41,8 @@ const money = (cents: number) => (!cents ? "Free" : `$${(cents / 100).toFixed(ce
 async function build(email: string, title: string, priceCents: number) {
   const address = Deno.env.get("MARKETING_POSTAL_ADDRESS") || POSTAL_PLACEHOLDER;
   const unsub = `${FN_BASE}/email-unsubscribe?e=${encodeURIComponent(email)}&t=${await sign(email)}`;
-  const link = `${SITE}/offering/${OFFERING_ID}?utm_source=email&utm_medium=automated&utm_campaign=${CAMPAIGN}&utm_content=followup1`;
+  const link = `${SITE}/offering/${OFFERING_ID}?utm_source=email&utm_medium=automated&utm_campaign=${LINK_CAMPAIGN}&utm_content=${OFFERING_ID}`;
+  const cta = `Get the full course – ${money(priceCents)}`;
   const paras = [
     "Hi there,",
     `Thank you for stopping by ${title}, our seven-part course on prayer and stillness for women who feel too busy to pray.`,
@@ -58,10 +60,10 @@ async function build(email: string, title: string, priceCents: number) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
 <tr><td style="font-size:20px;font-weight:700;color:#6B4226;padding:0 4px 16px;">Rooted Together</td></tr>
-<tr><td style="background:#ffffff;border:1px solid #EADBC8;border-radius:14px;padding:28px;font-size:16px;line-height:1.65;">${paras.map(p).join("")}<p style="margin:8px 0 22px;"><a href="${esc(link)}" style="display:inline-block;background:#6B4226;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-family:Arial,sans-serif;font-weight:600;font-size:15px;">See the full course</a></p><p style="margin:0 0 16px;font-size:14px;color:#6F5846;">If the button doesn't work, copy this link into your browser:<br>${esc(link)}</p><p style="margin:0 0 16px;font-style:italic;color:#6B4226;">${esc(quote)}</p>${p(closing)}</td></tr>
+<tr><td style="background:#ffffff;border:1px solid #EADBC8;border-radius:14px;padding:28px;font-size:16px;line-height:1.65;">${paras.map(p).join("")}<p style="margin:8px 0 22px;"><a href="${esc(link)}" style="display:inline-block;background:#6B4226;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-family:Arial,sans-serif;font-weight:600;font-size:15px;">${esc(cta)}</a></p><p style="margin:0 0 16px;font-size:14px;color:#6F5846;">If the button doesn't work, copy this link into your browser:<br>${esc(link)}</p><p style="margin:0 0 16px;font-style:italic;color:#6B4226;">${esc(quote)}</p>${p(closing)}</td></tr>
 <tr><td style="padding:16px 6px;font-size:12px;line-height:1.6;color:#6F5846;font-family:Arial,sans-serif;">${footerHtml}</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = `${paras.join("\n\n")}\n\nSee the full course: ${link}\n\n${quote}\n\n${closing}\n\n--\n${footerText}`;
+  const text = `${paras.join("\n\n")}\n\n${cta}: ${link}\n\n${quote}\n\n${closing}\n\n--\n${footerText}`;
   return {
     subject, html, text,
     headers: { "List-Unsubscribe": `<${unsub}>, <mailto:${REPLY_TO}?subject=unsubscribe>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },

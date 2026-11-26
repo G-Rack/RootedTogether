@@ -20,6 +20,29 @@ export async function fetchLessons(offeringId) {
   return data || [];
 }
 
+// What a course contains, for the "What you get" list on its page: lesson count by kind and total length.
+// Uses the get_offering_summary function when it exists. Until it has been added to the database, falls
+// back to the lesson outline (counts and kinds only, no total length) so the page still works.
+export async function fetchOfferingSummary(offeringId) {
+  try {
+    const { data, error } = await supabase.rpc('get_offering_summary', { p_offering: offeringId });
+    if (!error && Array.isArray(data) && data[0]) return data[0];
+  } catch { /* fall through to the outline */ }
+  try {
+    const { data } = await supabase.rpc('get_offering_outline', { p_offering: offeringId });
+    const rows = data || [];
+    return {
+      lesson_count: rows.length,
+      video_count: rows.filter((r) => r.kind === 'video').length,
+      pdf_count: rows.filter((r) => r.kind === 'pdf').length,
+      audio_count: rows.filter((r) => r.kind === 'audio').length,
+      total_seconds: 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // { [lessonId]: status } for the lessons still being processed.
 export async function fetchLessonStatuses(ids) {
   if (!ids.length) return {};

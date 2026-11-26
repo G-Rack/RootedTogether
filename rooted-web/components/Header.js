@@ -24,6 +24,9 @@ export default function Header() {
   const isHome = pathname === '/';
   // On /login the page itself already offers Log In and Sign Up, so a signed-out visitor only gets a "Back to the marketplace" button up here.
   const hideAuthButtons = pathname === '/login' && !session;
+  // Offering pages are where ad visitors land. For anyone not signed in the top bar is just the logo, so
+  // there is nothing to tap except Buy. (While the sign-in check runs, session is empty too, so nothing flashes.)
+  const logoOnly = !!pathname && pathname.startsWith('/offering/') && !session;
   // Creators have a storefront avatar (public bucket); Seekers/Assistants
   // have a profile picture from /complete-profile instead (private bucket,
   // already resolved to a signed URL by SessionProvider).
@@ -73,6 +76,7 @@ export default function Header() {
           )}
         </div>
 
+        {!logoOnly && (
         <div className="desktop-auth-actions" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {!session && !hideAuthButtons && (
             <>
@@ -118,9 +122,10 @@ export default function Header() {
             </>
           )}
         </div>
+        )}
 
         {/* On /login a signed-out visitor gets one button back to the marketplace (shown on phones too). */}
-        {hideAuthButtons && (
+        {hideAuthButtons && !logoOnly && (
           <Link href="/" className="btn btn-outline btn-small">
             Back to the marketplace
           </Link>
@@ -128,7 +133,7 @@ export default function Header() {
 
         {/* Mobile: a single hamburger toggles a dropdown with everything
             the desktop row shows split across nav links + auth actions. */}
-        {!hideAuthButtons && (
+        {!hideAuthButtons && !logoOnly && (
         <button
           className="mobile-menu-toggle"
           onClick={() => setMenuOpen((o) => !o)}
@@ -144,7 +149,7 @@ export default function Header() {
         )}
       </div>
 
-      {menuOpen && !hideAuthButtons && (
+      {menuOpen && !hideAuthButtons && !logoOnly && (
         <div
           className="mobile-menu-panel"
           style={{

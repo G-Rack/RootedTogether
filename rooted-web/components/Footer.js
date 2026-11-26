@@ -7,7 +7,7 @@ import StoreBadges from '@/components/StoreBadges';
 
 export default function Footer() {
   const pathname = usePathname();
-  const { session, loading } = useSession();
+  const { session, loading, isCreator } = useSession();
   // The signed-in home page carries its own small footer line.
   if (pathname === '/' && (session || loading)) return null;
 
@@ -44,8 +44,8 @@ export default function Footer() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>For Creators</div>
           <Link href="/creators" style={{ fontSize: 13.5 }}>Sell on Rooted Together</Link>
-          <Link href="/dashboard" style={{ fontSize: 13.5 }}>Creator Dashboard</Link>
-          <Link href="/dashboard/payouts" style={{ fontSize: 13.5 }}>Payouts</Link>
+          {isCreator && <Link href="/dashboard" style={{ fontSize: 13.5 }}>Creator Dashboard</Link>}
+          {isCreator && <Link href="/dashboard/payouts" style={{ fontSize: 13.5 }}>Payouts</Link>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Company</div>

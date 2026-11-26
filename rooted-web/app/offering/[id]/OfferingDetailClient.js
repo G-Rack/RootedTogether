@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useSession } from '@/components/SessionProvider';
-import { coverUrl, avatarUrl } from '@/lib/storage';
+import { coverUrl } from '@/lib/storage';
+import { SITE_URL } from '@/lib/seo';
 import { FUNCTIONS_URL, SUPABASE_ANON_KEY, GUEST_CHECKOUT } from '@/lib/config';
-import { initialsFor, formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { formatPrice, OFFERING_TYPE_LABELS } from '@/lib/roles';
+import { fetchOfferingSummary } from '@/lib/lessons';
+import { WhatYouGet, TrustLines, CreatorMini, StickyBuyBar, whatYouGetItems } from '@/components/OfferingExtras';
 import StarRating from '@/components/StarRating';
 import ShareButtons from '@/components/ShareButtons';
 import CourseLessonsViewer from '@/components/CourseLessonsViewer';
@@ -51,22 +54,28 @@ function startDownload(url) {
   a.remove();
 }
 
+const subscribeNever = () => () => {};
+
 // Calls up to this long are free once a week for the creator's Spiritual Family.
 const FREE_CALL_MAX_MINUTES = 30;
 
-export default function OfferingDetailClient() {
+export default function OfferingDetailClient({ initialOffering = null, initialCreator = null, initialStorefront = null }) {
   const { id } = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { session } = useSession();
 
-  const [offering, setOffering] = useState(null);
-  const [creatorProfile, setCreatorProfile] = useState(null);
-  const [storefront, setStorefront] = useState(null);
+  // The page may arrive with the published offering already read on the server (see page.js).
+  const seeded = initialOffering && initialOffering.id === id ? initialOffering : null;
+  const [offering, setOffering] = useState(seeded);
+  const [creatorProfile, setCreatorProfile] = useState(seeded ? initialCreator : null);
+  const [storefront, setStorefront] = useState(seeded ? initialStorefront : null);
   const [isFamily, setIsFamily] = useState(false);
   const [purchase, setPurchase] = useState(null);
   const [contentUrl, setContentUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!seeded);
+  // True once we know whether the signed-in person already owns this (so Buy never flashes for an owner).
+  const [purchaseChecked, setPurchaseChecked] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -82,6 +91,20 @@ export default function OfferingDetailClient() {
   // { is_member, claimed, booked, resets_on } from the free_call_status RPC.
   const [freeCall, setFreeCall] = useState(null);
   const [claiming, setClaiming] = useState(false);
+
+  // What the course contains (lesson counts and total length), for the "What you get" list.
+  const [summary, setSummary] = useState(null);
+  // True only in the browser (false while the server builds the page), for things that depend on today's date or the visitor's locale.
+  const mounted = useSyncExternalStore(subscribeNever, () => true, () => false);
+  // Tracking and sticky-bar state: which buy buttons are on screen, and whether the visitor has scrolled yet.
+  const [mainBuyEl, setMainBuyEl] = useState(null);
+  const [bottomBuyEl, setBottomBuyEl] = useState(null);
+  const [mainBuyVisible, setMainBuyVisible] = useState(true);
+  const [bottomBuyVisible, setBottomBuyVisible] = useState(false);
+  // True once the visitor has scrolled past the buy button at the bottom (the bar then stays out of the footer's way).
+  const [bottomBuyPast, setBottomBuyPast] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const buyVisibleSent = useRef(false);
 
   const [reviewStats, setReviewStats] = useState({ review_count: 0, avg_rating: 0 });
   const [reviews, setReviews] = useState([]);
@@ -111,7 +134,12 @@ export default function OfferingDetailClient() {
     let active = true;
 
     async function load() {
-      const { data: o } = await supabase.from('offerings').select('*').eq('id', id).maybeSingle();
+      if (session) setPurchaseChecked(false);
+      let o = seeded;
+      if (!o) {
+        const res = await supabase.from('offerings').select('*').eq('id', id).maybeSingle();
+        o = res.data;
+      }
       if (!active) return;
       if (!o) {
         setNotFound(true);
@@ -121,8 +149,8 @@ export default function OfferingDetailClient() {
       setOffering(o);
 
       const [{ data: prof }, { data: sf }, familyRes] = await Promise.all([
-        supabase.from('creator_public_profiles').select('*').eq('auth_user_id', o.creator_auth_id).maybeSingle(),
-        supabase.from('creator_storefronts').select('handle, avatar_path').eq('auth_user_id', o.creator_auth_id).maybeSingle(),
+        seeded ? Promise.resolve({ data: initialCreator }) : supabase.from('creator_public_profiles').select('*').eq('auth_user_id', o.creator_auth_id).maybeSingle(),
+        seeded ? Promise.resolve({ data: initialStorefront }) : supabase.from('creator_storefronts').select('handle, avatar_path, bio, tagline').eq('auth_user_id', o.creator_auth_id).maybeSingle(),
         session ? supabase.rpc('is_accepted_family_member_of_creator', { creator_id: o.creator_auth_id }) : Promise.resolve({ data: false }),
       ]);
 
@@ -131,6 +159,7 @@ export default function OfferingDetailClient() {
       setStorefront(sf || null);
       setIsFamily(!!familyRes.data);
       await loadPurchaseAndContent(o, session);
+      if (active) setPurchaseChecked(true);
       if (session && o.type === 'call' && o.call_duration_minutes > 0 && o.call_duration_minutes <= FREE_CALL_MAX_MINUTES) {
         const { data: fc } = await supabase.rpc('free_call_status', { p_creator_id: o.creator_auth_id });
         if (active) setFreeCall(fc || null);
@@ -143,6 +172,7 @@ export default function OfferingDetailClient() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, session]);
 
   // After a Stripe Checkout redirect back here, the webhook that actually
@@ -217,6 +247,51 @@ export default function OfferingDetailClient() {
     window.addEventListener('pageshow', onShow);
     return () => window.removeEventListener('pageshow', onShow);
   }, []);
+
+  // Lesson counts and total length for "What you get".
+  useEffect(() => {
+    if (!offering?.id || offering.type === 'call') return undefined;
+    let active = true;
+    fetchOfferingSummary(offering.id).then((s) => { if (active && s) setSummary(s); });
+    return () => { active = false; };
+  }, [offering?.id, offering?.type]);
+
+  // The sticky bar waits for the first scroll.
+  useEffect(() => {
+    const onScroll = () => { if (window.scrollY > 60) setScrolled(true); };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Watch the main buy button: fires buy_button_visible the first time it is really on screen, and tells the
+  // sticky bar when it has scrolled away.
+  useEffect(() => {
+    if (!mainBuyEl || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver((entries) => {
+      const e = entries[entries.length - 1];
+      setMainBuyVisible(e.isIntersecting);
+      if (e.isIntersecting && !buyVisibleSent.current) {
+        buyVisibleSent.current = true;
+        trackSite('buy_button_visible', { props: { offering_id: id, price_cents: offering?.price_cents || 0 } });
+      }
+    }, { threshold: 0.6 });
+    io.observe(mainBuyEl);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainBuyEl]);
+
+  // Watch the buy button at the bottom of the page, so the sticky bar steps aside when it comes into view.
+  useEffect(() => {
+    if (!bottomBuyEl || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver((entries) => {
+      const e = entries[entries.length - 1];
+      setBottomBuyVisible(e.isIntersecting);
+      setBottomBuyPast(!e.isIntersecting && e.boundingClientRect.top < 0);
+    }, { threshold: 0.3 });
+    io.observe(bottomBuyEl);
+    return () => io.disconnect();
+  }, [bottomBuyEl]);
 
   // Meta ViewContent and Google view_item: once each time an offering page is opened.
   useEffect(() => {
@@ -297,8 +372,14 @@ export default function OfferingDetailClient() {
     setNotice('Your free call is unlocked. Pick a time below.');
   };
 
-  const handleBuy = async () => {
-    trackSite('buy_click', { props: { offering_id: offering.id, price_cents: offering.price_cents || 0, signed_in: !!session } });
+  // source: which button was pressed ('main', 'sticky', 'bottom', 'upgrade' or 'free_lesson'). Every press still
+  // records the original buy_click; the sticky and bottom bars also record their own event so we can tell them apart.
+  const handleBuy = async (source = 'main') => {
+    const src = typeof source === 'string' ? source : 'main';
+    const clickProps = { offering_id: offering.id, price_cents: offering.price_cents || 0, signed_in: !!session, src };
+    trackSite('buy_click', { props: clickProps });
+    if (src === 'sticky') trackSite('sticky_buy_click', { props: clickProps });
+    if (src === 'bottom') trackSite('bottom_buy_click', { props: clickProps });
     // Paid items can be bought without an account (guest checkout): Stripe asks for the email and
     // the account is made after payment. Free items and free-for-family unlocks still need an
     // account first, because they are added to the account straight away.
@@ -411,42 +492,64 @@ export default function OfferingDetailClient() {
   // Anything that costs nothing (and isn't a call) is a straight download.
   const isFreeItem = !isCall && (freeForYou || !offering.price_cents);
   const cover = coverUrl(offering.cover_path);
-  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+  // The share link is always the clean address (no ad tags).
+  const pageUrl = `${SITE_URL}/offering/${offering.id}`;
+  const isOwnerOfOffering = session?.user?.id === offering.creator_auth_id;
+
+  const priceLabel = freeForYou || freeCallAvailable || hasFreeCallUnlocked ? 'Free' : formatPrice(offering.price_cents);
+  const buyLabel = isCall ? 'Reserve & Pay' : isFreeItem ? 'Download' : `Buy now – ${priceLabel}`;
+  // Signed in, but we have not yet looked up whether they already own it: do not offer Buy for a moment.
+  const accountPending = !!session && !purchaseChecked;
+  // True when the normal Buy button is the thing shown (not owned, not a free-call claim, not a gift form).
+  const showBuyButton = !awaitingWebhook && !alreadyOwned && !accountPending && !freeCallAvailable && !hasFreeCallUnlocked && !offering.gift_slug;
+  const guestPays = !session && GUEST_CHECKOUT;
+  const paidPlain = !isCall && !isFreeItem && !offering.gift_slug && Number(offering.price_cents) > 0;
+  const stickyVisible = showBuyButton && !isFreeItem && scrolled && !mainBuyVisible && !bottomBuyVisible && !bottomBuyPast;
+
+  // One line that says what this is: the first sentence of the description.
+  const promise = (() => {
+    const d = String(offering.description || '').replace(/\s+/g, ' ').trim();
+    if (!d) return '';
+    const m = d.match(/^.*?[.!?](?=\s|$)/);
+    const first = m ? m[0] : d;
+    return first.length > 160 ? `${first.slice(0, 157).replace(/\s+\S*$/, '')}…` : first;
+  })();
+  // The Reviews tab only exists when there is something to read, or when this buyer can write the first review.
+  const showReviewsTab = reviewStats.review_count > 0 || (alreadyOwned && !!session);
+  const tabStyle = (active) => ({
+    background: 'none', border: 'none', fontSize: 14.5, fontWeight: 700,
+    color: active ? 'var(--brown)' : 'var(--text-soft)',
+    paddingBottom: 12, borderBottom: active ? '2px solid var(--brown)' : 'none',
+  });
+  const recap = !isCall ? whatYouGetItems(offering, summary).filter((t) => !t.startsWith('Works on')) : [];
 
   return (
-    <div className="container" style={{ paddingBlock: '28px 64px' }}>
+    <div className="container" style={{ paddingBlock: '24px 64px' }}>
       <AuthGateModal
         open={gateOpen}
         onClose={() => setGateOpen(false)}
         onSignedIn={() => {
           setGateOpen(false);
           setError('');
-          setNotice(`You’re signed in. Tap ${isCall ? '“Reserve & Pay”' : isFreeItem ? '“Download”' : '“Buy Now”'} to finish.`);
+          setNotice(`You’re signed in. Tap ${isCall ? '“Reserve & Pay”' : isFreeItem ? '“Download”' : '“Buy now”'} to finish.`);
         }}
         offeringTitle={offering.title}
         priceLabel={isFreeItem ? 'Free' : formatPrice(offering.price_cents)}
       />
-      <div className="muted" style={{ fontSize: 13, marginBottom: 20 }}>
-        <Link href="/">Marketplace</Link>
-        {storefront && (
-          <>
-            {' '}/{' '}
-            <Link href={`/creator/${storefront.handle}`}>{creatorProfile?.name}</Link>
-          </>
-        )}
-        {' '}/ {offering.title}
-      </div>
 
-      <div className="responsive-2col" style={{ '--col-a': '1fr', '--col-b': '380px', '--col-gap': '44px' }}>
-        {/* Main */}
-        <div>
+      <div className="offer-grid">
+        {/* 1. Title and promise */}
+        <div className="offer-head">
           <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span className="badge">{(OFFERING_TYPE_LABELS[offering.type] || offering.type).toUpperCase()}</span>
             {offering.is_original && <OriginalsTag />}
           </span>
-          <div className="serif" style={{ fontSize: 32, fontWeight: 700, color: 'var(--brown)', marginTop: 12, lineHeight: 1.25 }}>
+          <h1 className="serif" style={{ fontSize: 32, fontWeight: 700, color: 'var(--brown)', marginTop: 12, marginBottom: 0, lineHeight: 1.2 }}>
             {offering.title}
-          </div>
+          </h1>
+          {promise && (
+            <p style={{ fontSize: 16, lineHeight: 1.5, color: 'var(--text)', margin: '10px 0 0' }}>{promise}</p>
+          )}
 
           {reviewsLoaded && reviewStats.review_count > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
@@ -457,67 +560,158 @@ export default function OfferingDetailClient() {
               </span>
             </div>
           )}
+        </div>
 
-          {creatorProfile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-              {avatarUrl(storefront?.avatar_path) ? (
-                <div
-                  style={{ width: 28, height: 28, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatarUrl(storefront.avatar_path)})` }}
-                />
+        {/* 2. Price and buy buttons: straight after the title on phones, beside the text on wide screens */}
+        <div className="offer-side">
+          <div className="card sticky-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="serif" style={{ fontSize: 28, fontWeight: 700, color: 'var(--brown)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
+              <span>{priceLabel}</span>
+              {mounted && !(freeForYou || freeCallAvailable || hasFreeCallUnlocked) && <SaleTag offering={offering} size={16} />}
+            </div>
+
+            {freeCallEligible && (
+              <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
+                {freeCallAvailable
+                  ? 'Your Spiritual Family perk: one free 30-minute call a week.'
+                  : hasFreeCallUnlocked
+                    ? 'Free call unlocked for this week. Pick a time below.'
+                    : freeCallUsed
+                      ? `You've used this week's free call. It resets ${resetsLabel}.`
+                      : `Members of ${creatorProfile?.name ? `${creatorProfile.name.split(' ')[0]}'s` : 'this'} Spiritual Family get one free 30-minute call a week. Request to join in the app.`}
+              </div>
+            )}
+
+            {offering.is_free_for_family && (
+              <div className="muted" style={{ fontSize: 12 }}>
+                {isFamily ? 'Free because you’re part of this Spiritual Family.' : 'Free to this creator’s Spiritual Family — request to join in the app to unlock it.'}
+              </div>
+            )}
+
+            {error && <div className="error-banner">{error}</div>}
+            {notice && !error && <div className="success-banner">{notice}</div>}
+
+            {awaitingWebhook && !alreadyOwned ? (
+              <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+                Finishing up your purchase…
+              </div>
+            ) : accountPending && !alreadyOwned ? (
+              <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+                One moment…
+              </div>
+            ) : alreadyOwned ? (
+              offering.type === 'audio' && courseLessonCount > 0 && !contentUrl ? (
+                <a href="#audiobook-player" className="btn btn-primary">Listen now</a>
+              ) : !isCall && contentUrl ? (
+                isFreeItem ? (
+                  <a href={downloadUrlFor(contentUrl)} rel="noreferrer" className="btn btn-primary">
+                    Download
+                  </a>
+                ) : (
+                  <a href={contentUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
+                    Open / download
+                  </a>
+                )
               ) : (
-                <div className="avatar" style={{ width: 28, height: 28, fontSize: 11 }}>
-                  {initialsFor(creatorProfile.name)}
+                <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+                  {isCall ? 'Booked' : 'Already yours'}
                 </div>
-              )}
-              {storefront ? (
-                <Link href={`/creator/${storefront.handle}`} style={{ fontSize: 13.5, fontWeight: 700 }}>
-                  {creatorProfile.name}
-                </Link>
-              ) : (
-                <span style={{ fontSize: 13.5, fontWeight: 700 }}>{creatorProfile.name}</span>
-              )}
-              {storefront && (
-                <Link
-                  href={`/creator/${storefront.handle}`}
-                  className="btn btn-outline btn-small"
-                  style={{ marginLeft: 'auto' }}
-                >
-                  View storefront
-                </Link>
-              )}
-            </div>
-          )}
+              )
+            ) : freeCallAvailable ? (
+              <button onClick={handleClaimFreeCall} disabled={claiming} className="btn btn-primary">
+                {claiming ? 'Please wait…' : 'Claim your free call'}
+              </button>
+            ) : hasFreeCallUnlocked ? (
+              <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
+                Free call unlocked
+              </div>
+            ) : offering.gift_slug ? (
+              <GiftEmailForm offering={offering} />
+            ) : (
+              <button
+                ref={setMainBuyEl}
+                onClick={() => handleBuy('main')}
+                disabled={buying || (offering.is_free_for_family && !isFamily && !session)}
+                className="btn btn-primary"
+                style={{ fontSize: 16, padding: '15px 24px' }}
+              >
+                {buying ? (isFreeItem ? 'Please wait…' : 'Opening secure checkout…') : buyLabel}
+              </button>
+            )}
 
-          {cover && !isCall && (
-            <div style={{ marginTop: 22 }}>
-              <CoverImage src={cover} alt={offering.title} radius={16} />
-            </div>
-          )}
+            {/* Second button: jumps to the free Lesson 1 box further down */}
+            {offering.type === 'course' && offering.free_preview && !alreadyOwned && !isOwnerOfOffering && (
+              <a
+                href="#free-lesson"
+                className="btn btn-outline"
+                style={{ fontSize: 15 }}
+                onClick={(e) => {
+                  const el = document.getElementById('free-lesson');
+                  if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                }}
+              >
+                Lesson 1 free
+              </a>
+            )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginTop: 24, paddingBottom: 16, borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
-            <button
-              onClick={() => setTab('description')}
-              style={{
-                background: 'none', border: 'none', fontSize: 14.5, fontWeight: 700,
-                color: tab === 'description' ? 'var(--brown)' : 'var(--text-soft)',
-                paddingBottom: 12, borderBottom: tab === 'description' ? '2px solid var(--brown)' : 'none',
-              }}
-            >
-              Description
-            </button>
-            <button
-              onClick={() => setTab('reviews')}
-              style={{
-                background: 'none', border: 'none', fontSize: 14.5, fontWeight: 700,
-                color: tab === 'reviews' ? 'var(--brown)' : 'var(--text-soft)',
-                paddingBottom: 12, borderBottom: tab === 'reviews' ? '2px solid var(--brown)' : 'none',
-              }}
-            >
-              Reviews{reviewStats.review_count > 0 ? ` (${reviewStats.review_count})` : ''}
-            </button>
+            {paidPlain && !alreadyOwned ? (
+              <TrustLines guest={guestPays} />
+            ) : (
+              <div className="muted" style={{ fontSize: 12, textAlign: 'center' }}>
+                {isCall
+                  ? "You'll get a video call link by email after payment"
+                  : freeForYou
+                    ? 'No payment needed — this one’s free for you.'
+                    : isFreeItem
+                      ? (offering.gift_slug && !alreadyOwned ? 'Free — we email it to you.' : session ? 'Free — no payment needed.' : 'Free — a free account saves it to your library.')
+                      : 'Secure checkout powered by Stripe.'}
+              </div>
+            )}
+
+            {!session && !alreadyOwned && !isFreeItem && !offering.gift_slug && (
+              <div className="muted" style={{ fontSize: 13, textAlign: 'center' }}>
+                Already bought this?{' '}
+                <Link href={`/login?next=${encodeURIComponent(`/offering/${offering.id}`)}`} style={{ fontWeight: 700, textDecoration: 'underline' }}>Log in to open it</Link>
+              </div>
+            )}
+
+            <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />
+
+            {isCall ? <FeatureList isCall offering={offering} /> : <WhatYouGet offering={offering} summary={summary} />}
+
+            {creatorProfile && (
+              <>
+                <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />
+                <CreatorMini name={creatorProfile.name} storefront={storefront} isCall={isCall} story={creatorProfile.story} />
+              </>
+            )}
           </div>
+        </div>
 
-          {tab === 'description' ? (
+        {/* 3. Everything else, below the buy block */}
+        <div className="offer-body">
+          {cover && !isCall && (
+            <div className="offer-cover">
+              <CoverImage src={cover} alt={offering.title} radius={16} lazy />
+            </div>
+          )}
+
+          {showReviewsTab ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginTop: 24, paddingBottom: 16, borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+              <button onClick={() => setTab('description')} style={tabStyle(tab === 'description')}>
+                Description
+              </button>
+              <button onClick={() => setTab('reviews')} style={tabStyle(tab === 'reviews')}>
+                Reviews{reviewStats.review_count > 0 ? ` (${reviewStats.review_count})` : ''}
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 24, paddingBottom: 12, borderBottom: '1px solid rgba(107,66,38,0.1)' }}>
+              <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--brown)' }}>About this {(OFFERING_TYPE_LABELS[offering.type] || 'offering').toLowerCase()}</span>
+            </div>
+          )}
+
+          {tab === 'description' || !showReviewsTab ? (
             <div style={{ fontSize: 14.5, color: 'var(--text)', lineHeight: 1.75, marginTop: 22, whiteSpace: 'pre-wrap' }}>
               {offering.description}
             </div>
@@ -583,20 +777,22 @@ export default function OfferingDetailClient() {
             </div>
           )}
 
-          {offering.type === 'course' && !(alreadyOwned || session?.user?.id === offering.creator_auth_id) && (
+          {offering.type === 'course' && !(alreadyOwned || isOwnerOfOffering) && (
             <FreePreview
               offeringId={offering.id}
               offeringTitle={offering.title}
               enabled={!!offering.free_preview}
-              onGetFull={handleBuy}
+              onGetFull={(src) => handleBuy(typeof src === 'string' ? src : 'free_lesson')}
               buying={buying}
+              priceLabel={priceLabel}
+              priceCents={offering.price_cents || 0}
             />
           )}
 
           {offering.type === 'course' && (
             <CourseLessonsViewer
               offeringId={offering.id}
-              owned={alreadyOwned || session?.user?.id === offering.creator_auth_id}
+              owned={alreadyOwned || isOwnerOfOffering}
               onLoaded={setCourseLessonCount}
             />
           )}
@@ -604,7 +800,7 @@ export default function OfferingDetailClient() {
           {offering.type === 'audio' && (
             <AudiobookPlayer
               offeringId={offering.id}
-              owned={alreadyOwned || session?.user?.id === offering.creator_auth_id}
+              owned={alreadyOwned || isOwnerOfOffering}
               onLoaded={setCourseLessonCount}
             />
           )}
@@ -623,135 +819,65 @@ export default function OfferingDetailClient() {
             </div>
           )}
 
-        </div>
-
-        {/* Sidebar */}
-        <div className="card sticky-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="serif" style={{ fontSize: 28, fontWeight: 700, color: 'var(--brown)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px' }}>
-            <span>{freeForYou || freeCallAvailable || hasFreeCallUnlocked ? 'Free' : formatPrice(offering.price_cents)}</span>
-            {!(freeForYou || freeCallAvailable || hasFreeCallUnlocked) && <SaleTag offering={offering} size={16} />}
-          </div>
-
-          {freeCallEligible && (
-            <div className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
-              {freeCallAvailable
-                ? 'Your Spiritual Family perk: one free 30-minute call a week.'
-                : hasFreeCallUnlocked
-                  ? 'Free call unlocked for this week. Pick a time below.'
-                  : freeCallUsed
-                    ? `You've used this week's free call. It resets ${resetsLabel}.`
-                    : `Members of ${creatorProfile?.name ? `${creatorProfile.name.split(' ')[0]}'s` : 'this'} Spiritual Family get one free 30-minute call a week. Request to join in the app.`}
-            </div>
-          )}
-
-          {offering.is_free_for_family && (
-            <div className="muted" style={{ fontSize: 12 }}>
-              {isFamily ? 'Free because you’re part of this Spiritual Family.' : 'Free to this creator’s Spiritual Family — request to join in the app to unlock it.'}
-            </div>
-          )}
-
-          {error && <div className="error-banner">{error}</div>}
-          {notice && !error && <div className="success-banner">{notice}</div>}
-
-          {awaitingWebhook && !alreadyOwned ? (
-            <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
-              Finishing up your purchase…
-            </div>
-          ) : alreadyOwned ? (
-            offering.type === 'audio' && courseLessonCount > 0 && !contentUrl ? (
-              <a href="#audiobook-player" className="btn btn-primary">Listen now</a>
-            ) : !isCall && contentUrl ? (
-              isFreeItem ? (
-                <a href={downloadUrlFor(contentUrl)} rel="noreferrer" className="btn btn-primary">
-                  Download
-                </a>
-              ) : (
-                <a href={contentUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
-                  Open / download
-                </a>
-              )
-            ) : (
-              <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
-                {isCall ? 'Booked' : 'Already yours'}
+          {/* Buy again at the bottom, for people who read all the way down */}
+          {showBuyButton && !isCall && !isFreeItem && (
+            <div className="card" style={{ padding: 22, marginTop: 32, background: 'var(--cream-dark, #F3ECE3)' }}>
+              <div className="serif" style={{ fontSize: 22, fontWeight: 700, color: 'var(--brown)', lineHeight: 1.25 }}>
+                Ready to start {offering.title}?
               </div>
-            )
-          ) : freeCallAvailable ? (
-            <button onClick={handleClaimFreeCall} disabled={claiming} className="btn btn-primary">
-              {claiming ? 'Please wait…' : 'Claim your free call'}
-            </button>
-          ) : hasFreeCallUnlocked ? (
-            <div className="btn btn-outline" style={{ pointerEvents: 'none' }}>
-              Free call unlocked
-            </div>
-          ) : offering.gift_slug ? (
-            <GiftEmailForm offering={offering} />
-          ) : (
-            <button
-              onClick={handleBuy}
-              disabled={buying || (offering.is_free_for_family && !isFamily && !session)}
-              className="btn btn-primary"
-            >
-              {buying ? (isFreeItem ? 'Please wait…' : 'Opening secure checkout…') : isCall ? 'Reserve & Pay' : isFreeItem ? 'Download' : 'Buy Now'}
-            </button>
-          )}
-
-          <div className="muted" style={{ fontSize: 12, textAlign: 'center' }}>
-            {isCall
-              ? "You'll get a video call link by email after payment"
-              : freeForYou
-                ? 'No payment needed — this one’s free for you.'
-                : isFreeItem
-                  ? (offering.gift_slug && !alreadyOwned ? 'Free — we email it to you.' : session ? 'Free — no payment needed.' : 'Free — a free account saves it to your library.')
-                  : 'Secure checkout powered by Stripe.'}
-          </div>
-
-          {!session && !alreadyOwned && !isFreeItem && !offering.gift_slug && (
-            <div className="muted" style={{ fontSize: 13, textAlign: 'center' }}>
-              Already bought this?{' '}
-              <Link href={`/login?next=${encodeURIComponent(`/offering/${offering.id}`)}`} style={{ fontWeight: 700, textDecoration: 'underline' }}>Log in to open it</Link>
-            </div>
-          )}
-
-          <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />
-
-          <FeatureList isCall={isCall} offering={offering} />
-
-          {creatorProfile && (
-            <>
-              <div style={{ height: 1, background: 'rgba(107,66,38,0.1)' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {avatarUrl(storefront?.avatar_path) ? (
-                  <div
-                    style={{ width: 34, height: 34, borderRadius: 999, flexShrink: 0, background: `center / cover no-repeat url(${avatarUrl(storefront.avatar_path)})` }}
-                  />
-                ) : (
-                  <div className="avatar" style={{ width: 34, height: 34, fontSize: 13, flexShrink: 0 }}>
-                    {initialsFor(creatorProfile.name)}
-                  </div>
-                )}
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                    {isCall ? `With ${creatorProfile.name}` : `Taught by ${creatorProfile.name}`}
-                  </div>
-                  {storefront && (
-                    <Link href={`/creator/${storefront.handle}`} style={{ fontSize: 12 }}>
-                      View storefront →
-                    </Link>
-                  )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px', marginTop: 12, fontSize: 13.5, color: 'var(--text)' }}>
+                {recap.map((t) => (
+                  <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B4226" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <button
+                ref={setBottomBuyEl}
+                onClick={() => handleBuy('bottom')}
+                disabled={buying || (offering.is_free_for_family && !isFamily && !session)}
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: 16, fontSize: 16, padding: '15px 24px' }}
+              >
+                {buying ? 'Opening secure checkout…' : buyLabel}
+              </button>
+              {paidPlain && (
+                <div style={{ marginTop: 12 }}>
+                  <TrustLines guest={guestPays} />
                 </div>
-              </div>
-            </>
+              )}
+            </div>
           )}
+
+          {/* Links that lead away from the page come last, after the buy section. */}
+          {creatorProfile && storefront && (
+            <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(107,66,38,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div className="muted" style={{ fontSize: 13.5 }}>More from {creatorProfile.name}</div>
+              <Link href={`/creator/${storefront.handle}`} className="btn btn-outline btn-small">
+                View storefront
+              </Link>
+            </div>
+          )}
+
+          <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
+            <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
+              Share this
+            </div>
+            <ShareButtons url={pageUrl} title={offering.title} />
+          </div>
+
+          <div className="offer-bottom-space" aria-hidden="true" />
         </div>
       </div>
 
-      {/* Share buttons sit at the very bottom, below the price / gift panel (on phones too). */}
-      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(107,66,38,0.1)' }}>
-        <div className="muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 }}>
-          Share this
-        </div>
-        <ShareButtons url={pageUrl} title={offering.title} />
-      </div>
+      <StickyBuyBar
+        visible={stickyVisible}
+        priceLabel={priceLabel}
+        buttonLabel={isCall ? 'Reserve & Pay' : 'Buy now'}
+        busy={buying}
+        onBuy={() => handleBuy('sticky')}
+      />
     </div>
   );
 }

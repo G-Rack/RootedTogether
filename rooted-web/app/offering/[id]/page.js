@@ -11,12 +11,19 @@ import GuestCheckoutReturn from '@/components/GuestCheckoutReturn';
 const getOffering = cache(async (id) => {
   const { data: offering } = await supabaseServer.from('offerings').select('*').eq('id', id).maybeSingle();
   if (!offering) return null;
-  const { data: profile } = await supabaseServer
-    .from('creator_public_profiles')
-    .select('name')
-    .eq('auth_user_id', offering.creator_auth_id)
-    .maybeSingle();
-  return { offering, creatorName: profile?.name || '' };
+  const [{ data: profile }, { data: storefront }] = await Promise.all([
+    supabaseServer
+      .from('creator_public_profiles')
+      .select('*')
+      .eq('auth_user_id', offering.creator_auth_id)
+      .maybeSingle(),
+    supabaseServer
+      .from('creator_storefronts')
+      .select('handle, avatar_path, bio, tagline')
+      .eq('auth_user_id', offering.creator_auth_id)
+      .maybeSingle(),
+  ]);
+  return { offering, creatorName: profile?.name || '', profile: profile || null, storefront: storefront || null };
 });
 
 export async function generateMetadata({ params }) {
@@ -117,7 +124,14 @@ export default async function OfferingDetailPage({ params }) {
         />
       )}
       <GuestCheckoutReturn />
-      <OfferingDetailClient />
+      {/* The published offering is read here once and handed to the page, so the title, price and Buy button are
+          in the first HTML a phone receives instead of appearing after a second round of requests. Anything that
+          is not published (a creator's draft) is not handed over; the page then loads it itself, as before. */}
+      <OfferingDetailClient
+        initialOffering={found && found.offering.status === 'published' ? found.offering : null}
+        initialCreator={found && found.offering.status === 'published' ? found.profile : null}
+        initialStorefront={found && found.offering.status === 'published' ? found.storefront : null}
+      />
       <AdvisorAttribution />
     </>
   );

@@ -15,7 +15,7 @@ function isWide(w, h) {
   return Math.abs(w / h - WIDE) / WIDE <= TOLERANCE;
 }
 
-export default function CoverImage({ src, ratio = '16 / 9', radius = 0, alt = '' }) {
+export default function CoverImage({ src, ratio = '16 / 9', radius = 0, alt = '', lazy = false }) {
   // null until the picture has loaded and we know its real shape.
   const [fits, setFits] = useState(null);
 
@@ -56,6 +56,7 @@ export default function CoverImage({ src, ratio = '16 / 9', radius = 0, alt = ''
             ref={measure}
             src={src}
             alt={alt}
+            {...(lazy ? { loading: 'lazy', decoding: 'async' } : {})}
             onLoad={(e) => measure(e.currentTarget)}
             style={{
               position: 'absolute',
