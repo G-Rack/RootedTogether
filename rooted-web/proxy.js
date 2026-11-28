@@ -11,7 +11,9 @@ import { CONSENT_COUNTRIES, REGION_COOKIE } from './lib/tracking';
 const OPEN = [
   /^\/_next\//,
   /^\/(privacy|terms|child-safety)\/?$/,
-  /^\/api\/(gate|waitlist|gift|free-lesson)$/,
+  /^\/api\/(gate|waitlist|gift|free-lesson|funnel)$/,
+  /^\/(lesson-1|night-1)\/?$/,
+  /^\/audio\//,
   /^\/gift(\/pdf)?\/?$/,
   /^\/creators\/?$/,
   /^\/advisor\/?$/,

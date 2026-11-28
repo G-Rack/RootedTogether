@@ -27,7 +27,7 @@ function UnsubscribeInner() {
   }
 
   let title = 'Unsubscribe';
-  let message = `Stop marketing emails to ${email}? You will still get emails about your account and purchases.`;
+  let message = `Press the button below to confirm that you want to stop marketing emails to ${email}. You will still get emails about your account and purchases.`;
   if (invalid) {
     title = 'Link not valid';
     message = 'This unsubscribe link is not valid. Please use the link in the most recent email, or reply to it and we will remove you.';
@@ -45,7 +45,7 @@ function UnsubscribeInner() {
         <p className="muted" style={{ margin: '12px 0 24px', fontSize: 15.5, lineHeight: 1.6 }}>{message}</p>
         {!invalid && state !== 'done' && (
           <button type="button" className="btn btn-primary" onClick={unsubscribe} disabled={state === 'working'}>
-            {state === 'working' ? 'Working...' : 'Unsubscribe'}
+            {state === 'working' ? 'Working...' : 'Click to confirm unsubscribe'}
           </button>
         )}
       </div>

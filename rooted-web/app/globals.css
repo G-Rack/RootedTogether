@@ -916,3 +916,18 @@ a.sf-connect-row:hover, button.sf-connect-row:hover { background: #F7EFE4; color
   .offer-bottom-space { display: block; height: 76px; }
 }
 @media (prefers-reduced-motion: reduce) { .offer-sticky-bar { transition: none; } }
+
+/* ===== Free-sample pages (/lesson-1 and /night-1) ================================= */
+.funnel { max-width: 560px; margin: 0 auto; padding: 14px 16px 56px; }
+.funnel-cover {
+  position: relative; display: block; width: 100%; padding: 0; border: 0; background: none;
+  border-radius: 16px; overflow: hidden; cursor: pointer; box-shadow: 0 6px 22px rgba(43, 33, 24, 0.12);
+}
+.funnel-play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 68px; height: 68px; border-radius: 999px; background: rgba(107, 66, 38, 0.92);
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.funnel-h1 { font-size: clamp(25px, 6.4vw, 33px); line-height: 1.14; color: var(--brown); margin: 16px 0 0; font-weight: 700; }
+.funnel-offer { margin-top: 28px; padding: 22px 20px; border: 1px solid rgba(107, 66, 38, 0.14); border-radius: 18px; }

@@ -24,9 +24,9 @@ export default function Header() {
   const isHome = pathname === '/';
   // On /login the page itself already offers Log In and Sign Up, so a signed-out visitor only gets a "Back to the marketplace" button up here.
   const hideAuthButtons = pathname === '/login' && !session;
-  // Offering pages are where ad visitors land. For anyone not signed in the top bar is just the logo, so
+  // Offering pages (and the free-sample pages /lesson-1 and /night-1) are where ad visitors land. For anyone not signed in the top bar is just the logo, so
   // there is nothing to tap except Buy. (While the sign-in check runs, session is empty too, so nothing flashes.)
-  const logoOnly = !!pathname && pathname.startsWith('/offering/') && !session;
+  const logoOnly = !!pathname && (pathname.startsWith('/offering/') || pathname === '/lesson-1' || pathname === '/night-1') && !session;
   // Creators have a storefront avatar (public bucket); Seekers/Assistants
   // have a profile picture from /complete-profile instead (private bucket,
   // already resolved to a signed URL by SessionProvider).
